@@ -1,0 +1,82 @@
+openapi: 3.0.3
+info:
+  title: FAIRmodels API specification
+  description: |-
+    This is the API specification to execute an AI model. The actual API is embedded in the (Docker) container, which will execute the AI model itself.
+  contact:
+    email: j.vansoest@maastrichtuniversity.nl
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+externalDocs:
+  description: Find out more FAIRmodels
+  url: https://www.fairmodels.org
+paths:
+  /:
+    get:
+      summary: Get the list of models available on this API
+      description: Get the list of models available on this API
+      operationId: getModels
+      responses:
+        '200':
+          description: Succesful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models'
+  /predict:
+    post:
+      summary: Execute the prediction model for a given (set of) patients
+      description: Execute the prediction model for a given (set of) patients
+      operationId: executeModel
+      requestBody:
+        required: true
+        description: Information input needed for model execution
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelInput'
+      responses:
+        '200':
+          description: Succesful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: number
+                  description: probability of the predicted outcome
+components:
+  schemas:
+    ModelInput:
+      type: array
+      items:
+        type: object
+        properties:
+          "<variable_name_a>":
+            type: number
+          "<variable_name_b>":
+            type: number
+          "<variable_name_c>":
+            type: number
+    Models:
+      type: array
+      items:
+        type: object
+        properties:
+          model_uri:
+            type: string
+            description: The URL of the FAIRmodel metadata
+          model_name:
+            type: string
+            description: Name of the AI model
+          path:
+            type: string
+            description: Path on this base url to execute the AI model
+          path_parameters:
+            type: array
+            items:
+              type: string
+              description: Name of the input parameters for model execution
+                

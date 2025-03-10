@@ -1,0 +1,70 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Windows
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor-specific files
+# VS Code
+.vscode/
+*.code-workspace
+
+# Vim
+*.swp
+*.swo
+*.swn
+*.un~
+
+# Emacs
+*~
+\#*\#
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# JetBrains
+*.idea/
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.old
+
+# Package managers
+node_modules/
+.env
+.env.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist/
+build/
+out/
+*.class
+*.pyc
+*.pyo
+*.o
+*.obj
+*.so
+
+# Dependency directories
+vendor/
+cline_docs
+.clinerules
