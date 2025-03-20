@@ -2,7 +2,6 @@
 	import { run } from 'svelte/legacy';
 
 	import { isMenuOpen, closeMenu, openMenu } from '$lib/stores/menu.store';
-	import FeedbackButton from '$lib/components/ui/feedback/FeedbackButton.svelte';
 	import { onMount } from 'svelte';
 
 	let containerElement: HTMLElement = $state();
@@ -97,8 +96,6 @@
 		class="bg-base-100 fixed bottom-0 left-0 top-0 z-50 grid w-64 grid-rows-[1fr_auto] overflow-hidden p-4 shadow-lg sm:hidden"
 	>
 		<div class="flex-1 overflow-y-auto pt-16">Content here</div>
-
-		<FeedbackButton />
 	</nav>
 
 	<!-- Clickable area to close menu when open -->
