@@ -39,6 +39,8 @@ export const MAP_STYLES: MapStyle[] = [
     description: 'Detailed street map'
   },
 
+
+
   // Satellite & Terrain from MapTiler
   {
     id: 'satellite',
@@ -53,6 +55,13 @@ export const MAP_STYLES: MapStyle[] = [
     url: getMapTilerURL('https://api.maptiler.com/maps/hybrid/style.json'),
     category: MapStyleCategory.TERRAIN,
     description: 'Satellite with labels'
+  },
+  {
+    id: 'terrain',
+    name: 'Terrain',
+    url: getMapTilerURL('https://api.maptiler.com/maps/topographique/style.json'),
+    category: MapStyleCategory.TERRAIN,
+    description: 'Elevation with terrain visualization'
   },
 
   // Themes
