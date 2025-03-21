@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-	import type { Map } from 'maplibre-gl';
+	import maplibregl, { type Map } from 'maplibre-gl';
 	import {
 		pointsData,
 		filteredPointsData,
@@ -22,333 +22,159 @@
 
 	// Event dispatcher for selected point
 	const dispatch = createEventDispatcher();
-	let hoveredId: number | null = null;
 	let layerAdded = false;
-	let needsFilterUpdate = false;
 
-	// Track selection changes to update filters
-	$: if ($selectedPathogens || $selectedAgeGroups || $selectedSyndromes) {
-		if (layerAdded) {
-			needsFilterUpdate = true;
-		}
-	}
+	// ===== MAIN RENDERING APPROACH =====
 
-	// Reactively apply map updates
-	$: if (map && $pointsData.features.length > 0 && map.loaded()) {
-		addMapLayer();
-	}
+	// Track if we've already added points to avoid duplicates
+	let pointsAdded = false;
 
-	$: if (map && needsFilterUpdate && layerAdded) {
-		updateFilters();
-		needsFilterUpdate = false;
-	}
+	// Add points when component mounts or when map becomes available
+	function addPointsToMap() {
+		// Only add points if map exists, is loaded, and we have data
+		if (!map || !map.loaded() || !$pointsData.features.length) return;
 
-	// Wait for the map and data to be ready, then add the layer
-	function addMapLayer() {
-		if (!map || !map.loaded()) return;
+		// Do nothing if points are already added
+		if (pointsAdded) return;
 
-		// Check if source exists
-		let sourceExists = false;
-		try {
-			sourceExists = !!map.getSource(sourceId);
-		} catch (e) {
-			sourceExists = false;
-		}
-
-		// Add or update source
-		if (!sourceExists) {
-			try {
-				// Add source with appropriate configuration
-				if (clusterPointsAtZoomLevels) {
-					map.addSource(sourceId, {
-						type: 'geojson',
-						data: $pointsData,
-						cluster: true,
-						clusterMaxZoom: 12, // Maximum zoom to cluster points
-						clusterRadius: 50 // Radius of each cluster
-					});
-				} else {
-					map.addSource(sourceId, {
-						type: 'geojson',
-						data: $pointsData
-					});
-				}
-				console.log(`Added source with ${$pointsData.features.length} features`);
-			} catch (error) {
-				console.error('Error adding source:', error);
-				return;
-			}
-		} else {
-			// Update source data
-			try {
-				const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
-				source.setData($pointsData);
-			} catch (error) {
-				console.error('Error updating source:', error);
-			}
-		}
-
-		// Check if layer exists
-		let layerExists = false;
-		try {
-			layerExists = !!map.getLayer(layerId);
-		} catch (e) {
-			layerExists = false;
-		}
-
-		// Add layer if it doesn't exist
-		if (!layerExists) {
-			try {
-				// Add main points layer
-				map.addLayer({
-					id: layerId,
-					type: 'circle',
-					source: sourceId,
-					filter: clusterPointsAtZoomLevels ? ['!', ['has', 'point_count']] : undefined,
-					paint: {
-						// Circle radius based on zoom level and prevalence
-						'circle-radius': [
-							'interpolate',
-							['linear'],
-							['zoom'],
-							2,
-							3, // At zoom level 2, radius is 3px
-							5,
-							5, // At zoom level 5, radius is 5px
-							10,
-							8 // At zoom level 10, radius is 8px
-						],
-						// Color based on pathogen, with hover effect
-						'circle-color': [
-							'case',
-							['boolean', ['feature-state', 'hover'], false],
-							'#ff0000', // Hover color
-							['match', ['get', 'pathogen'], ...getColorMatchExpressions()]
-						],
-						'circle-opacity': 0.8,
-						'circle-stroke-width': ['case', ['boolean', ['feature-state', 'hover'], false], 2, 1],
-						'circle-stroke-color': '#ffffff'
-					}
-				});
-
-				// If clustering is enabled, add cluster layers
-				if (clusterPointsAtZoomLevels) {
-					// Add cluster circles
-					map.addLayer({
-						id: `${layerId}-clusters`,
-						type: 'circle',
-						source: sourceId,
-						filter: ['has', 'point_count'],
-						paint: {
-							'circle-color': [
-								'step',
-								['get', 'point_count'],
-								'#51bbd6', // Small clusters
-								100,
-								'#f1f075', // Medium clusters
-								750,
-								'#f28cb1' // Large clusters
-							],
-							'circle-radius': [
-								'step',
-								['get', 'point_count'],
-								20, // Radius for small clusters
-								100,
-								30, // Radius for medium clusters
-								750,
-								40 // Radius for large clusters
-							],
-							'circle-opacity': 0.7,
-							'circle-stroke-width': 1,
-							'circle-stroke-color': '#ffffff'
-						}
-					});
-
-					// Add cluster count labels
-					map.addLayer({
-						id: `${layerId}-cluster-count`,
-						type: 'symbol',
-						source: sourceId,
-						filter: ['has', 'point_count'],
-						layout: {
-							'text-field': '{point_count_abbreviated}',
-							'text-font': ['Arial Unicode MS Bold'],
-							'text-size': 12
-						},
-						paint: {
-							'text-color': '#ffffff'
-						}
-					});
-				}
-
-				// Setup mouse events for interactivity
-				setupMapEvents();
-				layerAdded = true;
-				needsFilterUpdate = true;
-			} catch (error) {
-				console.error('Error adding layers:', error);
-			}
-		}
-
-		// Apply filters
-		if (needsFilterUpdate) {
-			updateFilters();
-			needsFilterUpdate = false;
-		}
-	}
-
-	// Helper function to create the MapLibre match expressions for coloring points by pathogen
-	function getColorMatchExpressions() {
-		const expressions = [];
-
-		// Add each pathogen/color pair
-		$pathogenColors.forEach((color, pathogen) => {
-			expressions.push(pathogen, color);
-		});
-
-		// Add default color at the end
-		expressions.push('#000000');
-
-		return expressions;
-	}
-
-	// Update the map layer filters based on selected values
-	function updateFilters() {
-		if (!map || !layerAdded) return;
+		// Mark that we're adding points to prevent duplicates
+		pointsAdded = true;
 
 		try {
-			// Get optimized filter expression
-			const filterExpression = getMaplibreFilterExpression();
+			console.log('Adding points to map...');
 
-			// Apply filter to main layer
-			if (map.getLayer(layerId)) {
-				map.setFilter(
-					layerId,
-					clusterPointsAtZoomLevels
-						? ['all', ['!', ['has', 'point_count']], ...filterExpression.slice(1)]
-						: filterExpression
-				);
-			}
+			// Create the GeoJSON source with our data
+			map.addSource('points-source', {
+				type: 'geojson',
+				data: $pointsData
+			});
 
-			// If using clusters, also update cluster source data to reflect the filtering
-			if (clusterPointsAtZoomLevels) {
-				// For clusters, we need to filter the source data
-				const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
-				source.setData($filteredPointsData);
-			}
-
-			console.log('Filters updated:', filterExpression);
-		} catch (error) {
-			console.error('Error updating filters:', error);
-		}
-	}
-
-	// Setup mouse events for interactivity
-	function setupMapEvents() {
-		if (!map) return;
-
-		// Hover effect for points
-		map.on('mousemove', layerId, (e) => {
-			if (e.features && e.features.length > 0) {
-				if (hoveredId !== null) {
-					map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: false });
+			// Add a circle layer for the points
+			map.addLayer({
+				id: 'points-layer',
+				type: 'circle',
+				source: 'points-source',
+				paint: {
+					'circle-radius': 5,
+					'circle-color': '#ff3300',
+					'circle-opacity': 0.8,
+					'circle-stroke-width': 1,
+					'circle-stroke-color': '#ffffff'
 				}
+			});
 
-				hoveredId = e.features[0].id as number;
-				map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: true });
-
-				// Change cursor to pointer
-				map.getCanvas().style.cursor = 'pointer';
-			}
-		});
-
-		// Reset hover effect when mouse leaves
-		map.on('mouseleave', layerId, () => {
-			if (hoveredId !== null) {
-				map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: false });
-				hoveredId = null;
-				map.getCanvas().style.cursor = '';
-			}
-		});
-
-		// Click handler for points - show details
-		map.on('click', layerId, (e) => {
-			if (e.features && e.features.length > 0) {
-				const feature = e.features[0];
-				const coordinates = feature.geometry.coordinates.slice() as [number, number];
-				const properties = feature.properties;
-
-				// Dispatch event with point data to show popup
-				dispatch('pointclick', {
-					feature,
-					coordinates,
-					properties
-				});
-			}
-		});
-
-		// If clustering is enabled, add cluster click handling
-		if (clusterPointsAtZoomLevels) {
-			// Click handler for clusters - zoom in
-			map.on('click', `${layerId}-clusters`, (e) => {
+			// Set up point click handling
+			map.on('click', 'points-layer', (e: any) => {
 				if (e.features && e.features.length > 0) {
 					const feature = e.features[0];
-					const clusterId = feature.properties.cluster_id;
-					const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
+					const coordinates = feature.geometry.coordinates.slice();
+					const properties = feature.properties;
 
-					// Zoom to the cluster
-					(source as any).getClusterExpansionZoom(clusterId, (err: any, zoom: number) => {
-						if (err) return;
-
-						map.easeTo({
-							center: (feature.geometry as any).coordinates,
-							zoom: zoom
-						});
+					dispatch('pointclick', {
+						feature,
+						coordinates,
+						properties
 					});
 				}
 			});
 
-			// Cursor handling for clusters
-			map.on('mouseenter', `${layerId}-clusters`, () => {
+			// Change cursor on hover
+			map.on('mouseenter', 'points-layer', () => {
 				map.getCanvas().style.cursor = 'pointer';
 			});
 
-			map.on('mouseleave', `${layerId}-clusters`, () => {
+			map.on('mouseleave', 'points-layer', () => {
 				map.getCanvas().style.cursor = '';
 			});
+
+			// Set up style change handler
+			map.on('styledata', handleStyleChange);
+
+			console.log(`Successfully added ${$pointsData.features.length} points to map`);
+			layerAdded = true;
+		} catch (error) {
+			console.error('Error adding points to map:', error);
+			// Reset flag so we can try again
+			pointsAdded = false;
 		}
 	}
 
-	// Clean up on destroy
-	onDestroy(() => {
-		if (map) {
-			// Remove all event listeners
-			map.off('mousemove', layerId);
-			map.off('mouseleave', layerId);
-			map.off('click', layerId);
+	// Define a new style change handler that can be bound properly
+	function handleStyleChange() {
+		console.log('Style change detected, will re-add points once style is loaded');
 
-			if (clusterPointsAtZoomLevels) {
-				map.off('click', `${layerId}-clusters`);
-				map.off('mouseenter', `${layerId}-clusters`);
-				map.off('mouseleave', `${layerId}-clusters`);
+		// Remove the old handler to avoid duplicates
+		if (map) {
+			map.off('styledata', handleStyleChange);
+		}
+
+		// Reset point-added flag to allow re-adding
+		pointsAdded = false;
+
+		// Add the points back after style is loaded with more generous timeout
+		setTimeout(() => {
+			console.log('Attempting to re-add points after style change');
+			if (map && map.loaded()) {
+				try {
+					addPointsToMap();
+				} catch (e) {
+					console.error('Error re-adding points after style change:', e);
+
+					// Try again if first attempt fails - sometimes needed
+					setTimeout(() => {
+						console.log('Second attempt to add points after style change');
+						if (map && map.loaded()) {
+							addPointsToMap();
+						}
+					}, 500);
+				}
 			}
 
-			// Remove all layers and source
+			// Re-add the style change handler for future style changes
+			if (map) {
+				map.on('styledata', handleStyleChange);
+			}
+		}, 800); // More time to ensure style is properly loaded
+	}
+
+	// Add points when map is provided and data loads
+	$: if (map && $pointsData.features.length > 0 && !pointsAdded) {
+		console.log('Map and data available - initial attempt to add points');
+		addPointsToMap();
+
+		// Also add the style change handler
+		if (map) {
+			console.log('Setting up style change handler');
+			map.on('styledata', handleStyleChange);
+		}
+	}
+
+	// Also try once on mount as a backup
+	onMount(() => {
+		console.log('Component mounted - backup attempt to add points');
+		setTimeout(() => {
+			if (map && !pointsAdded && $pointsData.features.length > 0) {
+				addPointsToMap();
+			}
+		}, 800);
+	});
+
+	// Cleanup on component destruction
+	onDestroy(() => {
+		if (map) {
+			// Remove event listeners
+			map.off('click', 'points-layer');
+			map.off('mouseenter', 'points-layer');
+			map.off('mouseleave', 'points-layer');
+			map.off('styledata', handleStyleChange);
+
+			// Remove layers and sources
 			try {
-				if (clusterPointsAtZoomLevels && map.getLayer(`${layerId}-cluster-count`)) {
-					map.removeLayer(`${layerId}-cluster-count`);
+				if (map.getLayer('points-layer')) {
+					map.removeLayer('points-layer');
 				}
-
-				if (clusterPointsAtZoomLevels && map.getLayer(`${layerId}-clusters`)) {
-					map.removeLayer(`${layerId}-clusters`);
-				}
-
-				if (map.getLayer(layerId)) {
-					map.removeLayer(layerId);
-				}
-
-				if (map.getSource(sourceId)) {
-					map.removeSource(sourceId);
+				if (map.getSource('points-source')) {
+					map.removeSource('points-source');
 				}
 			} catch (error) {
 				console.error('Error cleaning up map resources:', error);

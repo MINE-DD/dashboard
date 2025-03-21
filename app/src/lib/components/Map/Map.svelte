@@ -10,14 +10,14 @@
 		type MapStyle
 	} from './MapStyles';
 	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
-	import { loadPointsData, isLoading, dataError } from '$lib/components/Map/store';
+	import { loadPointsData, isLoading, dataError, pointsData } from '$lib/components/Map/store';
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
 
 	// Props that can be passed to the component
-	export let initialCenter: [number, number] = [0, 0]; // Default center coordinates [lng, lat]
-	export let initialZoom: number = 2; // Default zoom level
+	export let initialCenter: [number, number] = [30, 0]; // Default center coordinates [lng, lat]
+	export let initialZoom: number = 3; // Default zoom level
 	export let initialStyleId: string | null = null; // Optional style ID to use
 	export let pointDataUrl: string = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
@@ -36,9 +36,14 @@
 		if (map) {
 			// Update the store
 			selectedMapStyle.set(style);
+			console.log('Changing style to:', style.name, style.url);
 
 			// Apply the style to the map
-			map.setStyle(style.url);
+			try {
+				map.setStyle(style.url);
+			} catch (error) {
+				console.error('Error setting style:', error);
+			}
 		}
 	};
 
@@ -53,15 +58,85 @@
 	// Initialize map and controls
 	onMount(async () => {
 		if (mapContainer) {
-			// Get the initial style from props or store
-			const startStyle = initialStyleId ? getStyleById(initialStyleId) : $selectedMapStyle;
+			// Instead of using a custom style, use a guaranteed working style
+			console.log('Creating map with OSM style');
 
-			map = new maplibregl.Map({
-				container: mapContainer,
-				style: startStyle.url,
-				center: initialCenter,
-				zoom: initialZoom
-			});
+			try {
+				// Create map with an OSM style that should definitely work
+				map = new maplibregl.Map({
+					container: mapContainer,
+					style: 'https://demotiles.maplibre.org/style.json', // Use direct MapLibre OSM style
+					center: [28.4, -15.0], // Focus on area where points are located
+					zoom: 4 // Zoom in a bit closer to the points
+				});
+
+				// Log the map object for debugging
+				console.log('Map object:', map);
+
+				// Wait for map to load before setting up event handlers
+				map.on('load', () => {
+					console.log('Map loaded event fired');
+
+					// Set flag that map is ready
+					isStyleLoaded = true;
+
+					// Force explicit data loading AFTER map is ready
+					loadPointsData(pointDataUrl);
+
+					// Set up a delayed attempt to ensure points are added
+					const ensurePointsAdded = () => {
+						try {
+							// If points data already loaded
+							if ($pointsData.features.length > 0) {
+								console.log('Attempting to ensure points are visible on map (delayed check)');
+
+								// Add a test point directly to confirm map works
+								if (!map.getSource('direct-source')) {
+									map.addSource('direct-source', {
+										type: 'geojson',
+										data: {
+											type: 'FeatureCollection',
+											features: [
+												{
+													type: 'Feature',
+													geometry: {
+														type: 'Point',
+														coordinates: [28.4, -15.0]
+													},
+													properties: {
+														title: 'Test Point'
+													}
+												}
+											]
+										}
+									});
+
+									map.addLayer({
+										id: 'direct-layer',
+										type: 'circle',
+										source: 'direct-source',
+										paint: {
+											'circle-radius': 12,
+											'circle-color': '#ff0000'
+										}
+									});
+
+									console.log('Added direct test point (from delayed handler)');
+								}
+							}
+						} catch (e) {
+							console.error('Error in delayed points check:', e);
+						}
+					};
+
+					// Try multiple times with increasing delays to handle race conditions
+					setTimeout(ensurePointsAdded, 500);
+					setTimeout(ensurePointsAdded, 1500);
+					setTimeout(ensurePointsAdded, 3000);
+				});
+			} catch (error) {
+				console.error('Error initializing map:', error);
+			}
 
 			// Add navigation control (zoom buttons)
 			map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
@@ -78,17 +153,83 @@
 			// Load data
 			loadPointsData(pointDataUrl);
 
-			// You can add event listeners here if needed
+			// When map is loaded, check if data is ready and force layer creation
 			map.on('load', () => {
 				// Map has finished loading
 				console.log('Map loaded');
 				isStyleLoaded = true;
+
+				// If there's data but the layer isn't showing up, log details
+				if ($pointsData.features.length > 0) {
+					console.log('Data ready at map load, features:', $pointsData.features.length);
+					console.log(
+						'Sample coordinates:',
+						$pointsData.features.slice(0, 3).map((f) => f.geometry.coordinates)
+					);
+				}
 			});
 
-			// Handle style changes
+			// Handle style changes - make sure to re-add data points when style changes
 			map.on('styledata', () => {
+				console.log('Style data event - map style changed');
 				isStyleLoaded = true;
-				// Re-add any custom layers that might be needed after style change
+
+				// Re-add the test point when style changes
+				if (map.loaded()) {
+					setTimeout(() => {
+						try {
+							// First check if source already exists
+							let sourceExists = false;
+							try {
+								sourceExists = !!map.getSource('direct-source');
+							} catch (e) {
+								sourceExists = false;
+							}
+
+							if (!sourceExists) {
+								// Re-add source after style change
+								map.addSource('direct-source', {
+									type: 'geojson',
+									data: {
+										type: 'FeatureCollection',
+										features: [
+											{
+												type: 'Feature',
+												geometry: {
+													type: 'Point',
+													coordinates: [28.4, -15.0]
+												},
+												properties: {
+													title: 'Test Point'
+												}
+											}
+										]
+									}
+								});
+
+								// Re-add layer
+								map.addLayer({
+									id: 'direct-layer',
+									type: 'circle',
+									source: 'direct-source',
+									paint: {
+										'circle-radius': 10,
+										'circle-color': '#ff0000'
+									}
+								});
+
+								console.log('Re-added test point after style change');
+							}
+
+							// Also re-add the actual data points by triggering MapLayer
+							if ($pointsData.features.length > 0) {
+								isStyleLoaded = true;
+							}
+						} catch (e) {
+							console.error('Error re-adding layers after style change:', e);
+						}
+					}, 500); // Give the style time to load
+				}
 			});
 		}
 	});
@@ -101,8 +242,19 @@
 </script>
 
 <div class="map-wrapper relative h-full w-full">
+	<!-- Debug text -->
+	<div class="absolute bottom-2 left-2 z-50 rounded bg-white p-2 shadow">
+		<p class="text-sm font-bold">Debug: Map State</p>
+		<p class="text-xs">Map initialized: {!!map}</p>
+		<p class="text-xs">Data points: {$pointsData.features.length}</p>
+		<p class="text-xs">Style loaded: {isStyleLoaded}</p>
+	</div>
+
 	<!-- Map Container -->
-	<div bind:this={mapContainer} class="map-container h-full w-full"></div>
+	<div
+		bind:this={mapContainer}
+		class="map-container h-full w-full border-2 border-red-500 bg-gray-200"
+	></div>
 
 	<!-- Map Controls -->
 	<div class="map-top-controls absolute left-2 top-10 z-10">
