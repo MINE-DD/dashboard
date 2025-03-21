@@ -64,7 +64,7 @@
 			});
 
 			// Add navigation control (zoom buttons)
-			map.addControl(new maplibregl.NavigationControl(), 'top-right');
+			map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
 			// Add scale control
 			map.addControl(
@@ -105,7 +105,7 @@
 	<div bind:this={mapContainer} class="map-container h-full w-full"></div>
 
 	<!-- Map Controls -->
-	<div class="map-top-controls absolute left-2 top-2 z-10">
+	<div class="map-top-controls absolute left-2 top-10 z-10">
 		<div class="dropdown dropdown-bottom">
 			<label tabindex="0" class="btn btn-sm m-1">Map Style</label>
 			<ul
@@ -129,28 +129,16 @@
 		</div>
 	</div>
 
-	<!-- Attribution -->
-	<div class="attribution absolute bottom-1 right-1 z-10 text-xs opacity-70">
-		<span>
-			Point data visualization
-			<a
-				href="https://github.com/maplibre/maplibre-gl-js"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="text-blue-600 hover:underline"
-			>
-				MapLibre GL
-			</a>
-		</span>
-	</div>
-
 	<!-- Map Components -->
 	{#if map && isStyleLoaded}
 		<MapLayer {map} on:pointclick={handlePointClick} />
 	{/if}
 
 	<!-- Map Sidebar with filters -->
-	<MapSidebar />
+
+	<div class="absolute right-20 top-10">
+		<MapSidebar />
+	</div>
 
 	<!-- Point Popover for details -->
 	{#if map && showPopover && popoverCoordinates && popoverProperties}

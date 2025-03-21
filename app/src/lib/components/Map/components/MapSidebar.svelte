@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { slide } from 'svelte/transition';
 	import {
 		pathogens,
 		ageGroups,
@@ -16,7 +15,6 @@
 
 	// Sidebar configuration
 	let collapsed = false;
-	let activeAccordion: 'pathogens' | 'age-groups' | 'syndromes' | null = 'pathogens';
 
 	// Stats for selected filters
 	$: visiblePoints = $filteredPointsData.features.length;
@@ -50,11 +48,6 @@
 		clearFilterCache();
 	}
 
-	// Helper to toggle accordion sections
-	function toggleAccordion(section: 'pathogens' | 'age-groups' | 'syndromes') {
-		activeAccordion = activeAccordion === section ? null : section;
-	}
-
 	// Clear all active filters
 	function clearAllFilters() {
 		$selectedPathogens = new Set();
@@ -62,15 +55,33 @@
 		$selectedSyndromes = new Set();
 		clearFilterCache();
 	}
+
+	// Handle multiple select change
+	function handleMultipleSelect(event: Event, category: 'pathogens' | 'ageGroups' | 'syndromes') {
+		const select = event.target as HTMLSelectElement;
+		const selectedOptions = Array.from(select.selectedOptions).map((option) => option.value);
+
+		if (category === 'pathogens') {
+			$selectedPathogens = new Set(selectedOptions);
+		} else if (category === 'ageGroups') {
+			$selectedAgeGroups = new Set(selectedOptions);
+		} else if (category === 'syndromes') {
+			$selectedSyndromes = new Set(selectedOptions);
+		}
+
+		clearFilterCache();
+	}
 </script>
 
-<div class="map-sidebar {collapsed ? 'collapsed' : ''}">
+<div
+	class="bg-base-100 flex max-h-[calc(100%-20px)] w-80 max-w-[90%] flex-col overflow-hidden rounded-lg shadow-md transition-all duration-300"
+>
 	<!-- Sidebar header with toggle button -->
-	<div class="sidebar-header">
-		<div class="header-content">
-			<h2>Data Explorer</h2>
+	<div class="bg-base-100 border-base-200 z-10 border-b p-3">
+		<div class="flex items-center justify-between">
+			<h2 class="text-base-content m-0 text-lg font-medium">Data Explorer</h2>
 			<button
-				class="toggle-button"
+				class="btn btn-sm btn-ghost btn-square"
 				on:click={() => (collapsed = !collapsed)}
 				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 			>
@@ -84,6 +95,7 @@
 					stroke-width="2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
+					class="h-5 w-5"
 				>
 					{#if collapsed}
 						<polyline points="9 18 15 12 9 6"></polyline>
@@ -96,18 +108,20 @@
 
 		{#if !collapsed}
 			{#if $isLoading}
-				<div class="loading-indicator">
-					<div class="spinner"></div>
+				<div class="text-base-content/70 mt-2 flex items-center gap-2 text-sm">
+					<span class="loading loading-spinner loading-xs"></span>
 					<span>Loading data...</span>
 				</div>
 			{:else if $dataError}
-				<div class="error-message">Error: {$dataError}</div>
+				<div class="text-error mt-2 text-sm">Error: {$dataError}</div>
 			{:else if totalPoints > 0}
-				<div class="data-summary">
-					<div class="point-count">
+				<div class="text-base-content/70 mt-2 text-sm">
+					<div class="flex items-center justify-between">
 						{visiblePoints} of {totalPoints} points
 						{#if hasActiveFilters}
-							<button class="clear-filters-button" on:click={clearAllFilters}>Clear filters</button>
+							<button class="btn btn-xs btn-ghost text-primary" on:click={clearAllFilters}>
+								Clear filters
+							</button>
 						{/if}
 					</div>
 				</div>
@@ -117,177 +131,121 @@
 
 	{#if !collapsed}
 		<!-- Filter sections -->
-		<div class="filter-content">
+		<div class="flex-1 overflow-y-auto p-3 pt-0">
 			<!-- Pathogens Filter -->
-			<div class="filter-section">
-				<div
-					class="section-header {activeAccordion === 'pathogens' ? 'active' : ''}"
-					on:click={() => toggleAccordion('pathogens')}
-				>
-					<h3>
+			<div class="form-control my-2 w-full">
+				<label class="label">
+					<span class="label-text flex items-center font-medium">
 						Pathogens
 						{#if selectedPathogenCount > 0}
-							<span class="filter-badge">{selectedPathogenCount}</span>
+							<span class="badge badge-primary badge-sm ml-2">{selectedPathogenCount}</span>
 						{/if}
-					</h3>
-					<span class="accordion-icon">
-						{activeAccordion === 'pathogens' ? '−' : '+'}
 					</span>
+				</label>
+				<select
+					class="select select-bordered select-sm w-full"
+					multiple
+					size={Math.min(5, $pathogens.size)}
+					on:change={(e) => handleMultipleSelect(e, 'pathogens')}
+				>
+					{#each Array.from($pathogens).sort() as pathogen}
+						<option value={pathogen} selected={$selectedPathogens.has(pathogen)}>
+							{pathogen}
+						</option>
+					{/each}
+				</select>
+				<div class="mt-1 flex justify-between">
+					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('pathogens', true)}>
+						Select All
+					</button>
+					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('pathogens', false)}>
+						Clear
+					</button>
 				</div>
-
-				{#if activeAccordion === 'pathogens'}
-					<div class="filter-body" transition:slide={{ duration: 200 }}>
-						<div class="select-all-row">
-							<label class="select-all-label">
-								<input
-									type="checkbox"
-									checked={selectedPathogenCount === $pathogens.size && $pathogens.size > 0}
-									indeterminate={selectedPathogenCount > 0 &&
-										selectedPathogenCount < $pathogens.size}
-									on:change={(e) => toggleAll('pathogens', e.currentTarget.checked)}
-								/>
-								<span>Select All</span>
-							</label>
-						</div>
-
-						<div class="filter-items">
-							{#each Array.from($pathogens).sort() as pathogen}
-								<div class="filter-item">
-									<label class="checkbox-label">
-										<input
-											type="checkbox"
-											checked={$selectedPathogens.has(pathogen)}
-											on:change={() =>
-												($selectedPathogens = toggleSelection($selectedPathogens, pathogen))}
-										/>
-										<span
-											class="color-marker"
-											style="background-color: {$pathogenColors.get(pathogen) || '#000000'}"
-										></span>
-										<span class="label-text">{pathogen}</span>
-									</label>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
 			</div>
 
 			<!-- Age Groups Filter -->
-			<div class="filter-section">
-				<div
-					class="section-header {activeAccordion === 'age-groups' ? 'active' : ''}"
-					on:click={() => toggleAccordion('age-groups')}
-				>
-					<h3>
+			<div class="form-control my-2 w-full">
+				<label class="label">
+					<span class="label-text flex items-center font-medium">
 						Age Groups
 						{#if selectedAgeGroupCount > 0}
-							<span class="filter-badge">{selectedAgeGroupCount}</span>
+							<span class="badge badge-primary badge-sm ml-2">{selectedAgeGroupCount}</span>
 						{/if}
-					</h3>
-					<span class="accordion-icon">
-						{activeAccordion === 'age-groups' ? '−' : '+'}
 					</span>
+				</label>
+				<select
+					class="select select-bordered select-sm w-full"
+					multiple
+					size={Math.min(5, $ageGroups.size)}
+					on:change={(e) => handleMultipleSelect(e, 'ageGroups')}
+				>
+					{#each Array.from($ageGroups).sort() as ageGroup}
+						<option value={ageGroup} selected={$selectedAgeGroups.has(ageGroup)}>
+							{ageGroup}
+						</option>
+					{/each}
+				</select>
+				<div class="mt-1 flex justify-between">
+					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('ageGroups', true)}>
+						Select All
+					</button>
+					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('ageGroups', false)}>
+						Clear
+					</button>
 				</div>
-
-				{#if activeAccordion === 'age-groups'}
-					<div class="filter-body" transition:slide={{ duration: 200 }}>
-						<div class="select-all-row">
-							<label class="select-all-label">
-								<input
-									type="checkbox"
-									checked={selectedAgeGroupCount === $ageGroups.size && $ageGroups.size > 0}
-									indeterminate={selectedAgeGroupCount > 0 &&
-										selectedAgeGroupCount < $ageGroups.size}
-									on:change={(e) => toggleAll('ageGroups', e.currentTarget.checked)}
-								/>
-								<span>Select All</span>
-							</label>
-						</div>
-
-						<div class="filter-items">
-							{#each Array.from($ageGroups).sort() as ageGroup}
-								<div class="filter-item">
-									<label class="checkbox-label">
-										<input
-											type="checkbox"
-											checked={$selectedAgeGroups.has(ageGroup)}
-											on:change={() =>
-												($selectedAgeGroups = toggleSelection($selectedAgeGroups, ageGroup))}
-										/>
-										<span class="label-text">{ageGroup}</span>
-									</label>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
 			</div>
 
 			<!-- Syndromes Filter -->
-			<div class="filter-section">
-				<div
-					class="section-header {activeAccordion === 'syndromes' ? 'active' : ''}"
-					on:click={() => toggleAccordion('syndromes')}
-				>
-					<h3>
+			<div class="form-control my-2 w-full">
+				<label class="label">
+					<span class="label-text flex items-center font-medium">
 						Syndromes
 						{#if selectedSyndromeCount > 0}
-							<span class="filter-badge">{selectedSyndromeCount}</span>
+							<span class="badge badge-primary badge-sm ml-2">{selectedSyndromeCount}</span>
 						{/if}
-					</h3>
-					<span class="accordion-icon">
-						{activeAccordion === 'syndromes' ? '−' : '+'}
 					</span>
+				</label>
+				<select
+					class="select select-bordered select-sm w-full"
+					multiple
+					size={Math.min(5, $syndromes.size)}
+					on:change={(e) => handleMultipleSelect(e, 'syndromes')}
+				>
+					{#each Array.from($syndromes).sort() as syndrome}
+						<option value={syndrome} selected={$selectedSyndromes.has(syndrome)}>
+							{syndrome}
+						</option>
+					{/each}
+				</select>
+				<div class="mt-1 flex justify-between">
+					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('syndromes', true)}>
+						Select All
+					</button>
+					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('syndromes', false)}>
+						Clear
+					</button>
 				</div>
-
-				{#if activeAccordion === 'syndromes'}
-					<div class="filter-body" transition:slide={{ duration: 200 }}>
-						<div class="select-all-row">
-							<label class="select-all-label">
-								<input
-									type="checkbox"
-									checked={selectedSyndromeCount === $syndromes.size && $syndromes.size > 0}
-									indeterminate={selectedSyndromeCount > 0 &&
-										selectedSyndromeCount < $syndromes.size}
-									on:change={(e) => toggleAll('syndromes', e.currentTarget.checked)}
-								/>
-								<span>Select All</span>
-							</label>
-						</div>
-
-						<div class="filter-items">
-							{#each Array.from($syndromes).sort() as syndrome}
-								<div class="filter-item">
-									<label class="checkbox-label">
-										<input
-											type="checkbox"
-											checked={$selectedSyndromes.has(syndrome)}
-											on:change={() =>
-												($selectedSyndromes = toggleSelection($selectedSyndromes, syndrome))}
-										/>
-										<span class="label-text">{syndrome}</span>
-									</label>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
 			</div>
 
 			<!-- Legend -->
-			<div class="legend">
-				<h3>Pathogen Legend</h3>
-				<div class="legend-items">
+			<div class="border-base-300 bg-base-200 mt-4 rounded-lg border p-3">
+				<h3 class="text-base-content mb-2 text-sm font-medium">Pathogen Legend</h3>
+				<div class="grid max-h-[150px] grid-cols-2 gap-2 overflow-y-auto pr-1">
 					{#each Array.from($pathogenColors.entries()) as [pathogen, color]}
 						<div
-							class="legend-item {$selectedPathogens.has(pathogen) || $selectedPathogens.size === 0
-								? ''
-								: 'faded'}"
+							class={`hover:bg-base-300 flex cursor-pointer items-center rounded p-1 transition-opacity ${
+								$selectedPathogens.has(pathogen) || $selectedPathogens.size === 0
+									? 'opacity-100'
+									: 'opacity-50'
+							}`}
 							on:click={() => ($selectedPathogens = toggleSelection($selectedPathogens, pathogen))}
 						>
-							<span class="color-marker" style="background-color: {color}"></span>
-							<span class="legend-text">{pathogen}</span>
+							<span
+								class="border-base-300 mr-2 inline-block h-3 w-3 rounded-full border"
+								style="background-color: {color}"
+							></span>
+							<span class="truncate text-xs">{pathogen}</span>
 						</div>
 					{/each}
 				</div>
@@ -295,314 +253,3 @@
 		</div>
 	{/if}
 </div>
-
-<style>
-	.map-sidebar {
-		position: absolute;
-		top: 10px;
-		right: 10px; /* Moved to right side */
-		width: 320px;
-		max-width: 90%;
-		max-height: calc(100% - 20px);
-		background-color: white;
-		border-radius: 8px;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-		z-index: 10;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-		transition:
-			width 0.3s ease,
-			transform 0.3s ease;
-	}
-
-	.map-sidebar.collapsed {
-		width: auto;
-		min-width: 0;
-	}
-
-	.sidebar-header {
-		padding: 12px 15px;
-		background-color: white;
-		border-bottom: 1px solid #eee;
-		z-index: 2;
-	}
-
-	.header-content {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-
-	.toggle-button {
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: #666;
-		padding: 5px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.toggle-button:hover {
-		color: #333;
-	}
-
-	.filter-content {
-		flex: 1;
-		overflow-y: auto;
-		padding: 0 15px 15px 15px;
-	}
-
-	h2 {
-		margin: 0;
-		font-size: 1.2rem;
-		color: #333;
-	}
-
-	h3 {
-		margin: 0;
-		font-size: 1rem;
-		color: #555;
-		display: flex;
-		align-items: center;
-	}
-
-	.loading-indicator {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		margin-top: 8px;
-		font-size: 0.9rem;
-		color: #666;
-	}
-
-	.spinner {
-		width: 16px;
-		height: 16px;
-		border: 2px solid rgba(0, 0, 0, 0.1);
-		border-left-color: #333;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-	}
-
-	.error-message {
-		margin-top: 8px;
-		color: #e53935;
-		font-size: 0.9rem;
-	}
-
-	.data-summary {
-		margin-top: 8px;
-		font-size: 0.9rem;
-		color: #555;
-	}
-
-	.point-count {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-
-	.clear-filters-button {
-		background: none;
-		border: none;
-		color: #0066cc;
-		cursor: pointer;
-		font-size: 0.8rem;
-		padding: 2px 6px;
-		border-radius: 4px;
-	}
-
-	.clear-filters-button:hover {
-		background-color: #f0f4f8;
-		text-decoration: underline;
-	}
-
-	.filter-section {
-		margin-bottom: 5px;
-		overflow: hidden;
-		background-color: #fff;
-		border-radius: 6px;
-		border: 1px solid #eee;
-	}
-
-	.section-header {
-		padding: 12px;
-		cursor: pointer;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		user-select: none;
-	}
-
-	.section-header:hover {
-		background-color: #f9f9f9;
-	}
-
-	.section-header.active {
-		background-color: #f3f4f6;
-	}
-
-	.filter-badge {
-		background-color: #6888c0;
-		color: white;
-		border-radius: 10px;
-		padding: 2px 8px;
-		font-size: 0.75rem;
-		margin-left: 8px;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.accordion-icon {
-		font-size: 1.2rem;
-		font-weight: bold;
-		color: #999;
-	}
-
-	.filter-body {
-		padding: 0 12px 12px 12px;
-	}
-
-	.select-all-row {
-		padding: 5px 0;
-		margin-bottom: 8px;
-		border-bottom: 1px solid #f0f0f0;
-	}
-
-	.select-all-label {
-		display: flex;
-		align-items: center;
-		font-size: 0.85rem;
-		font-weight: 500;
-		color: #555;
-		cursor: pointer;
-	}
-
-	.select-all-label input {
-		margin-right: 8px;
-	}
-
-	.filter-items {
-		max-height: 200px;
-		overflow-y: auto;
-		padding-right: 5px;
-	}
-
-	.filter-item {
-		margin-bottom: 6px;
-	}
-
-	.checkbox-label {
-		display: flex;
-		align-items: center;
-		cursor: pointer;
-	}
-
-	.checkbox-label input {
-		margin-right: 8px;
-	}
-
-	.label-text {
-		font-size: 0.9rem;
-		color: #444;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.color-marker {
-		display: inline-block;
-		width: 12px;
-		height: 12px;
-		border-radius: 50%;
-		margin-right: 8px;
-		border: 1px solid rgba(0, 0, 0, 0.1);
-	}
-
-	.legend {
-		margin-top: 15px;
-		padding: 12px;
-		border: 1px solid #eee;
-		border-radius: 6px;
-		background-color: #f9f9f9;
-	}
-
-	.legend h3 {
-		margin-bottom: 10px;
-		font-size: 0.95rem;
-	}
-
-	.legend-items {
-		max-height: 150px;
-		overflow-y: auto;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-		gap: 8px;
-	}
-
-	.legend-item {
-		display: flex;
-		align-items: center;
-		padding: 4px;
-		border-radius: 4px;
-		cursor: pointer;
-		transition: opacity 0.2s ease;
-	}
-
-	.legend-item:hover {
-		background-color: #f0f0f0;
-	}
-
-	.legend-item.faded {
-		opacity: 0.5;
-	}
-
-	.legend-text {
-		font-size: 0.85rem;
-		color: #333;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	/* Scrollbar styling */
-	.filter-items::-webkit-scrollbar,
-	.legend-items::-webkit-scrollbar {
-		width: 6px;
-	}
-
-	.filter-items::-webkit-scrollbar-thumb,
-	.legend-items::-webkit-scrollbar-thumb {
-		background-color: #ccc;
-		border-radius: 3px;
-	}
-
-	.filter-items::-webkit-scrollbar-track,
-	.legend-items::-webkit-scrollbar-track {
-		background-color: #f5f5f5;
-	}
-
-	@keyframes spin {
-		0% {
-			transform: rotate(0deg);
-		}
-		100% {
-			transform: rotate(360deg);
-		}
-	}
-
-	/* Media query for mobile devices */
-	@media (max-width: 768px) {
-		.map-sidebar {
-			width: 280px;
-		}
-
-		.legend-items {
-			grid-template-columns: 1fr;
-		}
-	}
-</style>
