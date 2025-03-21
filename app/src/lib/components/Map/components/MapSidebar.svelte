@@ -12,7 +12,7 @@
 		dataError,
 		clearFilterCache,
 		filteredPointsData
-	} from '../MapStore';
+	} from '../store';
 
 	// Sidebar configuration
 	let collapsed = false;

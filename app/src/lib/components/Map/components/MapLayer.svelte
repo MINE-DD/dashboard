@@ -12,7 +12,7 @@
 		clearFilterCache,
 		isLoading,
 		dataError
-	} from '../MapStore';
+	} from '../store';
 
 	// Props
 	export let map: Map | null = null;

@@ -10,7 +10,7 @@
 		type MapStyle
 	} from './MapStyles';
 	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
-	import { loadPointsData, isLoading, dataError } from '$lib/components/Map/MapStore';
+	import { loadPointsData, isLoading, dataError } from '$lib/components/Map/store';
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
