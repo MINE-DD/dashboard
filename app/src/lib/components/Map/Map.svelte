@@ -187,20 +187,11 @@
 </script>
 
 <div class="map-wrapper relative h-full w-full">
-	<!-- Debug text -->
-	<div class="absolute bottom-2 left-2 z-50 rounded bg-white p-2 shadow">
-		<p class="text-sm font-bold">Debug: Map State</p>
-		<p class="text-xs">Map initialized: {!!map}</p>
-		<p class="text-xs">Current style: {$selectedMapStyle.name}</p>
-		<p class="text-xs">Data points: {$pointsData.features.length}</p>
-		<p class="text-xs">Style loaded: {isStyleLoaded}</p>
-	</div>
-
 	<!-- Map Container -->
 	<div bind:this={mapContainer} class="map-container h-full w-full"></div>
 
 	<!-- Map Controls -->
-	<div class="map-top-controls absolute left-2 top-10 z-10">
+	<div class="map-top-controls absolute right-2 top-12 z-10">
 		<div class="dropdown dropdown-bottom">
 			<label tabindex="0" class="btn btn-sm m-1">Map Style</label>
 			<ul
@@ -231,7 +222,7 @@
 
 	<!-- Map Sidebar with filters -->
 
-	<div class="absolute right-20 top-10">
+	<div class="absolute left-6 top-10">
 		<MapSidebar />
 	</div>
 
