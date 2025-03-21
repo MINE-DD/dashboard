@@ -37,31 +37,44 @@
 		// Do nothing if points are already added
 		if (pointsAdded) return;
 
-		// Mark that we're adding points to prevent duplicates
-		pointsAdded = true;
-
 		try {
 			console.log('Adding points to map...');
 
-			// Create the GeoJSON source with our data
-			map.addSource('points-source', {
-				type: 'geojson',
-				data: $pointsData
-			});
+			// Check if source already exists
+			let sourceExists = false;
+			try {
+				sourceExists = !!map.getSource('points-source');
+			} catch (e) {
+				sourceExists = false;
+			}
 
-			// Add a circle layer for the points
-			map.addLayer({
-				id: 'points-layer',
-				type: 'circle',
-				source: 'points-source',
-				paint: {
-					'circle-radius': 5,
-					'circle-color': '#ff3300',
-					'circle-opacity': 0.8,
-					'circle-stroke-width': 1,
-					'circle-stroke-color': '#ffffff'
-				}
-			});
+			// Create the GeoJSON source with our data if it doesn't exist
+			if (!sourceExists) {
+				map.addSource('points-source', {
+					type: 'geojson',
+					data: $filteredPointsData
+				});
+
+				// Add a circle layer for the points
+				map.addLayer({
+					id: 'points-layer',
+					type: 'circle',
+					source: 'points-source',
+					paint: {
+						'circle-radius': 5,
+						'circle-color': '#ff3300',
+						'circle-opacity': 0.8,
+						'circle-stroke-width': 1,
+						'circle-stroke-color': '#ffffff'
+					}
+				});
+			} else {
+				// Update the source data if it already exists
+				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
+			}
+
+			// Mark that we've successfully added or updated points
+			pointsAdded = true;
 
 			// Set up point click handling
 			map.on('click', 'points-layer', (e: any) => {
@@ -158,6 +171,32 @@
 			}
 		}, 800);
 	});
+
+	// Update the map source when filtered data changes
+	$: if (map && map.loaded()) {
+		try {
+			// First check if source exists
+			let sourceExists = false;
+			try {
+				sourceExists = !!map.getSource('points-source');
+			} catch (e) {
+				sourceExists = false;
+			}
+
+			if (sourceExists) {
+				console.log(
+					'Updating map with filtered data, points:',
+					$filteredPointsData.features.length
+				);
+				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
+			} else if ($pointsData.features.length > 0 && !pointsAdded) {
+				// If source doesn't exist yet but we have data, try to add points
+				addPointsToMap();
+			}
+		} catch (error) {
+			console.error('Error updating map source with filtered data:', error);
+		}
+	}
 
 	// Cleanup on component destruction
 	onDestroy(() => {

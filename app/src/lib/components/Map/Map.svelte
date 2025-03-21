@@ -197,10 +197,7 @@
 	</div>
 
 	<!-- Map Container -->
-	<div
-		bind:this={mapContainer}
-		class="map-container h-full w-full border-2 border-red-500 bg-gray-200"
-	></div>
+	<div bind:this={mapContainer} class="map-container h-full w-full"></div>
 
 	<!-- Map Controls -->
 	<div class="map-top-controls absolute left-2 top-10 z-10">
