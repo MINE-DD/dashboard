@@ -251,69 +251,70 @@
 				</div>
 			</div>
 
-			<!-- Prevalence Legend -->
+			<!-- Prevalence Legend (colors for points based on prevalence percentage) -->
 			<div class="border-base-300 bg-base-200 mt-4 rounded-lg border p-3">
 				<h3 class="text-base-content mb-2 text-sm font-medium">Shigella prevalence (%)</h3>
+				<p class="mb-2 text-xs">Points are colored based on prevalence percentage:</p>
 				<div class="flex flex-col">
 					<div class="mb-1 flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #B7CCE8;"
 						></span>
 						<span class="text-xs">&lt; 2.5</span>
 					</div>
 					<div class="mb-1 flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #A8D5BA;"
 						></span>
 						<span class="text-xs">2.5-4.9</span>
 					</div>
 					<div class="mb-1 flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #CEE5A7;"
 						></span>
 						<span class="text-xs">5.0-7.4</span>
 					</div>
 					<div class="mb-1 flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #EFF1A7;"
 						></span>
 						<span class="text-xs">7.5-9.9</span>
 					</div>
 					<div class="mb-1 flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #FFEE9F;"
 						></span>
 						<span class="text-xs">10.0-14.9</span>
 					</div>
 					<div class="mb-1 flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #FEDAA2;"
 						></span>
 						<span class="text-xs">15.0-19.9</span>
 					</div>
 					<div class="mb-1 flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #FAB787;"
 						></span>
 						<span class="text-xs">20.0-24.9</span>
 					</div>
 					<div class="mb-1 flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #F68F79;"
 						></span>
 						<span class="text-xs">25.0-29.9</span>
 					</div>
 					<div class="flex items-center">
 						<span
-							class="border-base-300 mr-2 inline-block h-5 w-5 border"
+							class="border-base-300 mr-2 inline-block h-5 w-5 rounded-full border"
 							style="background-color: #F2A3B3;"
 						></span>
 						<span class="text-xs">&gt;=30.0</span>
