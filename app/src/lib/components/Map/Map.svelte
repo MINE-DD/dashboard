@@ -58,16 +58,23 @@
 	// Initialize map and controls
 	onMount(async () => {
 		if (mapContainer) {
-			// Instead of using a custom style, use a guaranteed working style
-			console.log('Creating map with OSM style');
+			// Determine which style to use - prioritize initialStyleId if provided
+			let initialStyle = $selectedMapStyle;
+			if (initialStyleId) {
+				initialStyle = getStyleById(initialStyleId);
+				// Update the store to match the initial style
+				selectedMapStyle.set(initialStyle);
+			}
+
+			console.log('Creating map with style:', initialStyle.name);
 
 			try {
-				// Create map with an OSM style that should definitely work
+				// Create map with the appropriate style
 				map = new maplibregl.Map({
 					container: mapContainer,
-					style: 'https://demotiles.maplibre.org/style.json', // Use direct MapLibre OSM style
-					center: [28.4, -15.0], // Focus on area where points are located
-					zoom: 4 // Zoom in a bit closer to the points
+					style: initialStyle.url,
+					center: initialCenter || [28.4, -15.0], // Use provided center or default
+					zoom: initialZoom || 4 // Use provided zoom or default
 				});
 
 				// Log the map object for debugging
@@ -82,57 +89,6 @@
 
 					// Force explicit data loading AFTER map is ready
 					loadPointsData(pointDataUrl);
-
-					// Set up a delayed attempt to ensure points are added
-					const ensurePointsAdded = () => {
-						try {
-							// If points data already loaded
-							if ($pointsData.features.length > 0) {
-								console.log('Attempting to ensure points are visible on map (delayed check)');
-
-								// Add a test point directly to confirm map works
-								if (!map.getSource('direct-source')) {
-									map.addSource('direct-source', {
-										type: 'geojson',
-										data: {
-											type: 'FeatureCollection',
-											features: [
-												{
-													type: 'Feature',
-													geometry: {
-														type: 'Point',
-														coordinates: [28.4, -15.0]
-													},
-													properties: {
-														title: 'Test Point'
-													}
-												}
-											]
-										}
-									});
-
-									map.addLayer({
-										id: 'direct-layer',
-										type: 'circle',
-										source: 'direct-source',
-										paint: {
-											'circle-radius': 12,
-											'circle-color': '#ff0000'
-										}
-									});
-
-									console.log('Added direct test point (from delayed handler)');
-								}
-							}
-						} catch (e) {
-							console.error('Error in delayed points check:', e);
-						}
-					};
-
-					// Try multiple times with increasing delays to handle race conditions
-					setTimeout(ensurePointsAdded, 500);
-					setTimeout(ensurePointsAdded, 1500);
-					setTimeout(ensurePointsAdded, 3000);
 				});
 			} catch (error) {
 				console.error('Error initializing map:', error);
@@ -207,17 +163,6 @@
 									}
 								});
 
-								// Re-add layer
-								map.addLayer({
-									id: 'direct-layer',
-									type: 'circle',
-									source: 'direct-source',
-									paint: {
-										'circle-radius': 10,
-										'circle-color': '#ff0000'
-									}
-								});
-
 								console.log('Re-added test point after style change');
 							}
 
@@ -246,6 +191,7 @@
 	<div class="absolute bottom-2 left-2 z-50 rounded bg-white p-2 shadow">
 		<p class="text-sm font-bold">Debug: Map State</p>
 		<p class="text-xs">Map initialized: {!!map}</p>
+		<p class="text-xs">Current style: {$selectedMapStyle.name}</p>
 		<p class="text-xs">Data points: {$pointsData.features.length}</p>
 		<p class="text-xs">Style loaded: {isStyleLoaded}</p>
 	</div>
