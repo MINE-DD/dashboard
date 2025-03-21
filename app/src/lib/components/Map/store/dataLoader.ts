@@ -9,7 +9,8 @@ import {
 } from './stores';
 import { convertCsvToGeoJson } from './geoJsonConverter';
 import { generateColors } from './colorManager';
-import { Papa } from './csvLoader';
+import Papa from 'papaparse';
+import type { ParseResult, ParseConfig } from 'papaparse';
 import type { PointDataRow, PointFeatureCollection } from './types';
 
 // Helper function to load CSV data with caching
@@ -34,63 +35,32 @@ export async function loadPointsData(url: string): Promise<void> {
 
     const csvText = await response.text();
 
-    // The CSV seems to be malformed - headers and data are concatenated without delimiters
-    // Let's manually fix the CSV before parsing
-
-    console.log("CSV first chars:", csvText.substring(0, 100));
-
-    // Manually extract and fix the format
-    const lines = csvText.split('\n');
-    let fixedCsvText = '';
-
-    if (lines.length > 0) {
-      // Process headers - we know the expected column names
-      const expectedColumns = [
-        'EST_ID', 'Pathogen', 'Age_group', 'Syndrome', 'Design',
-        'Site_Location', 'Prevalence', 'Age_range', 'Study', 'Duration',
-        'Source', 'Hyperlink', 'CASES', 'SAMPLES', 'PREV', 'SE',
-        'SITE_LAT', 'SITE_LONG'
-      ];
-
-      // Set proper header line
-      fixedCsvText += expectedColumns.join(',') + '\n';
-
-      // Looking at the file, it seems fields are concatenated without commas
-      // We need a different approach - we'll have to manually parse each row based on known field positions
-      console.log("Manual parsing necessary due to CSV format issues");
-
-      // For now, let's create a small sample of correctly formatted rows for testing
-      fixedCsvText += 'GREY00000001-01-ADEN-01,Adenovirus 40/41,0-11 months,Medically attended diarrhea - inpatient,Surveillance,"Zambia, Lusaka, Lusaka","42.7 (37.8, 47.6)",0 - 11 months,Programme for Awareness and Elimination of Diarrhoea (PAED),"Jul, 2012 - Oct, 2013","Chisenga et al., 2018, Pediatr Infect Dis Open Access",http://dx.doi.org/10.21767/2573-0282.100064,167,391,0.4271099865436554,0.0250159557908773,-14.97951698303223,28.39406394958496\n';
-      fixedCsvText += 'GREY00000001-01-ADEN-02,Adenovirus 40/41,12-23 months,Medically attended diarrhea - inpatient,Surveillance,"Zambia, Lusaka, Lusaka","43.2 (37.9, 48.5)",12 - 23 months,Programme for Awareness and Elimination of Diarrhoea (PAED),"Jul, 2012 - Oct, 2013","Chisenga et al., 2018, Pediatr Infect Dis Open Access",http://dx.doi.org/10.21767/2573-0282.100064,145,336,0.431547611951828,0.027020400390029,-14.97951698303223,28.39406394958496\n';
-      fixedCsvText += 'GREY00000001-01-ADEN-03,Adenovirus 40/41,24-59 months,Medically attended diarrhea - inpatient,Surveillance,"Zambia, Lusaka, Lusaka","40.1 (32.7, 47.6)",24 - 58 months,Programme for Awareness and Elimination of Diarrhoea (PAED),"Jul, 2012 - Oct, 2013","Chisenga et al., 2018, Pediatr Infect Dis Open Access",http://dx.doi.org/10.21767/2573-0282.100064,67,167,0.401197612285614,0.0379282422363758,-14.97951698303223,28.39406394958496\n';
-    }
-
-    console.log("Fixed CSV sample:", fixedCsvText.substring(0, 200) + "...");
-
-    // Now parse the fixed CSV data
-    // @ts-ignore - Papa parse typing issue
-    const result = Papa.parse(fixedCsvText, {
+    // Configure standard Papa Parse with proper typing
+    const parseConfig: ParseConfig<PointDataRow> = {
       header: true,
       skipEmptyLines: true,
       delimiter: ',',
       quoteChar: '"',
-      escapeChar: '"',
-      worker: false,
       dynamicTyping: true, // Convert numerical values
-      comments: false,
-      error: (error: any) => console.warn('PapaParse error:', error)
-    });
+      transform: (value) => (typeof value === 'string' ? value.trim() : value)
+    };
 
-    // We'll continue even with field mismatch errors
+    // Parse the CSV data using standard parsing
+    console.log("Parsing CSV file...");
+    const result: ParseResult<PointDataRow> = Papa.parse(csvText, parseConfig);
+
+    // Log any parsing warnings but continue processing
     if (result.errors && result.errors.length > 0) {
-      console.warn('CSV parsing warnings:', result.errors);
+      console.warn(`CSV parsing warnings: ${result.errors.length} issues found`);
 
-      // Just log the errors but don't stop processing - we'll handle the data as is
-      console.log('Continuing with parsing despite warnings');
+      // Log a sample of errors for debugging
+      if (result.errors.length > 0) {
+        console.warn('Sample errors:', result.errors.slice(0, 3));
+      }
     }
 
     if (result.data && result.data.length > 0) {
-      console.log(`Loaded ${result.data.length} data points`);
+      console.log(`Successfully loaded ${result.data.length} data points`);
 
       // Convert to GeoJSON (this also builds indices)
       const geoData = convertCsvToGeoJson(result.data as PointDataRow[]);
