@@ -19,7 +19,7 @@
 	export let initialCenter: [number, number] = [0, 0]; // Default center coordinates [lng, lat]
 	export let initialZoom: number = 2; // Default zoom level
 	export let initialStyleId: string | null = null; // Optional style ID to use
-	export let pointDataUrl: string = './data/01_Points/Plan-EO_Dashboard_point_data.csv';
+	export let pointDataUrl: string = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
 	let mapContainer: HTMLElement;
 	let map: maplibregl.Map;
