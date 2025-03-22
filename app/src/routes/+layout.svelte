@@ -18,7 +18,7 @@
 <GlobalToast />
 
 <svelte:head>
-	<title>PLAN-EO VALIDATOR</title>
+	<title>PLAN-EO</title>
 </svelte:head>
 
 <div

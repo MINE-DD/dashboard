@@ -60,9 +60,7 @@
 				{/each}
 			</div>
 
-			<!-- <FeedbackButton showButton={isDesktop} /> -->
-
-			<Login />
+			<!-- <Login /> -->
 		</header>
 	</div>
 </nav>
@@ -92,15 +90,15 @@
 		inset: 0;
 		/*   Extend the backdrop to the bottom for it to "collect the light" outside of the nav */
 		--extended-by: 100px;
-		bottom: calc(-1 * var(--extended-by));
-
 		--filter: blur(30px);
+		--cutoff: calc(100% - var(--extended-by));
+
+		bottom: calc(-1 * var(--extended-by));
 		-webkit-backdrop-filter: var(--filter);
 		backdrop-filter: var(--filter);
 		pointer-events: none;
 
 		/*   Cut the part of the backdrop that falls outside of <nav /> */
-		--cutoff: calc(100% - var(--extended-by));
 		-webkit-mask-image: linear-gradient(
 			to bottom,
 			black 0,

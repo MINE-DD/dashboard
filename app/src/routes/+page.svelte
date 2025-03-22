@@ -4,6 +4,6 @@
 </script>
 
 <!-- Fix the height to ensure map is properly sized -->
-<div class="relative h-full w-full">
+<div class=" -mt-[80px]">
 	<Map />
 </div>

@@ -186,12 +186,12 @@
 	});
 </script>
 
-<div class="map-wrapper relative h-full w-full">
+<div class="relative h-full">
 	<!-- Map Container -->
-	<div bind:this={mapContainer} class="map-container h-full w-full"></div>
+	<div bind:this={mapContainer} class="h-full w-full"></div>
 
 	<!-- Map Controls -->
-	<div class="map-top-controls absolute right-2 top-12 z-10">
+	<div class="map-top-controls absolute right-10 top-12 z-10">
 		<div class="dropdown dropdown-bottom">
 			<label tabindex="0" class="btn btn-sm m-1">Map Style</label>
 			<ul
@@ -222,7 +222,7 @@
 
 	<!-- Map Sidebar with filters -->
 
-	<div class="absolute left-6 top-10">
+	<div class="absolute left-6 top-16">
 		<MapSidebar />
 	</div>
 
@@ -258,11 +258,6 @@
 </div>
 
 <style>
-	.map-container {
-		position: relative;
-		min-height: 400px;
-	}
-
 	/* Fix focus outline on canvas */
 	:global(.maplibregl-canvas-container:focus) {
 		outline: none;

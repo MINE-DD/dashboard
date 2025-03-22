@@ -74,10 +74,10 @@
 </script>
 
 <div
-	class="bg-base-100 flex max-h-[calc(100%-20px)] w-80 max-w-[90%] flex-col overflow-hidden rounded-lg shadow-md transition-all duration-300"
+	class="shadow-xs flex max-h-[calc(100%-20px)] w-80 max-w-[90%] flex-col overflow-hidden rounded-lg border border-white/20 bg-white/40 backdrop-blur-md backdrop-filter transition-all duration-300"
 >
 	<!-- Sidebar header with toggle button -->
-	<div class="bg-base-100 border-base-200 z-10 border-b p-3">
+	<div class="z-10 border-b p-3">
 		<div class="flex items-center justify-between">
 			<h2 class="text-base-content m-0 text-lg font-medium">Data Explorer</h2>
 			<button
