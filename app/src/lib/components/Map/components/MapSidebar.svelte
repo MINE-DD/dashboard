@@ -78,11 +78,13 @@
 >
 	<!-- Sidebar header with toggle button -->
 	<div class="z-10 border-b p-3">
-		<div class="flex items-center justify-between">
+		<button
+			class="flex w-full items-center justify-between"
+			on:click={() => (collapsed = !collapsed)}
+		>
 			<h2 class="text-base-content m-0 text-lg font-medium">Data Explorer</h2>
-			<button
+			<span
 				class="btn btn-sm btn-ghost btn-square"
-				on:click={() => (collapsed = !collapsed)}
 				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 			>
 				<svg
@@ -100,11 +102,11 @@
 					{#if collapsed}
 						<polyline points="9 18 15 12 9 6"></polyline>
 					{:else}
-						<polyline points="15 18 9 12 15 6"></polyline>
+						<polyline points="6 9 12 15 18 9"></polyline>
 					{/if}
 				</svg>
-			</button>
-		</div>
+			</span>
+		</button>
 
 		{#if !collapsed}
 			{#if $isLoading}
