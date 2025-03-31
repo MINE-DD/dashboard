@@ -15,7 +15,11 @@ export {
   selectedSyndromes,
   isLoading,
   dataError,
-  pathogenColors
+  pathogenColors,
+  // Raster Layer Stores
+  isExampleCogVisible,
+  exampleCogOpacity,
+  exampleCogUrl
 } from './stores';
 
 // Re-export the filter manager functions
