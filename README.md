@@ -41,15 +41,16 @@ The application is built using the following technologies:
 
 ## Development Setup
 
-*(Details on how to set up the development environment will be added here later.)*
+Having docker installed is required for the development setup.
+```bash
+# Clone the repository
+git clone https://github.com/escience/mine-dd.git
+cd mine-dd/dashboard
 
-## System Architecture
-
-*(A description or diagram of the system architecture will be added here later.)*
-
-## Recent Changes
-
-*(This section will track significant updates to the project.)*
+# Start the development server
+docker compose up -d
+```
+Visit [http://localhost:5173](http://localhost:5173) to view the application.
 
 ## Next Steps
 
