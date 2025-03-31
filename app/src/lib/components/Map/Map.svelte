@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import maplibregl from 'maplibre-gl';
+	import { onMount, onDestroy, afterUpdate } from 'svelte'; // Merged imports
+	import maplibregl, { Map } from 'maplibre-gl'; // Import Map type
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import {
 		MAP_STYLES,
@@ -10,21 +10,35 @@
 		type MapStyle
 	} from './MapStyles';
 	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
-	import { loadPointsData, isLoading, dataError, pointsData } from '$lib/components/Map/store';
+	import {
+		loadPointsData,
+		isLoading,
+		dataError,
+		pointsData,
+		// Import raster stores
+		isExampleCogVisible,
+		exampleCogOpacity,
+		exampleCogUrl
+	} from '$lib/components/Map/store';
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
 
+	// --- Constants for COG Layer ---
+	const COG_SOURCE_ID = 'cog-source';
+	const COG_LAYER_ID = 'cog-layer';
+	const TITILER_ENDPOINT = 'http://localhost:8000'; // Base titiler endpoint
+
 	// Props that can be passed to the component
-	export let initialCenter: [number, number] = [30, 0]; // Default center coordinates [lng, lat]
-	export let initialZoom: number = 3; // Default zoom level
+	export let initialCenter: [number, number] = [35, 16]; // Default center coordinates [lng, lat] - centered on the COG area
+	export let initialZoom: number = 8; // Default zoom level - closer to see the COG details
 	export let initialStyleId: string | null = null; // Optional style ID to use
 	export let pointDataUrl: string = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
 	let mapContainer: HTMLElement;
-	let map: maplibregl.Map;
+	let map: Map | null = null; // Initialize as null
 	let stylesByCategory = getStylesByCategory();
-	let isStyleLoaded = false;
+	let isStyleLoaded = false; // Tracks if the *current* style is loaded
 
 	// Popover state
 	let showPopover = false;
@@ -41,6 +55,8 @@
 			// Apply the style to the map
 			try {
 				map.setStyle(style.url);
+				// Reset flag as new style is loading
+				isStyleLoaded = false;
 			} catch (error) {
 				console.error('Error setting style:', error);
 			}
@@ -57,13 +73,19 @@
 
 	// Initialize map and controls
 	onMount(async () => {
-		if (mapContainer) {
+		if (mapContainer && !map) {
+			// Ensure map isn't already initialized
 			// Determine which style to use - prioritize initialStyleId if provided
 			let initialStyle = $selectedMapStyle;
 			if (initialStyleId) {
-				initialStyle = getStyleById(initialStyleId);
-				// Update the store to match the initial style
-				selectedMapStyle.set(initialStyle);
+				const styleFromId = getStyleById(initialStyleId);
+				if (styleFromId) {
+					initialStyle = styleFromId;
+					// Update the store to match the initial style
+					selectedMapStyle.set(initialStyle);
+				} else {
+					console.warn(`Initial style ID "${initialStyleId}" not found. Using default.`);
+				}
 			}
 
 			console.log('Creating map with style:', initialStyle.name);
@@ -78,110 +100,220 @@
 				});
 
 				// Log the map object for debugging
-				console.log('Map object:', map);
+				console.log('Map object created:', map);
 
-				// Wait for map to load before setting up event handlers
+				// Add controls immediately after map creation attempt
+				map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+				map.addControl(
+					new maplibregl.ScaleControl({
+						maxWidth: 100,
+						unit: 'metric'
+					}),
+					'bottom-left'
+				);
+
+				// --- Event Listeners ---
 				map.on('load', () => {
-					console.log('Map loaded event fired');
-
-					// Set flag that map is ready
+					console.log('Map "load" event fired');
 					isStyleLoaded = true;
-
-					// Force explicit data loading AFTER map is ready
+					// Load point data only after the initial map load
 					loadPointsData(pointDataUrl);
+					// Attempt to add COG layer if visible on initial load
+					if ($isExampleCogVisible && $exampleCogUrl && map) {
+						addCogLayer(map, $exampleCogUrl, $exampleCogOpacity);
+					}
+				});
+
+				map.on('styledata', () => {
+					console.log('Map "styledata" event fired');
+					isStyleLoaded = true; // Style is now ready
+					// Re-add COG layer if it should be visible
+					if ($isExampleCogVisible && $exampleCogUrl && map) {
+						// Need a slight delay or check if source/layer still exists from previous style
+						setTimeout(() => {
+							if (map && $isExampleCogVisible) {
+								// Check again in case state changed
+								addCogLayer(map, $exampleCogUrl, $exampleCogOpacity);
+							}
+						}, 100); // Small delay to ensure style is fully applied
+					}
+					// Note: MapLayer component will handle re-adding point data reactively
+				});
+
+				map.on('error', (e) => {
+					console.error('MapLibre error:', e);
 				});
 			} catch (error) {
 				console.error('Error initializing map:', error);
+				map = null; // Ensure map is null if initialization failed
 			}
-
-			// Add navigation control (zoom buttons)
-			map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
-
-			// Add scale control
-			map.addControl(
-				new maplibregl.ScaleControl({
-					maxWidth: 100,
-					unit: 'metric'
-				}),
-				'bottom-left'
-			);
-
-			// Load data
-			loadPointsData(pointDataUrl);
-
-			// When map is loaded, check if data is ready and force layer creation
-			map.on('load', () => {
-				// Map has finished loading
-				console.log('Map loaded');
-				isStyleLoaded = true;
-
-				// If there's data but the layer isn't showing up, log details
-				if ($pointsData.features.length > 0) {
-					console.log('Data ready at map load, features:', $pointsData.features.length);
-					console.log(
-						'Sample coordinates:',
-						$pointsData.features.slice(0, 3).map((f) => f.geometry.coordinates)
-					);
-				}
-			});
-
-			// Handle style changes - make sure to re-add data points when style changes
-			map.on('styledata', () => {
-				console.log('Style data event - map style changed');
-				isStyleLoaded = true;
-
-				// Re-add the test point when style changes
-				if (map.loaded()) {
-					setTimeout(() => {
-						try {
-							// First check if source already exists
-							let sourceExists = false;
-							try {
-								sourceExists = !!map.getSource('direct-source');
-							} catch (e) {
-								sourceExists = false;
-							}
-
-							if (!sourceExists) {
-								// Re-add source after style change
-								map.addSource('direct-source', {
-									type: 'geojson',
-									data: {
-										type: 'FeatureCollection',
-										features: [
-											{
-												type: 'Feature',
-												geometry: {
-													type: 'Point',
-													coordinates: [28.4, -15.0]
-												},
-												properties: {
-													title: 'Test Point'
-												}
-											}
-										]
-									}
-								});
-
-								console.log('Re-added test point after style change');
-							}
-
-							// Also re-add the actual data points by triggering MapLayer
-							if ($pointsData.features.length > 0) {
-								isStyleLoaded = true;
-							}
-						} catch (e) {
-							console.error('Error re-adding layers after style change:', e);
-						}
-					}, 500); // Give the style time to load
-				}
-			});
 		}
 	});
 
+	// --- Reactive logic for COG Layer ---
+
+	// Helper to add COG source and layer
+	function addCogLayer(currentMap: Map, url: string, opacity: number) {
+		// Double check map instance and style loaded status
+		if (!currentMap || !currentMap.isStyleLoaded()) {
+			console.log('COG: Map or style not ready, skipping addCogLayer.');
+			return;
+		}
+		// Check if source already exists
+		if (currentMap.getSource(COG_SOURCE_ID)) {
+			console.log('COG: Source already exists.');
+			// Ensure layer also exists and update opacity if needed
+			if (currentMap.getLayer(COG_LAYER_ID)) {
+				currentMap.setPaintProperty(COG_LAYER_ID, 'raster-opacity', opacity);
+			} else {
+				// Source exists but layer doesn't - add layer
+				try {
+					currentMap.addLayer(
+						{
+							id: COG_LAYER_ID,
+							type: 'raster',
+							source: COG_SOURCE_ID,
+							paint: { 'raster-opacity': opacity }
+						}
+						// No beforeId specified, add on top
+					);
+					console.log('COG: Layer added (source existed).');
+				} catch (error) {
+					console.error('COG: Error adding layer (source existed):', error);
+				}
+			}
+			return;
+		}
+
+		console.log('COG: Adding source and layer for URL:', url);
+		try {
+			// Instead of using tiles, use a single image for the entire layer
+			// This is a simpler approach that works with the preview endpoint
+			const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodeURIComponent(url)}&bidx=1&bidx=2&bidx=3&width=1024&height=1024`;
+
+			// Load the image first
+			const image = new Image();
+			image.crossOrigin = 'Anonymous';
+			image.onload = () => {
+				// Once image is loaded, add it as a source
+				if (currentMap.hasImage(COG_SOURCE_ID)) {
+					currentMap.removeImage(COG_SOURCE_ID);
+				}
+
+				currentMap.addImage(COG_SOURCE_ID, image);
+
+				// Create a source and layer using the image
+				currentMap.addSource(COG_SOURCE_ID, {
+					type: 'image',
+					url: imageUrl,
+					coordinates: [
+						[37.0, 17.0], // top-right [lng, lat]
+						[37.0, 15.0], // bottom-right
+						[33.0, 15.0], // bottom-left
+						[33.0, 17.0] // top-left
+					]
+				});
+
+				currentMap.addLayer({
+					id: COG_LAYER_ID,
+					type: 'raster',
+					source: COG_SOURCE_ID,
+					paint: {
+						'raster-opacity': opacity,
+						'raster-resampling': 'linear'
+					}
+				});
+
+				console.log('COG: Image source and layer added successfully.');
+			};
+
+			image.onerror = (e) => {
+				console.error('COG: Error loading image:', e);
+			};
+
+			// Start loading the image
+			image.src = imageUrl;
+			return; // Early return since we're handling layer creation in the onload callback
+		} catch (error) {
+			console.error('COG: Error adding source or layer:', error);
+		}
+	}
+
+	// Helper to remove COG source and layer
+	function removeCogLayer(currentMap: Map) {
+		if (!currentMap) {
+			console.log('COG: Map not ready, skipping removeCogLayer.');
+			return;
+		}
+
+		console.log('COG: Removing layer and source.');
+		try {
+			// Check if layer exists before removing
+			if (currentMap.getLayer(COG_LAYER_ID)) {
+				currentMap.removeLayer(COG_LAYER_ID);
+				console.log('COG: Layer removed.');
+			} else {
+				console.log('COG: Layer not found, skipping removeLayer.');
+			}
+			// Check if source exists before removing
+			if (currentMap.getSource(COG_SOURCE_ID)) {
+				currentMap.removeSource(COG_SOURCE_ID);
+				console.log('COG: Source removed.');
+			} else {
+				console.log('COG: Source not found, skipping removeSource.');
+			}
+
+			// Also remove the image if it exists
+			if (currentMap.hasImage(COG_SOURCE_ID)) {
+				currentMap.removeImage(COG_SOURCE_ID);
+				console.log('COG: Image removed.');
+			}
+		} catch (error) {
+			// Check error type before accessing message
+			if (error instanceof Error) {
+				// Ignore errors if map/style is changing rapidly
+				if (!error.message.includes('Style is not done loading')) {
+					console.error('COG: Error removing layer or source:', error);
+				} else {
+					console.log('COG: Ignoring remove error during style transition.');
+				}
+			} else {
+				// Handle non-Error types if necessary
+				console.error('COG: An unexpected error occurred during removal:', error);
+			}
+		}
+	}
+
+	// React to visibility changes
+	$: if (map && map.isStyleLoaded()) {
+		// Ensure map and style are ready
+		if ($isExampleCogVisible && $exampleCogUrl) {
+			console.log('COG: Reactive visibility change to true.');
+			addCogLayer(map, $exampleCogUrl, $exampleCogOpacity);
+		} else {
+			console.log('COG: Reactive visibility change to false.');
+			removeCogLayer(map);
+		}
+	}
+
+	// React to opacity changes
+	$: if (map && map.getLayer(COG_LAYER_ID) && $exampleCogOpacity !== undefined) {
+		console.log('COG: Reactive opacity change to', $exampleCogOpacity);
+		map.setPaintProperty(COG_LAYER_ID, 'raster-opacity', $exampleCogOpacity);
+	}
+
+	// React to URL changes (if needed in the future)
+	// $: if (map && $isExampleCogVisible && $exampleCogUrl && map.getSource(COG_SOURCE_ID)) {
+	//   console.log('COG: URL changed. Re-adding layer.');
+	//   removeCogLayer(map);
+	//   addCogLayer(map, $exampleCogUrl, $exampleCogOpacity);
+	// }
+
 	onDestroy(() => {
 		if (map) {
+			console.log('Map onDestroy: Removing map instance.');
 			map.remove();
+			map = null; // Clear map instance
 		}
 	});
 </script>
@@ -221,8 +353,8 @@
 	{/if}
 
 	<!-- Map Sidebar with filters -->
-
-	<div class="absolute left-6 top-16">
+	<div class="absolute left-6 top-16 z-10">
+		<!-- Added z-index -->
 		<MapSidebar />
 	</div>
 
@@ -285,7 +417,7 @@
 		flex-direction: column;
 		justify-content: center;
 		align-items: center;
-		z-index: 1000;
+		z-index: 1000; /* Ensure it's above map but below sidebar/popover if needed */
 	}
 
 	.loading-spinner {
@@ -314,7 +446,7 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		z-index: 1001;
+		z-index: 1001; /* Ensure it's above map */
 	}
 
 	.error-container {
