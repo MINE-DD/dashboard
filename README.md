@@ -10,6 +10,8 @@ The dashboard provides an interactive interface for visualizing geographical dat
 
 ## Tech Stack
 
+![](./techstack.excalidraw.png)
+
 The application is built using the following technologies:
 
 *   **Frontend:**
