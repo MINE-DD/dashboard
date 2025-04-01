@@ -1,0 +1,20 @@
+{
+  "window.title": "🌊 MINEDD - ${activeEditorShort}",
+  "files.autoSave": "off",
+  "dbcode.connections": [
+    {
+      "connectionId": "sku_AeKlsbwajsJAjTtDz",
+      "name": "Valorlist Timescaledb",
+      "driver": "timescale",
+      "host": "localhost",
+      "port": 5432,
+      "ssl": false,
+      "username": "postgres",
+      "password": "",
+      "savePassword": "secretStorage",
+      "readOnly": false,
+      "connectionTimeout": 30,
+      "connectionType": "host"
+    }
+  ]
+}
