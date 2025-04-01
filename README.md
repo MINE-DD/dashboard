@@ -38,6 +38,7 @@ The application is built using the following technologies:
     *   COG files are expected to be located in the `data/cogs` directory (Note: This directory might need to be created if not present).
     *   Displays COG data using an image-based approach compatible across platforms, including Apple Silicon.
     *   Allows users to toggle the visibility and adjust the opacity of raster layers.
+    *   Supports loading remote COG layers directly via URL input in the sidebar (proxied through TiTiler).
 
 ## Development Setup
 

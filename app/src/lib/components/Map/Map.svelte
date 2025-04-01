@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, afterUpdate } from 'svelte'; // Merged imports
-	import maplibregl, { Map } from 'maplibre-gl'; // Import Map type
+	import maplibregl from 'maplibre-gl'; // Remove named Map import
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import {
 		MAP_STYLES,
@@ -15,30 +15,24 @@
 		isLoading,
 		dataError,
 		pointsData,
-		// Import raster stores
-		isExampleCogVisible,
-		exampleCogOpacity,
-		exampleCogUrl
+		// Import new raster store
+		rasterLayers
 	} from '$lib/components/Map/store';
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
 
-	// --- Constants for COG Layer ---
-	const COG_SOURCE_ID = 'cog-source';
-	const COG_LAYER_ID = 'cog-layer';
-	const TITILER_ENDPOINT = 'http://localhost:8000'; // Base titiler endpoint
-
 	// Props that can be passed to the component
-	export let initialCenter: [number, number] = [35, 16]; // Default center coordinates [lng, lat] - centered on the COG area
+	export let initialCenter: [number, number] = [35, 16]; // Default center coordinates [lng, lat]
 	export let initialZoom: number = 8; // Default zoom level - closer to see the COG details
 	export let initialStyleId: string | null = null; // Optional style ID to use
 	export let pointDataUrl: string = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
 	let mapContainer: HTMLElement;
-	let map: Map | null = null; // Initialize as null
+	let map: maplibregl.Map | null = null; // Use qualified type
 	let stylesByCategory = getStylesByCategory();
 	let isStyleLoaded = false; // Tracks if the *current* style is loaded
+	let currentMapLayers = new Set<string>(); // Track layers currently on the map
 
 	// Popover state
 	let showPopover = false;
@@ -118,26 +112,15 @@
 					isStyleLoaded = true;
 					// Load point data only after the initial map load
 					loadPointsData(pointDataUrl);
-					// Attempt to add COG layer if visible on initial load
-					if ($isExampleCogVisible && $exampleCogUrl && map) {
-						addCogLayer(map, $exampleCogUrl, $exampleCogOpacity);
-					}
+					// Reactive block below will handle adding initial layers from store
 				});
 
 				map.on('styledata', () => {
 					console.log('Map "styledata" event fired');
 					isStyleLoaded = true; // Style is now ready
-					// Re-add COG layer if it should be visible
-					if ($isExampleCogVisible && $exampleCogUrl && map) {
-						// Need a slight delay or check if source/layer still exists from previous style
-						setTimeout(() => {
-							if (map && $isExampleCogVisible) {
-								// Check again in case state changed
-								addCogLayer(map, $exampleCogUrl, $exampleCogOpacity);
-							}
-						}, 100); // Small delay to ensure style is fully applied
-					}
-					// Note: MapLayer component will handle re-adding point data reactively
+					// Clear tracked layers as they might be gone after style change
+					currentMapLayers.clear();
+					// Reactive block below will handle re-adding layers from store
 				});
 
 				map.on('error', (e) => {
@@ -150,164 +133,209 @@
 		}
 	});
 
-	// --- Reactive logic for COG Layer ---
+	// --- Reactive logic for Raster Layers ---
+	// Explicitly depend on the store value to ensure reactivity
+	$: syncMapLayers($rasterLayers, map, isStyleLoaded);
 
-	// Helper to add COG source and layer
-	function addCogLayer(currentMap: Map, url: string, opacity: number) {
-		// Double check map instance and style loaded status
-		if (!currentMap || !currentMap.isStyleLoaded()) {
-			console.log('COG: Map or style not ready, skipping addCogLayer.');
-			return;
-		}
-		// Check if source already exists
-		if (currentMap.getSource(COG_SOURCE_ID)) {
-			console.log('COG: Source already exists.');
-			// Ensure layer also exists and update opacity if needed
-			if (currentMap.getLayer(COG_LAYER_ID)) {
-				currentMap.setPaintProperty(COG_LAYER_ID, 'raster-opacity', opacity);
-			} else {
-				// Source exists but layer doesn't - add layer
-				try {
-					currentMap.addLayer(
-						{
-							id: COG_LAYER_ID,
-							type: 'raster',
-							source: COG_SOURCE_ID,
-							paint: { 'raster-opacity': opacity }
-						}
-						// No beforeId specified, add on top
-					);
-					console.log('COG: Layer added (source existed).');
-				} catch (error) {
-					console.error('COG: Error adding layer (source existed):', error);
-				}
-			}
-			return;
-		}
+	// Import RasterLayer type for the function signature
+	import type { RasterLayer } from '$lib/components/Map/store';
 
-		console.log('COG: Adding source and layer for URL:', url);
-		try {
-			// Instead of using tiles, use a single image for the entire layer
-			// This is a simpler approach that works with the preview endpoint
-			const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodeURIComponent(url)}&bidx=1&bidx=2&bidx=3&width=1024&height=1024`;
+	// This function handles adding/removing layers and setting initial visibility
+	function syncMapLayers(
+		layersInStore: Map<string, RasterLayer>, // Standard JS Map type is now unambiguous
+		currentMap: maplibregl.Map | null, // Use qualified type
+		styleLoaded: boolean
+	) {
+		if (!currentMap || !styleLoaded) return; // Exit if map or style not ready
 
-			// Load the image first
-			const image = new Image();
-			image.crossOrigin = 'Anonymous';
-			image.onload = () => {
-				// Once image is loaded, add it as a source
-				if (currentMap.hasImage(COG_SOURCE_ID)) {
-					currentMap.removeImage(COG_SOURCE_ID);
-				}
+		console.log('Map: Running syncMapLayers for add/remove/visibility...');
 
-				currentMap.addImage(COG_SOURCE_ID, image);
+		const layersOnMap = new Set(currentMapLayers); // Copy current map layers
 
-				// Create a source and layer using the image
-				currentMap.addSource(COG_SOURCE_ID, {
-					type: 'image',
-					url: imageUrl,
-					coordinates: [
-						[37.0, 17.0], // top-right [lng, lat]
-						[37.0, 15.0], // bottom-right
-						[33.0, 15.0], // bottom-left
-						[33.0, 17.0] // top-left
-					]
-				});
+		// Iterate through layers defined in the store
+		layersInStore.forEach((layer) => {
+			const layerId = layer.id;
+			const sourceId = layer.id; // Use the same ID for source and layer for simplicity
 
-				currentMap.addLayer({
-					id: COG_LAYER_ID,
-					type: 'raster',
-					source: COG_SOURCE_ID,
-					paint: {
-						'raster-opacity': opacity,
-						'raster-resampling': 'linear'
+			const layerShouldBeVisible = layer.isVisible;
+			const layerIsCurrentlyOnMap = currentMap.getLayer(layerId); // Check if layer exists
+
+			if (layersOnMap.has(layerId) && layerIsCurrentlyOnMap) {
+				// Layer exists on map, check only visibility for removal
+				if (!layerShouldBeVisible) {
+					// Layer should be hidden, but it's on the map -> Remove it
+					console.log(`Map: Layer ${layerId} should be hidden. Removing.`);
+					try {
+						// Remove existing layer and source using currentMap
+						if (currentMap.getLayer(layerId)) currentMap.removeLayer(layerId);
+						if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId);
+						currentMapLayers.delete(layerId); // Untrack
+					} catch (e) {
+						console.error(`Map: Error removing layer ${layerId} for visibility:`, e);
 					}
-				});
-
-				console.log('COG: Image source and layer added successfully.');
-			};
-
-			image.onerror = (e) => {
-				console.error('COG: Error loading image:', e);
-			};
-
-			// Start loading the image
-			image.src = imageUrl;
-			return; // Early return since we're handling layer creation in the onload callback
-		} catch (error) {
-			console.error('COG: Error adding source or layer:', error);
-		}
-	}
-
-	// Helper to remove COG source and layer
-	function removeCogLayer(currentMap: Map) {
-		if (!currentMap) {
-			console.log('COG: Map not ready, skipping removeCogLayer.');
-			return;
-		}
-
-		console.log('COG: Removing layer and source.');
-		try {
-			// Check if layer exists before removing
-			if (currentMap.getLayer(COG_LAYER_ID)) {
-				currentMap.removeLayer(COG_LAYER_ID);
-				console.log('COG: Layer removed.');
-			} else {
-				console.log('COG: Layer not found, skipping removeLayer.');
-			}
-			// Check if source exists before removing
-			if (currentMap.getSource(COG_SOURCE_ID)) {
-				currentMap.removeSource(COG_SOURCE_ID);
-				console.log('COG: Source removed.');
-			} else {
-				console.log('COG: Source not found, skipping removeSource.');
-			}
-
-			// Also remove the image if it exists
-			if (currentMap.hasImage(COG_SOURCE_ID)) {
-				currentMap.removeImage(COG_SOURCE_ID);
-				console.log('COG: Image removed.');
-			}
-		} catch (error) {
-			// Check error type before accessing message
-			if (error instanceof Error) {
-				// Ignore errors if map/style is changing rapidly
-				if (!error.message.includes('Style is not done loading')) {
-					console.error('COG: Error removing layer or source:', error);
-				} else {
-					console.log('COG: Ignoring remove error during style transition.');
 				}
-			} else {
-				// Handle non-Error types if necessary
-				console.error('COG: An unexpected error occurred during removal:', error);
+				// Opacity is handled separately
+				layersOnMap.delete(layerId); // Mark as processed
+			} else if (layerShouldBeVisible && !layerIsCurrentlyOnMap) {
+				// Layer should be visible, but isn't on map -> Add it
+				console.log(`Map: Layer ${layerId} should be visible. Evaluating if ready to add.`);
+				// Ensure not loading, no error, AND bounds exist before adding
+				if (!layer.isLoading && !layer.error && layer.bounds) {
+					console.log(`Map: Layer ${layerId} is ready. Adding source and layer.`);
+					try {
+						// Add source if it doesn't exist (bounds check already done)
+						if (!currentMap?.getSource(sourceId)) {
+							// Use image source type with fetched bounds
+							const imageUrl = layer.tileUrlTemplate; // This now holds the preview URL
+							const coordinates: [
+								[number, number],
+								[number, number],
+								[number, number],
+								[number, number]
+							] = [
+								[layer.bounds[0], layer.bounds[3]], // top-left [lng, lat]
+								[layer.bounds[2], layer.bounds[3]], // top-right
+								[layer.bounds[2], layer.bounds[1]], // bottom-right
+								[layer.bounds[0], layer.bounds[1]] // bottom-left
+							];
+
+							console.log(
+								`Raster: Adding image source ${sourceId} with URL: ${imageUrl} and coordinates:`,
+								coordinates
+							); // Add explicit logging
+
+							const sourceDef: maplibregl.ImageSourceSpecification = {
+								type: 'image',
+								url: imageUrl
+							};
+
+							// Only add coordinates if bounds are valid AND not the default global bounds
+							const isGlobalBounds =
+								layer.bounds[0] === -180 &&
+								layer.bounds[1] === -90 &&
+								layer.bounds[2] === 180 &&
+								layer.bounds[3] === 90;
+
+							if (!isGlobalBounds) {
+								sourceDef.coordinates = coordinates;
+								console.log(`Raster: Using specific coordinates for source ${sourceId}`);
+							} else {
+								console.warn(
+									`Raster: Using image source ${sourceId} without coordinates due to global bounds.`
+								);
+							}
+
+							currentMap?.addSource(sourceId, sourceDef);
+							console.log(`Raster: Successfully added image source ${sourceId}`);
+						}
+						// else { // Source might already exist if added previously but layer was removed
+						//	console.log(`Raster: Source ${sourceId} already exists.`);
+						//}
+
+						// Add layer if source exists and layer doesn't
+						if (currentMap?.getSource(sourceId) && !currentMap?.getLayer(layerId)) {
+							currentMap?.addLayer({
+								id: layerId,
+								type: 'raster', // Still use raster layer type for rendering controls like opacity
+								source: sourceId,
+								paint: {
+									'raster-opacity': layer.opacity // Set initial opacity
+								},
+								layout: {
+									visibility: 'visible' // Add as visible
+								}
+							});
+							console.log(`Raster: Added layer ${layerId}`);
+							currentMapLayers.add(layerId); // Track the added layer
+
+							// Optionally fit bounds only if specific bounds were used
+							const isGlobalBounds =
+								layer.bounds[0] === -180 &&
+								layer.bounds[1] === -90 &&
+								layer.bounds[2] === 180 &&
+								layer.bounds[3] === 90;
+							if (layer.bounds && !isGlobalBounds) {
+								currentMap?.fitBounds(layer.bounds, { padding: 50, duration: 500 });
+							}
+						}
+					} catch (error) {
+						console.error(`Raster: Error adding image source/layer ${layerId}:`, error);
+						// Clean up if partially added
+						if (currentMap?.getLayer(layerId)) currentMap.removeLayer(layerId);
+						if (currentMap?.getSource(sourceId)) currentMap.removeSource(sourceId);
+					}
+				} else if (layer.isLoading) {
+					console.log(`Map: Layer ${layerId} is still loading/fetching bounds.`);
+				} else if (layer.error) {
+					console.log(`Map: Layer ${layerId} has an error: ${layer.error}`);
+				} else if (!layer.bounds) {
+					console.warn(
+						`Map: Cannot add layer ${layerId}, bounds are missing and no error reported.`
+					);
+				}
+			} else if (!layerShouldBeVisible && layerIsCurrentlyOnMap) {
+				// Layer should be hidden, but it's on the map -> Remove it
+				console.log(`Map: Layer ${layerId} should be hidden. Removing.`);
+				try {
+					if (currentMap.getLayer(layerId)) currentMap.removeLayer(layerId);
+					if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId);
+					currentMapLayers.delete(layerId); // Untrack
+				} catch (e) {
+					console.error(`Map: Error removing layer ${layerId} during cleanup:`, e);
+				}
 			}
-		}
-	}
+		});
 
-	// React to visibility changes
-	$: if (map && map.isStyleLoaded()) {
-		// Ensure map and style are ready
-		if ($isExampleCogVisible && $exampleCogUrl) {
-			console.log('COG: Reactive visibility change to true.');
-			addCogLayer(map, $exampleCogUrl, $exampleCogOpacity);
-		} else {
-			console.log('COG: Reactive visibility change to false.');
-			removeCogLayer(map);
-		}
-	}
+		// Remove layers that are on the map but no longer in the store
+		layersOnMap.forEach((layerIdToRemove) => {
+			try {
+				if (currentMap?.getLayer(layerIdToRemove)) {
+					currentMap.removeLayer(layerIdToRemove);
+					console.log(`Raster: Removed layer ${layerIdToRemove}`);
+				}
+				const sourceIdToRemove = layerIdToRemove; // Assuming source ID matches layer ID
+				if (currentMap?.getSource(sourceIdToRemove)) {
+					currentMap.removeSource(sourceIdToRemove);
+					console.log(`Raster: Removed source ${sourceIdToRemove}`);
+				}
+				currentMapLayers.delete(layerIdToRemove); // Untrack
+			} catch (error) {
+				console.error(`Raster: Error removing layer/source ${layerIdToRemove}:`, error);
+			}
+		});
+	} // End of syncMapLayers function
 
-	// React to opacity changes
-	$: if (map && map.getLayer(COG_LAYER_ID) && $exampleCogOpacity !== undefined) {
-		console.log('COG: Reactive opacity change to', $exampleCogOpacity);
-		map.setPaintProperty(COG_LAYER_ID, 'raster-opacity', $exampleCogOpacity);
+	// Separate reactive block specifically for opacity updates
+	$: if (map && isStyleLoaded) {
+		$rasterLayers.forEach((layer) => {
+			const layerId = layer.id;
+			if (map && map.getLayer(layerId)) {
+				// Check if layer exists on map
+				try {
+					const currentOpacity = map.getPaintProperty(layerId, 'raster-opacity') ?? 1;
+					if (currentOpacity !== layer.opacity) {
+						console.log(
+							`Map (Opacity): Attempting to set opacity for ${layerId} to ${layer.opacity}`
+						);
+						map.setPaintProperty(layerId, 'raster-opacity', layer.opacity);
+						console.log(`Map (Opacity): Successfully set opacity for ${layerId}`);
+					}
+				} catch (error) {
+					// Ignore errors if layer doesn't exist (might happen during transitions)
+					// Check if error is an instance of Error before accessing message
+					if (error instanceof Error && !error.message.includes('does not exist')) {
+						console.error(`Map (Opacity): Error updating opacity for layer ${layerId}:`, error);
+					} else if (!(error instanceof Error)) {
+						// Log if it's not a standard Error object
+						console.error(
+							`Map (Opacity): Non-standard error updating opacity for layer ${layerId}:`,
+							error
+						);
+					}
+				}
+			}
+		});
 	}
-
-	// React to URL changes (if needed in the future)
-	// $: if (map && $isExampleCogVisible && $exampleCogUrl && map.getSource(COG_SOURCE_ID)) {
-	//   console.log('COG: URL changed. Re-adding layer.');
-	//   removeCogLayer(map);
-	//   addCogLayer(map, $exampleCogUrl, $exampleCogOpacity);
-	// }
 
 	onDestroy(() => {
 		if (map) {
