@@ -217,7 +217,7 @@
 		</div>
 
 		<!-- Tab Content -->
-		<div class="flex h-[calc(100vh-250px)] w-80 flex-col overflow-y-scroll p-3 pt-2">
+		<div class="flex h-full max-h-[calc(100vh-250px)] w-80 flex-col overflow-y-scroll p-3 pt-2">
 			{#if activeTab === 'filters'}
 				<!-- Existing Filter Sections -->
 				<div class="form-control my-2 w-full">
