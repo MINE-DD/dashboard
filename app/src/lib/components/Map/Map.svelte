@@ -362,7 +362,7 @@
 
 	<!-- Map Controls -->
 	<div class="map-top-controls absolute right-10 top-12 z-10">
-		<div class="dropdown dropdown-bottom">
+		<div class="dropdown dropdown-bottom dropdown-end">
 			<label tabindex="0" class="btn btn-sm m-1">Map Style</label>
 			<ul
 				tabindex="0"
