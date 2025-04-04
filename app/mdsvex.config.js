@@ -13,8 +13,8 @@ export default {
     dashes: 'oldschool'
   },
   layout: {
-    md: "/src/lib/markdown-layouts/default.svelte",  // Only apply to .md files
-    svx: "/src/lib/markdown-layouts/default.svelte"  // Only apply to .svx files
+    md: "$lib/markdown-layouts/default.svelte",  // Only apply to .md files
+    svx: "$lib/markdown-layouts/default.svelte"  // Only apply to .svx files
   },
   remarkPlugins: [
     videos,

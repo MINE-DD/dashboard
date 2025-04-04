@@ -16,10 +16,13 @@ export {
   isLoading,
   dataError,
   pathogenColors,
-  // Raster Layer Stores
-  isExampleCogVisible,
-  exampleCogOpacity,
-  exampleCogUrl
+  // New Raster Layer Store and Helpers
+  rasterLayers,
+  addRasterLayerFromUrl,
+  updateRasterLayerVisibility,
+  updateRasterLayerOpacity,
+  removeRasterLayer,
+  fetchAndSetLayerBounds // Add the missing export
 } from './stores';
 
 // Re-export the filter manager functions
