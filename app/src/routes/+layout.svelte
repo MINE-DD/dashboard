@@ -22,7 +22,7 @@
 </svelte:head>
 
 <div
-	class="relative grid h-dvh w-dvw grid-rows-[auto_auto_1fr] overflow-hidden sm:grid-rows-[auto_1fr]"
+	class="relative grid h-dvh w-dvw grid-rows-[auto_auto_1fr] overflow-clip sm:grid-rows-[auto_1fr]"
 >
 	<Header />
 	<SideMenu />

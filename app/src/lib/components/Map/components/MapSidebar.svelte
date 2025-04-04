@@ -19,6 +19,9 @@
 		removeRasterLayer
 	} from '../store';
 	import { writable } from 'svelte/store';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	// --- Raster Layer State ---
 	let cogUrlInput = '';
@@ -46,7 +49,7 @@
 
 	// Sidebar configuration
 	let collapsed = false;
-	let activeTab = 'filters'; // 'filters' or 'raster'
+	let activeTab: 'filters' | 'raster' = 'filters'; // Default value
 
 	// Stats for selected filters (Assuming filteredPointsData is available or derived elsewhere)
 	// $: visiblePoints = $filteredPointsData?.features?.length || 0; // Add null checks if needed
@@ -103,10 +106,36 @@
 
 		clearFilterCache();
 	}
+
+	// Function to update the active tab and URL
+	function setActiveTab(tabName: 'filters' | 'raster') {
+		if (activeTab === tabName) return; // Avoid unnecessary updates
+
+		activeTab = tabName;
+		const url = new URL($page.url);
+		url.searchParams.set('tab', tabName);
+		goto(url.search, { keepFocus: true, replaceState: true, noScroll: true });
+	}
+
+	// Read initial tab from URL on mount
+	onMount(() => {
+		const tabParam = $page.url.searchParams.get('tab');
+		if (tabParam === 'filters' || tabParam === 'raster') {
+			activeTab = tabParam;
+		} else {
+			// Optional: If the param is invalid, update URL to reflect the default
+			const url = new URL($page.url);
+			if (tabParam) {
+				// Only update if there was an invalid param
+				url.searchParams.set('tab', activeTab);
+				goto(url.search, { keepFocus: true, replaceState: true, noScroll: true });
+			}
+		}
+	});
 </script>
 
 <div
-	class="shadow-xs flex max-h-[calc(100%-20px)] w-80 max-w-[90%] flex-col overflow-hidden rounded-lg border border-white/20 bg-white/40 backdrop-blur-md backdrop-filter transition-all duration-300"
+	class=" shadow-xs grid max-h-[calc(100%-20px)] overflow-clip rounded-lg border border-white/20 bg-white/70 backdrop-blur-md backdrop-filter transition-all duration-300"
 >
 	<!-- Sidebar header with toggle button -->
 	<div class="z-10 border-b p-3">
@@ -173,7 +202,7 @@
 				role="tab"
 				class="tab"
 				class:tab-active={activeTab === 'filters'}
-				on:click={() => (activeTab = 'filters')}
+				on:click|preventDefault={() => setActiveTab('filters')}
 			>
 				Filters
 			</a>
@@ -181,14 +210,14 @@
 				role="tab"
 				class="tab"
 				class:tab-active={activeTab === 'raster'}
-				on:click={() => (activeTab = 'raster')}
+				on:click|preventDefault={() => setActiveTab('raster')}
 			>
 				Raster Layers
 			</a>
 		</div>
 
 		<!-- Tab Content -->
-		<div class="flex-1 overflow-y-auto p-3 pt-2">
+		<div class="flex h-[calc(100vh-250px)] w-80 flex-col overflow-y-scroll p-3 pt-2">
 			{#if activeTab === 'filters'}
 				<!-- Existing Filter Sections -->
 				<div class="form-control my-2 w-full">
@@ -286,7 +315,7 @@
 
 				<div class="border-base-300 bg-base-200 mt-4 rounded-lg border p-3">
 					<h3 class="text-base-content mb-2 text-sm font-medium">Pathogen Legend</h3>
-					<div class="grid max-h-[150px] grid-cols-2 gap-2 overflow-y-auto pr-1">
+					<div class="grid max-h-[150px] grid-cols-2 gap-2 pr-1">
 						{#each Array.from($pathogenColors?.entries() || []) as [pathogen, color]}
 							<div
 								class={`hover:bg-base-300 flex cursor-pointer items-center rounded p-1 transition-opacity ${
@@ -309,7 +338,7 @@
 				<!-- Shigella prevalence legend removed for brevity, assuming it's not directly related -->
 			{:else if activeTab === 'raster'}
 				<!-- Add Layer Section -->
-				<div class="form-control mb-4 w-full">
+				<div class="form-control mb-4">
 					<label class="label">
 						<span class="label-text font-medium">Add COG Layer from URL</span>
 					</label>
@@ -337,7 +366,7 @@
 				</div>
 
 				<!-- Test Button -->
-				<div class="my-2 text-center">
+				<!-- 	<div class="my-2 text-center">
 					<button
 						class="btn btn-xs btn-outline btn-warning"
 						on:click={() =>
@@ -348,7 +377,7 @@
 					>
 						Test EOX URL
 					</button>
-				</div>
+				</div> -->
 
 				<!-- Divider -->
 				{#if $rasterLayers.size > 0}
@@ -356,10 +385,11 @@
 				{/if}
 
 				<!-- Active Layers List -->
-				<div class="flex flex-col gap-3">
+				<div class="grid flex-col gap-3">
 					{#each Array.from($rasterLayers.entries()) as [id, layer] (id)}
 						<div class="border-base-300 bg-base-100 rounded-lg border p-2">
 							<div class="mb-1 flex items-center justify-between">
+								<!-- <div class="tooltip tooltip-right z-50" data-tip={layer.sourceUrl}>soure</div> -->
 								<span class="truncate text-sm font-medium" title={layer.name}>
 									{#if layer.isLoading}
 										<span class="loading loading-spinner loading-xs mr-1"></span>
@@ -410,9 +440,6 @@
 									class="range range-primary range-xs"
 									disabled={!layer.isVisible || layer.isLoading || !!layer.error}
 								/>
-							</div>
-							<div class="text-base-content/70 mt-1 text-xs">
-								<p class="truncate" title={layer.sourceUrl}>Source: {layer.sourceUrl}</p>
 							</div>
 						</div>
 					{/each}

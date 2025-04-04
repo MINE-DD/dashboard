@@ -15,9 +15,10 @@
 		isLoading,
 		dataError,
 		pointsData,
-		// Import new raster store
-		rasterLayers
-	} from '$lib/components/Map/store';
+		// Import raster stores and functions
+		rasterLayers,
+		fetchAndSetLayerBounds // Import the new function
+	} from './store'; // Corrected import path
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
@@ -138,7 +139,7 @@
 	$: syncMapLayers($rasterLayers, map, isStyleLoaded);
 
 	// Import RasterLayer type for the function signature
-	import type { RasterLayer } from '$lib/components/Map/store';
+	import type { RasterLayer } from './store'; // Assuming RasterLayer is exported from store
 
 	// This function handles adding/removing layers and setting initial visibility
 	function syncMapLayers(
@@ -153,7 +154,8 @@
 		const layersOnMap = new Set(currentMapLayers); // Copy current map layers
 
 		// Iterate through layers defined in the store
-		layersInStore.forEach((layer) => {
+		layersInStore.forEach((layer: RasterLayer) => {
+			// Added type annotation
 			const layerId = layer.id;
 			const sourceId = layer.id; // Use the same ID for source and layer for simplicity
 
@@ -177,10 +179,17 @@
 				// Opacity is handled separately
 				layersOnMap.delete(layerId); // Mark as processed
 			} else if (layerShouldBeVisible && !layerIsCurrentlyOnMap) {
-				// Layer should be visible, but isn't on map -> Add it
-				console.log(`Map: Layer ${layerId} should be visible. Evaluating if ready to add.`);
-				// Ensure not loading, no error, AND bounds exist before adding
-				if (!layer.isLoading && !layer.error && layer.bounds) {
+				// Layer should be visible, but isn't on map -> Add it OR fetch bounds
+				console.log(`Map: Layer ${layerId} should be visible. Evaluating.`);
+
+				// --- Check if bounds need fetching ---
+				if (!layer.bounds && !layer.isLoading && !layer.error) {
+					console.log(`Map: Layer ${layerId} needs bounds. Triggering fetch.`);
+					fetchAndSetLayerBounds(layerId); // Call the fetch function
+					// Don't try to add the layer yet, wait for bounds to be set by the store update
+				}
+				// --- Check if ready to add (bounds exist, not loading, no error) ---
+				else if (!layer.isLoading && !layer.error && layer.bounds) {
 					console.log(`Map: Layer ${layerId} is ready. Adding source and layer.`);
 					try {
 						// Add source if it doesn't exist (bounds check already done)
@@ -204,26 +213,26 @@
 								coordinates
 							); // Add explicit logging
 
-							const sourceDef: maplibregl.ImageSourceSpecification = {
-								type: 'image',
-								url: imageUrl
-							};
-
-							// Only add coordinates if bounds are valid AND not the default global bounds
+							// Check for problematic global bounds before defining source
 							const isGlobalBounds =
 								layer.bounds[0] === -180 &&
 								layer.bounds[1] === -90 &&
 								layer.bounds[2] === 180 &&
 								layer.bounds[3] === 90;
 
-							if (!isGlobalBounds) {
-								sourceDef.coordinates = coordinates;
-								console.log(`Raster: Using specific coordinates for source ${sourceId}`);
-							} else {
+							if (isGlobalBounds) {
 								console.warn(
-									`Raster: Using image source ${sourceId} without coordinates due to global bounds.`
+									`Raster: Using image source ${sourceId} with potentially problematic global bounds.`
 								);
+								// Decide if you want to proceed or throw an error for global bounds
 							}
+
+							// Define sourceDef WITH coordinates, as layer.bounds is guaranteed here
+							const sourceDef: maplibregl.ImageSourceSpecification = {
+								type: 'image',
+								url: imageUrl,
+								coordinates: coordinates // Always include coordinates
+							};
 
 							currentMap?.addSource(sourceId, sourceDef);
 							console.log(`Raster: Successfully added image source ${sourceId}`);
@@ -307,7 +316,8 @@
 
 	// Separate reactive block specifically for opacity updates
 	$: if (map && isStyleLoaded) {
-		$rasterLayers.forEach((layer) => {
+		$rasterLayers.forEach((layer: RasterLayer) => {
+			// Added type annotation
 			const layerId = layer.id;
 			if (map && map.getLayer(layerId)) {
 				// Check if layer exists on map
@@ -491,25 +501,20 @@
 		margin-bottom: 10px;
 	}
 
-	.error-message {
-		color: #e53e3e;
-		margin-bottom: 15px;
-		font-size: 16px;
-	}
-
 	.retry-button {
-		background-color: hsl(var(--p));
-		color: white;
+		/* Basic button styling */
+		padding: 8px 16px;
+		margin-top: 15px;
 		border: none;
 		border-radius: 4px;
-		padding: 8px 16px;
-		font-size: 14px;
+		background-color: hsl(var(--p)); /* Use primary color */
+		color: hsl(var(--pc)); /* Use primary content color */
 		cursor: pointer;
 		transition: background-color 0.2s;
 	}
 
 	.retry-button:hover {
-		background-color: hsl(var(--pf));
+		background-color: hsl(var(--p) / 0.8); /* Slightly darker on hover */
 	}
 
 	@keyframes spin {

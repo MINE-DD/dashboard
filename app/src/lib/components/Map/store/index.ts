@@ -21,7 +21,8 @@ export {
   addRasterLayerFromUrl,
   updateRasterLayerVisibility,
   updateRasterLayerOpacity,
-  removeRasterLayer
+  removeRasterLayer,
+  fetchAndSetLayerBounds // Add the missing export
 } from './stores';
 
 // Re-export the filter manager functions

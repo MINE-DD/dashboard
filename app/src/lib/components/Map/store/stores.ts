@@ -34,24 +34,66 @@ export const pathogenColors = writable<Map<string, string>>(new Map());
 // Use localhost as the browser needs to access the port mapped to the host
 const TITILER_ENDPOINT = 'http://localhost:8000';
 
-// Helper to create the initial example layer
+// Helper to create the initial raster layers map
 function createInitialRasterLayers(): Map<string, RasterLayer> {
   const initialMap = new Map<string, RasterLayer>();
-  const exampleUrl = 'https://pub-62f092641a504c70a213fec807d20190.r2.dev/cogs/TCI.tif';
-  const encodedUrl = encodeURIComponent(exampleUrl);
-  // Use preview endpoint for the image URL, adding default RGB bands
-  const exampleImageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodedUrl}&max_size=1024&bidx=1&bidx=2&bidx=3`;
-  const exampleLayer: RasterLayer = {
-    id: 'example-cog-tci',
-    name: 'Example COG (Sentinel TCI)',
-    sourceUrl: exampleUrl,
-    // tileJsonUrl: `${TITILER_ENDPOINT}/cog/tilejson.json?url=${encodedUrl}`, // Not strictly needed for preview
-    tileUrlTemplate: exampleImageUrl, // Store the preview URL here
-    isVisible: true,
-    opacity: 0.8,
-    bounds: [33.0, 15.0, 37.0, 17.0] // Hardcode known bounds for the example
-  };
-  initialMap.set(exampleLayer.id, exampleLayer);
+
+  // Define layers based on files in data/cogs
+  const layersToAdd: Omit<RasterLayer, 'id' | 'tileUrlTemplate'>[] = [
+    // Keep existing TCI layer if needed, assuming it's local now
+    // Pathogens - SHIG
+    { name: 'SHIG 0-11 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    // Risk Factors - Floor
+    { name: 'Floor Finished Pr', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Floor Finished SE', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    // Risk Factors - Roofs
+    { name: 'Roofs Finished Pr', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Roofs Finished SE', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    // Risk Factors - Walls
+    { name: 'Walls Finished Pr', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Walls Finished SE', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_SE.tif', isVisible: false, opacity: 0.8 }
+  ];
+
+  layersToAdd.forEach((layerData) => {
+    // NOTE: The sourceUrl is relative to the TiTiler /cogs mount point.
+    // The actual URL for TiTiler needs the absolute path within the container encoded.
+    const absolutePathInContainer = `/data/${layerData.sourceUrl}`;
+    const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
+    // Using preview endpoint with styling for single-band data.
+    // Using viridis colormap and a tentative rescale based on sample. Might need per-layer adjustment.
+    const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodedAbsolutePath}&max_size=1024&bidx=1&colormap_name=viridis&rescale=0,11`;
+
+    const layer: RasterLayer = {
+      id: `cog-${layerData.sourceUrl.replace(/[\/\.]/g, '-')}`, // Generate ID from path
+      name: layerData.name,
+      sourceUrl: layerData.sourceUrl, // Store relative path
+      tileUrlTemplate: imageUrl, // Store the preview URL for now
+      isVisible: layerData.isVisible,
+      opacity: layerData.opacity,
+      bounds: undefined, // Bounds will be fetched dynamically
+      isLoading: false,
+      error: null
+    };
+    initialMap.set(layer.id, layer);
+  });
+
   return initialMap;
 }
 
@@ -163,6 +205,107 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
       return layers;
     });
     toastStore.error(errorMessage);
+  }
+}
+
+/**
+ * Fetches and sets the bounds for a specific raster layer if they are missing.
+ * @param layerId The ID of the layer to fetch bounds for.
+ */
+export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
+  const layers = get(rasterLayers);
+  const layer = layers.get(layerId);
+
+  // Only proceed if layer exists, has no bounds, and isn't already loading
+  if (!layer || layer.bounds || layer.isLoading) {
+    // console.log(`Raster: Skipping bounds fetch for ${layerId} (exists, has bounds, or loading)`);
+    return;
+  }
+
+  console.log(`Raster: Triggering bounds fetch for layer ${layerId}`);
+
+  // --- Mark as loading ---
+  rasterLayers.update((currentLayers) => {
+    const layerToUpdate = currentLayers.get(layerId);
+    if (layerToUpdate) {
+      layerToUpdate.isLoading = true;
+      layerToUpdate.error = null; // Clear previous errors
+    }
+    return currentLayers;
+  });
+
+  // --- Fetch bounds ---
+  // Note: layer.sourceUrl is the relative path. Prepend '/data/' for TiTiler container path.
+  const absolutePathInContainer = `/data/${layer.sourceUrl}`;
+  const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
+  const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedAbsolutePath}`;
+
+  try {
+    console.log(`Raster: Fetching bounds for ${layerId}: ${boundsUrl}`);
+    const response = await fetch(boundsUrl);
+    console.log(`Raster: Bounds response status for ${layerId}: ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Raster: Bounds fetch failed for ${layerId}: ${errorText}`);
+      throw new Error(`TiTiler bounds error (${response.status}): ${errorText}`);
+    }
+
+    const boundsJson = await response.json();
+    console.log(`Raster: Received bounds JSON for ${layerId}:`, JSON.stringify(boundsJson));
+
+    // Validate bounds
+    let receivedBounds = boundsJson?.bounds;
+    if (
+      !receivedBounds ||
+      receivedBounds.length !== 4 ||
+      receivedBounds.some((coord: number | null) => typeof coord !== 'number' || !isFinite(coord)) ||
+      receivedBounds[0] < -180 || receivedBounds[0] > 180 || // west
+      receivedBounds[2] < -180 || receivedBounds[2] > 180 || // east
+      receivedBounds[1] < -90 || receivedBounds[1] > 90 || // south
+      receivedBounds[3] < -90 || receivedBounds[3] > 90     // north
+    ) {
+      console.error(`Raster: Invalid or out-of-range bounds received for ${layerId}:`, receivedBounds);
+      throw new Error('Invalid bounds received from TiTiler');
+    }
+
+    // Check for problematic global bounds (adjust if needed)
+    const isGlobalBounds =
+      receivedBounds[0] === -180 &&
+      receivedBounds[1] === -90 &&
+      receivedBounds[2] === 180 &&
+      receivedBounds[3] === 90;
+
+    if (isGlobalBounds) {
+      console.warn(`Raster: Received global bounds for ${layerId}, using slightly smaller bounds.`);
+      receivedBounds = [-179.9, -89.9, 179.9, 89.9];
+    }
+
+    // --- Update layer with bounds ---
+    rasterLayers.update((currentLayers) => {
+      const layerToUpdate = currentLayers.get(layerId);
+      if (layerToUpdate) {
+        layerToUpdate.bounds = receivedBounds;
+        layerToUpdate.isLoading = false;
+      }
+      return currentLayers;
+    });
+    console.log(`Raster: Successfully fetched and set bounds for ${layerId}`);
+
+  } catch (err: any) {
+    console.error(`Error fetching bounds for layer ${layerId}:`, err);
+    const errorMessage = err.message || 'Failed to load COG bounds from TiTiler.';
+    // --- Update layer state with error ---
+    rasterLayers.update((currentLayers) => {
+      const layerToUpdate = currentLayers.get(layerId);
+      if (layerToUpdate) {
+        layerToUpdate.isLoading = false;
+        layerToUpdate.error = errorMessage;
+        layerToUpdate.name = `Error: ${layerToUpdate.name}`; // Indicate error in name
+      }
+      return currentLayers;
+    });
+    toastStore.error(`Error loading bounds for ${layer?.name || layerId}: ${errorMessage}`);
   }
 }
 
