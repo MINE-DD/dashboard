@@ -90,6 +90,24 @@
 		}, 800); // More time to ensure style is properly loaded
 	}
 
+	// Generate the paint color expression for pathogens
+	function generatePathogenColorExpression() {
+		// Create a MapLibre match expression for the pathogens
+		const matchExpression: any[] = ['match', ['get', 'pathogen']];
+
+		// Add an entry for each pathogen and its color
+		// Use all known pathogens from the pathogenColors store, not just the filtered ones
+		$pathogenColors.forEach((color, pathogen) => {
+			matchExpression.push(pathogen);
+			matchExpression.push(color);
+		});
+
+		// Add a default color (gray) for any unmatched pathogens
+		matchExpression.push('#CCCCCC');
+
+		return matchExpression;
+	}
+
 	// Add points when component mounts or when map becomes available
 	function addPointsToMap() {
 		// Only add points if map exists, is loaded, and we have data
@@ -116,35 +134,15 @@
 					data: $filteredPointsData
 				});
 
-				// Add a circle layer for the points with colors based on prevalence
+				// Add a circle layer for the points with colors based on pathogen type
 				map.addLayer({
 					id: 'points-layer',
 					type: 'circle',
 					source: 'points-source',
 					paint: {
-						'circle-radius': 10, // Increased from 5 to 10 for bigger dots
-						// Color based on prevalence percentage using prevalenceValue (numeric field)
-						'circle-color': [
-							'step',
-							['get', 'prevalenceValue'], // Get prevalenceValue property from point data
-							'#B7CCE8', // < 2.5%
-							2.5,
-							'#A8D5BA', // 2.5-4.9%
-							5.0,
-							'#CEE5A7', // 5.0-7.4%
-							7.5,
-							'#EFF1A7', // 7.5-9.9%
-							10.0,
-							'#FFEE9F', // 10.0-14.9%
-							15.0,
-							'#FEDAA2', // 15.0-19.9%
-							20.0,
-							'#FAB787', // 20.0-24.9%
-							25.0,
-							'#F68F79', // 25.0-29.9%
-							30.0,
-							'#F2A3B3' // >=30.0%
-						],
+						'circle-radius': 10, // Keeping the bigger dots (10px radius)
+						// Use a match expression to color by pathogen
+						'circle-color': generatePathogenColorExpression(),
 						'circle-opacity': 0.8,
 						'circle-stroke-width': 1,
 						'circle-stroke-color': '#ffffff'
@@ -172,6 +170,15 @@
 			console.error('Error adding points to map:', error);
 			// Reset flag so we can try again
 			pointsAdded = false;
+		}
+	}
+
+	// Reactively update the circle colors when pathogen colors change
+	$: if (map && map.getLayer('points-layer') && $pathogenColors.size > 0 && pointsAdded) {
+		try {
+			map.setPaintProperty('points-layer', 'circle-color', generatePathogenColorExpression());
+		} catch (error) {
+			console.error('Error updating circle colors:', error);
 		}
 	}
 

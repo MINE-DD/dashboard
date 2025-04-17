@@ -323,8 +323,10 @@
 										? 'opacity-100'
 										: 'opacity-50'
 								}`}
-								on:click={() =>
-									($selectedPathogens = toggleSelection($selectedPathogens, pathogen))}
+								on:click={() => {
+									$selectedPathogens = toggleSelection($selectedPathogens, pathogen);
+									clearFilterCache(); // Clear cache to update filtered data
+								}}
 							>
 								<span
 									class="border-base-300 mr-2 inline-block h-3 w-3 rounded-full border"
