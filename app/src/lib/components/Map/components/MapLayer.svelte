@@ -54,7 +54,7 @@
 
 	// Define a style change handler that can be bound properly
 	function handleStyleChange() {
-		console.log('Style change detected, will re-add points once style is loaded');
+		// console.log('Style change detected, will re-add points once style is loaded');
 
 		// Remove the old handler to avoid duplicates
 		if (map) {
@@ -66,7 +66,7 @@
 
 		// Add the points back after style is loaded with more generous timeout
 		setTimeout(() => {
-			console.log('Attempting to re-add points after style change');
+			// console.log('Attempting to re-add points after style change');
 			if (map && map.loaded()) {
 				try {
 					addPointsToMap();
@@ -99,7 +99,7 @@
 		if (pointsAdded) return;
 
 		try {
-			console.log('Adding points to map...');
+			// console.log('Adding points to map...');
 
 			// Check if source already exists
 			let sourceExists = false;

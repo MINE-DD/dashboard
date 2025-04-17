@@ -117,7 +117,7 @@
 				});
 
 				map.on('styledata', () => {
-					console.log('Map "styledata" event fired');
+					// console.log('Map "styledata" event fired');
 					isStyleLoaded = true; // Style is now ready
 					// Clear tracked layers as they might be gone after style change
 					currentMapLayers.clear();
