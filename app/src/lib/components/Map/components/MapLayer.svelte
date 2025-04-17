@@ -122,7 +122,7 @@
 					type: 'circle',
 					source: 'points-source',
 					paint: {
-						'circle-radius': 5,
+						'circle-radius': 10, // Increased from 5 to 10 for bigger dots
 						// Color based on prevalence percentage using prevalenceValue (numeric field)
 						'circle-color': [
 							'step',
