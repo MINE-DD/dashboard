@@ -6,22 +6,22 @@ export const GET: RequestHandler = async ({ url }) => {
   try {
     // Get the URL parameter
     const cogUrl = url.searchParams.get('url');
-    
+
     if (!cogUrl) {
       return json({ error: 'Missing URL parameter' }, { status: 400 });
     }
-    
+
     // Resolve the path to the local COG file
     const filePath = resolveCogPath(cogUrl);
-    
+
     // Check if the file exists
     if (!await fileExists(filePath)) {
       return json({ error: 'COG file not found' }, { status: 404 });
     }
-    
+
     // Extract the metadata from the GeoTIFF
     const metadata = await getGeoTiffMetadata(filePath);
-    
+
     // Return the full metadata
     return json({
       cogMetadata: metadata,

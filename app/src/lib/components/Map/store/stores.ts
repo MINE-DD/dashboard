@@ -72,7 +72,7 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
     // For our serverless approach, we need to use the file path relative to the static folder
     const relativePath = layerData.sourceUrl;
     const encodedPath = encodeURIComponent(relativePath);
-    
+
     // Using our new unified COG endpoint for previews
     const imageUrl = `${TITILER_ENDPOINT}?operation=preview&file=${encodedPath}&max_size=1024&bidx=1&colormap_name=viridis&rescale=0,11`;
 
@@ -237,17 +237,17 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
     console.log(`Raster: Fetching bounds for ${layerId}: ${boundsUrl}`);
     const response = await fetch(boundsUrl);
     console.log(`Raster: Bounds response status for ${layerId}: ${response.status}`);
-    
+
     // Get content type to check if we're getting HTML instead of JSON
     const contentType = response.headers.get('content-type') || '';
     console.log(`Raster: Response content type: ${contentType}`);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Raster: Bounds fetch failed for ${layerId}: ${errorText}`);
       throw new Error(`TiTiler bounds error (${response.status}): ${errorText}`);
     }
-    
+
     // Check for HTML response (which would cause JSON parsing to fail)
     if (contentType.includes('text/html')) {
       const htmlText = await response.text();
