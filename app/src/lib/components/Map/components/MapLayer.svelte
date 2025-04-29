@@ -91,7 +91,7 @@
 	}
 
 	// Generate the paint color expression for pathogens
-	function generatePathogenColorExpression() {
+	function generatePathogenColorExpression(): maplibregl.DataDrivenPropertyValueSpecification<string> {
 		// Create a MapLibre match expression for the pathogens
 		const matchExpression: any[] = ['match', ['get', 'pathogen']];
 
@@ -105,7 +105,7 @@
 		// Add a default color (gray) for any unmatched pathogens
 		matchExpression.push('#CCCCCC');
 
-		return matchExpression;
+		return matchExpression as maplibregl.DataDrivenPropertyValueSpecification<string>;
 	}
 
 	// Add points when component mounts or when map becomes available

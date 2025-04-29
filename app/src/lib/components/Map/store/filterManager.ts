@@ -123,5 +123,32 @@ export const filteredPointsData = derived(
 
 // Function to clear filter cache when filters change significantly
 export function clearFilterCache(): void {
+  console.log('Filter cache cleared');
   filterCache.clear();
+}
+
+// Debug function to log filter state
+export function debugFilters(): void {
+  const $selectedPathogens = get(selectedPathogens);
+  const $selectedAgeGroups = get(selectedAgeGroups);
+  const $selectedSyndromes = get(selectedSyndromes);
+  const $pathogenIndex = get(pathogenIndex);
+  const $ageGroupIndex = get(ageGroupIndex);
+  const $syndromeIndex = get(syndromeIndex);
+  const $filteredIndices = get(filteredIndices);
+  const $pointsData = get(pointsData);
+  const $filteredPointsData = get(filteredPointsData);
+
+  console.group('Filter Debug Information');
+  console.log('Selected Pathogens:', Array.from($selectedPathogens));
+  console.log('Selected Age Groups:', Array.from($selectedAgeGroups));
+  console.log('Selected Syndromes:', Array.from($selectedSyndromes));
+  console.log('Pathogen Index Size:', $pathogenIndex.size);
+  console.log('Age Group Index Size:', $ageGroupIndex.size);
+  console.log('Syndrome Index Size:', $syndromeIndex.size);
+  console.log('Filtered Indices:', $filteredIndices);
+  console.log('Total Points:', $pointsData.features.length);
+  console.log('Filtered Points:', $filteredPointsData.features.length);
+  console.log('Filter Cache Size:', filterCache.size);
+  console.groupEnd();
 }

@@ -81,6 +81,12 @@
 			$selectedSyndromes = checked ? new Set($syndromes) : new Set();
 		}
 		clearFilterCache();
+		console.log(`Toggled all ${category} to ${checked ? 'selected' : 'unselected'}`);
+		console.group('Filter Debug Information');
+		console.log('Selected Pathogens:', Array.from($selectedPathogens));
+		console.log('Selected Age Groups:', Array.from($selectedAgeGroups));
+		console.log('Selected Syndromes:', Array.from($selectedSyndromes));
+		console.groupEnd();
 	}
 
 	// Clear all active filters
@@ -89,7 +95,31 @@
 		$selectedAgeGroups = new Set();
 		$selectedSyndromes = new Set();
 		clearFilterCache();
+		console.log('All filters cleared');
+		console.group('Filter Debug Information');
+		console.log('Selected Pathogens:', Array.from($selectedPathogens));
+		console.log('Selected Age Groups:', Array.from($selectedAgeGroups));
+		console.log('Selected Syndromes:', Array.from($selectedSyndromes));
+		console.groupEnd();
 	}
+
+	// Search filters
+	let pathogenSearch = '';
+	let ageGroupSearch = '';
+	let syndromeSearch = '';
+
+	// Filtered options based on search
+	$: filteredPathogens = Array.from($pathogens || [])
+		.filter((p) => p.toLowerCase().includes(pathogenSearch.toLowerCase()))
+		.sort();
+
+	$: filteredAgeGroups = Array.from($ageGroups || [])
+		.filter((a) => a.toLowerCase().includes(ageGroupSearch.toLowerCase()))
+		.sort();
+
+	$: filteredSyndromes = Array.from($syndromes || [])
+		.filter((s) => s.toLowerCase().includes(syndromeSearch.toLowerCase()))
+		.sort();
 
 	// Handle multiple select change
 	function handleMultipleSelect(event: Event, category: 'pathogens' | 'ageGroups' | 'syndromes') {
@@ -105,6 +135,30 @@
 		}
 
 		clearFilterCache();
+		console.log(`Updated ${category} filters:`, selectedOptions);
+		console.group('Filter Debug Information');
+		console.log('Selected Pathogens:', Array.from($selectedPathogens));
+		console.log('Selected Age Groups:', Array.from($selectedAgeGroups));
+		console.log('Selected Syndromes:', Array.from($selectedSyndromes));
+		console.groupEnd();
+	}
+
+	// Toggle a single filter value
+	function toggleFilter(category: 'pathogens' | 'ageGroups' | 'syndromes', value: string) {
+		if (category === 'pathogens') {
+			$selectedPathogens = toggleSelection($selectedPathogens, value);
+		} else if (category === 'ageGroups') {
+			$selectedAgeGroups = toggleSelection($selectedAgeGroups, value);
+		} else if (category === 'syndromes') {
+			$selectedSyndromes = toggleSelection($selectedSyndromes, value);
+		}
+		clearFilterCache();
+		console.log(`Toggled ${category} filter:`, value);
+		console.group('Filter Debug Information');
+		console.log('Selected Pathogens:', Array.from($selectedPathogens));
+		console.log('Selected Age Groups:', Array.from($selectedAgeGroups));
+		console.log('Selected Syndromes:', Array.from($selectedSyndromes));
+		console.groupEnd();
 	}
 
 	// Function to update the active tab and URL
@@ -220,120 +274,236 @@
 		<div class="flex h-full max-h-[calc(100vh-250px)] w-80 flex-col overflow-y-scroll p-3 pt-2">
 			{#if activeTab === 'filters'}
 				<!-- Existing Filter Sections -->
-				<div class="form-control my-2 w-full">
-					<label class="label">
-						<span class="label-text flex items-center font-medium">
-							Pathogens
-							{#if selectedPathogenCount > 0}
-								<span class="badge badge-primary badge-sm ml-2">{selectedPathogenCount}</span>
-							{/if}
-						</span>
-					</label>
-					<select
-						class="select select-bordered select-sm w-full"
-						multiple
-						size={Math.min(5, $pathogens?.size || 1)}
-						on:change={(e) => handleMultipleSelect(e, 'pathogens')}
-					>
-						{#each Array.from($pathogens || []).sort() as pathogen}
-							<option value={pathogen} selected={$selectedPathogens?.has(pathogen)}>
-								{pathogen}
-							</option>
-						{/each}
-					</select>
-					<div class="mt-1 flex justify-between">
-						<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('pathogens', true)}>
-							Select All
-						</button>
-						<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('pathogens', false)}>
-							Clear
-						</button>
-					</div>
-				</div>
-
-				<div class="form-control my-2 w-full">
-					<label class="label">
-						<span class="label-text flex items-center font-medium">
-							Age Groups
-							{#if selectedAgeGroupCount > 0}
-								<span class="badge badge-primary badge-sm ml-2">{selectedAgeGroupCount}</span>
-							{/if}
-						</span>
-					</label>
-					<select
-						class="select select-bordered select-sm w-full"
-						multiple
-						size={Math.min(5, $ageGroups?.size || 1)}
-						on:change={(e) => handleMultipleSelect(e, 'ageGroups')}
-					>
-						{#each Array.from($ageGroups || []).sort() as ageGroup}
-							<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
-								{ageGroup}
-							</option>
-						{/each}
-					</select>
-					<div class="mt-1 flex justify-between">
-						<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('ageGroups', true)}>
-							Select All
-						</button>
-						<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('ageGroups', false)}>
-							Clear
-						</button>
-					</div>
-				</div>
-
-				<div class="form-control my-2 w-full">
-					<label class="label">
-						<span class="label-text flex items-center font-medium">
-							Syndromes
-							{#if selectedSyndromeCount > 0}
-								<span class="badge badge-primary badge-sm ml-2">{selectedSyndromeCount}</span>
-							{/if}
-						</span>
-					</label>
-					<select
-						class="select select-bordered select-sm w-full"
-						multiple
-						size={Math.min(5, $syndromes?.size || 1)}
-						on:change={(e) => handleMultipleSelect(e, 'syndromes')}
-					>
-						{#each Array.from($syndromes || []).sort() as syndrome}
-							<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
-								{syndrome}
-							</option>
-						{/each}
-					</select>
-					<div class="mt-1 flex justify-between">
-						<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('syndromes', true)}>
-							Select All
-						</button>
-						<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('syndromes', false)}>
-							Clear
-						</button>
-					</div>
-				</div>
-
-				<div class="border-base-300 bg-base-200 mt-4 rounded-lg border p-3">
-					<h3 class="text-base-content mb-2 text-sm font-medium">Pathogen Legend</h3>
-					<div class="grid max-h-[150px] grid-cols-2 gap-2 pr-1">
-						{#each Array.from($pathogenColors?.entries() || []) as [pathogen, color]}
-							<div
-								class={`hover:bg-base-300 flex cursor-pointer items-center rounded p-1 transition-opacity ${
-									$selectedPathogens?.has(pathogen) || ($selectedPathogens?.size || 0) === 0
-										? 'opacity-100'
-										: 'opacity-50'
-								}`}
-								on:click={() => {
-									$selectedPathogens = toggleSelection($selectedPathogens, pathogen);
-									clearFilterCache(); // Clear cache to update filtered data
-								}}
-							>
-								<span
-									class="border-base-300 mr-2 inline-block h-3 w-3 rounded-full border"
-									style="background-color: {color}"
-								></span>
-								<span class="truncate text-xs">{pathogen}</span>
+				<!-- Filter Stats Summary -->
+				{#if hasActiveFilters}
+					<div class="stats-summary bg-base-200 mb-3 rounded-lg p-2 text-xs">
+						<div class="mb-2 flex items-center justify-between">
+							<span class="font-medium">Active Filters</span>
+							<button class="btn btn-xs btn-error btn-outline" on:click={clearAllFilters}>
+								Clear All
+							</button>
+						</div>
+						{#if selectedPathogenCount > 0}
+							<div class="stat-item">
+								<span class="stat-label">Pathogens:</span>
+								<span class="stat-value">{selectedPathogenCount}</span>
 							</div>
+						{/if}
+						{#if selectedAgeGroupCount > 0}
+							<div class="stat-item">
+								<span class="stat-label">Age Groups:</span>
+								<span class="stat-value">{selectedAgeGroupCount}</span>
+							</div>
+						{/if}
+						{#if selectedSyndromeCount > 0}
+							<div class="stat-item">
+								<span class="stat-label">Syndromes:</span>
+								<span class="stat-value">{selectedSyndromeCount}</span>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Pathogens Filter -->
+				<div class="filter-section my-3">
+					<div class="filter-header mb-2 flex items-center justify-between">
+						<label class="label p-0">
+							<span class="label-text flex items-center font-medium">
+								Pathogens
+								{#if selectedPathogenCount > 0}
+									<span class="badge badge-primary badge-sm ml-2">{selectedPathogenCount}</span>
+								{/if}
+							</span>
+						</label>
+						<div class="filter-actions flex gap-1">
+							<button
+								class="btn btn-xs btn-outline"
+								class:btn-primary={selectedPathogenCount === 0}
+								on:click={() => toggleAll('pathogens', true)}
+							>
+								All
+							</button>
+							<button
+								class="btn btn-xs btn-outline"
+								class:btn-primary={selectedPathogenCount > 0}
+								on:click={() => toggleAll('pathogens', false)}
+							>
+								None
+							</button>
+						</div>
+					</div>
+
+					<!-- Search input -->
+					<div class="filter-search mb-2">
+						<input
+							type="text"
+							placeholder="Search pathogens..."
+							class="input input-bordered input-sm w-full"
+							bind:value={pathogenSearch}
+						/>
+					</div>
+
+					<!-- Filter options -->
+					<div class="filter-options">
+						<select
+							class="select select-bordered select-sm w-full"
+							multiple
+							size={Math.min(8, filteredPathogens.length || 1)}
+							on:change={(e) => handleMultipleSelect(e, 'pathogens')}
+						>
+							{#each filteredPathogens as pathogen}
+								<option value={pathogen} selected={$selectedPathogens?.has(pathogen)} class="py-1">
+									{pathogen}
+								</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<!-- Age Groups Filter -->
+				<div class="filter-section my-3">
+					<div class="filter-header mb-2 flex items-center justify-between">
+						<label class="label p-0">
+							<span class="label-text flex items-center font-medium">
+								Age Groups
+								{#if selectedAgeGroupCount > 0}
+									<span class="badge badge-primary badge-sm ml-2">{selectedAgeGroupCount}</span>
+								{/if}
+							</span>
+						</label>
+						<div class="filter-actions flex gap-1">
+							<button
+								class="btn btn-xs btn-outline"
+								class:btn-primary={selectedAgeGroupCount === 0}
+								on:click={() => toggleAll('ageGroups', true)}
+							>
+								All
+							</button>
+							<button
+								class="btn btn-xs btn-outline"
+								class:btn-primary={selectedAgeGroupCount > 0}
+								on:click={() => toggleAll('ageGroups', false)}
+							>
+								None
+							</button>
+						</div>
+					</div>
+
+					<!-- Search input -->
+					<div class="filter-search mb-2">
+						<input
+							type="text"
+							placeholder="Search age groups..."
+							class="input input-bordered input-sm w-full"
+							bind:value={ageGroupSearch}
+						/>
+					</div>
+
+					<!-- Filter options -->
+					<div class="filter-options">
+						<select
+							class="select select-bordered select-sm w-full"
+							multiple
+							size={Math.min(8, filteredAgeGroups.length || 1)}
+							on:change={(e) => handleMultipleSelect(e, 'ageGroups')}
+						>
+							{#each filteredAgeGroups as ageGroup}
+								<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)} class="py-1">
+									{ageGroup}
+								</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<!-- Syndromes Filter -->
+				<div class="filter-section my-3">
+					<div class="filter-header mb-2 flex items-center justify-between">
+						<label class="label p-0">
+							<span class="label-text flex items-center font-medium">
+								Syndromes
+								{#if selectedSyndromeCount > 0}
+									<span class="badge badge-primary badge-sm ml-2">{selectedSyndromeCount}</span>
+								{/if}
+							</span>
+						</label>
+						<div class="filter-actions flex gap-1">
+							<button
+								class="btn btn-xs btn-outline"
+								class:btn-primary={selectedSyndromeCount === 0}
+								on:click={() => toggleAll('syndromes', true)}
+							>
+								All
+							</button>
+							<button
+								class="btn btn-xs btn-outline"
+								class:btn-primary={selectedSyndromeCount > 0}
+								on:click={() => toggleAll('syndromes', false)}
+							>
+								None
+							</button>
+						</div>
+					</div>
+
+					<!-- Search input -->
+					<div class="filter-search mb-2">
+						<input
+							type="text"
+							placeholder="Search syndromes..."
+							class="input input-bordered input-sm w-full"
+							bind:value={syndromeSearch}
+						/>
+					</div>
+
+					<!-- Filter options -->
+					<div class="filter-options">
+						<select
+							class="select select-bordered select-sm w-full"
+							multiple
+							size={Math.min(8, filteredSyndromes.length || 1)}
+							on:change={(e) => handleMultipleSelect(e, 'syndromes')}
+						>
+							{#each filteredSyndromes as syndrome}
+								<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)} class="py-1">
+									{syndrome}
+								</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<!-- Pathogen Legend with Search -->
+				<div class="border-base-300 bg-base-200 mt-4 rounded-lg border p-3">
+					<div class="mb-2 flex items-center justify-between">
+						<h3 class="text-base-content text-sm font-medium">Pathogen Legend</h3>
+						<div class="flex items-center">
+							<input
+								type="text"
+								placeholder="Search..."
+								class="input input-bordered input-xs mr-1 w-24"
+								bind:value={pathogenSearch}
+							/>
+						</div>
+					</div>
+
+					<div class="grid max-h-[200px] grid-cols-2 gap-2 overflow-y-auto pr-1">
+						{#each filteredPathogens as pathogen}
+							{#if $pathogenColors.has(pathogen)}
+								<div
+									class={`hover:bg-base-300 flex cursor-pointer items-center rounded p-1 transition-opacity ${
+										$selectedPathogens?.has(pathogen) || ($selectedPathogens?.size || 0) === 0
+											? 'opacity-100'
+											: 'opacity-50'
+									}`}
+									on:click={() => toggleFilter('pathogens', pathogen)}
+								>
+									<span
+										class="border-base-300 mr-2 inline-block h-3 w-3 rounded-full border"
+										style="background-color: {$pathogenColors.get(pathogen)}"
+									></span>
+									<span class="truncate text-xs">{pathogen}</span>
+								</div>
+							{/if}
 						{/each}
 					</div>
 				</div>

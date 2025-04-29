@@ -60,6 +60,14 @@
 		// Determine prevalence color based on value
 		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);
 
+		// Calculate confidence interval
+		const ciLower = Math.max(0, prevalencePercent - props.standardError * 100 * 1.96);
+		const ciUpper = Math.min(100, prevalencePercent + props.standardError * 100 * 1.96);
+		const confidenceInterval = `${ciLower.toFixed(1)}% - ${ciUpper.toFixed(1)}%`;
+
+		// Format study ID for display
+		const studyId = props.id;
+
 		return `
       <div class="popup-content">
         <h3 class="popup-title">
@@ -69,14 +77,24 @@
           </span>
         </h3>
 
+        <div class="popup-id">ID: ${studyId}</div>
+
         <div class="popup-section">
           <div class="info-row">
             <div class="info-label">Age Group:</div>
             <div class="info-value">${props.ageGroup}</div>
           </div>
           <div class="info-row">
+            <div class="info-label">Age Range:</div>
+            <div class="info-value">${props.ageRange}</div>
+          </div>
+          <div class="info-row">
             <div class="info-label">Syndrome:</div>
             <div class="info-value">${props.syndrome}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Design:</div>
+            <div class="info-value">${props.design}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Location:</div>
@@ -85,6 +103,13 @@
         </div>
 
         <div class="popup-section">
+          <div class="info-row">
+            <div class="info-label">Prevalence:</div>
+            <div class="info-value">
+              <span class="prevalence-value">${prevalenceDisplay}</span>
+              <span class="prevalence-ci">(95% CI: ${confidenceInterval})</span>
+            </div>
+          </div>
           <div class="info-row">
             <div class="info-label">Cases:</div>
             <div class="info-value">${props.cases} / ${props.samples}</div>
@@ -137,17 +162,25 @@
 		padding: 15px;
 		border-radius: 8px;
 		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+		max-width: 400px !important;
 	}
 
 	:global(.popup-title) {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin: 0 0 10px 0;
+		margin: 0 0 5px 0;
 		padding-bottom: 8px;
 		border-bottom: 1px solid #eee;
 		font-size: 16px;
 		font-weight: 600;
+	}
+
+	:global(.popup-id) {
+		font-size: 12px;
+		color: #666;
+		margin-bottom: 10px;
+		font-family: monospace;
 	}
 
 	:global(.pathogen-name) {
@@ -165,6 +198,12 @@
 
 	:global(.popup-section) {
 		margin-bottom: 12px;
+		border-bottom: 1px dashed #eee;
+		padding-bottom: 8px;
+	}
+
+	:global(.popup-section:last-of-type) {
+		border-bottom: none;
 	}
 
 	:global(.info-row) {
@@ -182,6 +221,16 @@
 	:global(.info-value) {
 		flex: 1;
 		color: #333;
+	}
+
+	:global(.prevalence-value) {
+		font-weight: 600;
+	}
+
+	:global(.prevalence-ci) {
+		font-size: 12px;
+		color: #666;
+		margin-left: 5px;
 	}
 
 	:global(.popup-footer) {

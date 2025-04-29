@@ -31,8 +31,8 @@ export const pathogenColors = writable<Map<string, string>>(new Map());
 
 // --- Raster Layer Store ---
 
-// Use localhost as the browser needs to access the port mapped to the host
-const TITILER_ENDPOINT = 'http://localhost:8000';
+// Use the SvelteKit API endpoints instead of direct access to TiTiler
+const TITILER_ENDPOINT = '/api/titiler';
 
 // Helper to create the initial raster layers map
 function createInitialRasterLayers(): Map<string, RasterLayer> {
