@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "api/*.py": {
+      "runtime": "python3.9",
+      "memory": 1024
+    }
+  },
+  "routes": [
+    { "src": "/cog/(.*)", "dest": "/api/cog.py" },
+    { "src": "/health", "dest": "/api/cog.py" }
+  ],
+  "env": {
+    "PYTHONPATH": ".",
+    "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+    "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif,.TIF,.tiff,.TIFF,.jp2,.JP2,.png,.PNG,.jpg,.JPG,.jpeg,.JPEG,.vrt,.VRT,.zip,.ZIP,.xml,.XML,.ovr,.OVR"
+  }
+}
