@@ -31,54 +31,50 @@ export const pathogenColors = writable<Map<string, string>>(new Map());
 
 // --- Raster Layer Store ---
 
-// Use the SvelteKit API endpoints instead of direct access to TiTiler
-const TITILER_ENDPOINT = '/api/titiler';
+// Use the new SvelteKit API endpoints for serverless COG processing
+const TITILER_ENDPOINT = '/api/cog';
 
 // Helper to create the initial raster layers map
 function createInitialRasterLayers(): Map<string, RasterLayer> {
   const initialMap = new Map<string, RasterLayer>();
 
-  // Define layers based on files in data/cogs
+  // Define layers based on files in the static folder
   const layersToAdd: Omit<RasterLayer, 'id' | 'tileUrlTemplate'>[] = [
-    // Keep existing TCI layer if needed, assuming it's local now
     // Pathogens - SHIG
-    { name: 'SHIG 0-11 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_SE.tif', isVisible: false, opacity: 0.8 },
-    // Risk Factors - Floor
-    { name: 'Floor Finished Pr', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Floor Finished SE', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_SE.tif', isVisible: false, opacity: 0.8 },
-    // Risk Factors - Roofs
-    { name: 'Roofs Finished Pr', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Roofs Finished SE', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_SE.tif', isVisible: false, opacity: 0.8 },
-    // Risk Factors - Walls
-    { name: 'Walls Finished Pr', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Walls Finished SE', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_SE.tif', isVisible: false, opacity: 0.8 }
+    { name: 'SHIG 0-11 Asym Pr', sourceUrl: 'SHIG_0011_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Asym SE', sourceUrl: 'SHIG_0011_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Comm Pr', sourceUrl: 'SHIG_0011_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Comm SE', sourceUrl: 'SHIG_0011_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Medi Pr', sourceUrl: 'SHIG_0011_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Medi SE', sourceUrl: 'SHIG_0011_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Asym Pr', sourceUrl: 'SHIG_1223_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Asym SE', sourceUrl: 'SHIG_1223_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Comm Pr', sourceUrl: 'SHIG_1223_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Comm SE', sourceUrl: 'SHIG_1223_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Medi Pr', sourceUrl: 'SHIG_1223_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Medi SE', sourceUrl: 'SHIG_1223_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Asym Pr', sourceUrl: 'SHIG_2459_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Asym SE', sourceUrl: 'SHIG_2459_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Comm Pr', sourceUrl: 'SHIG_2459_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Comm SE', sourceUrl: 'SHIG_2459_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Medi Pr', sourceUrl: 'SHIG_2459_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Medi SE', sourceUrl: 'SHIG_2459_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    // Risk Factors
+    { name: 'Floor Finished Pr', sourceUrl: 'Flr_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Floor Finished SE', sourceUrl: 'Flr_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Roofs Finished Pr', sourceUrl: 'Rfs_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Roofs Finished SE', sourceUrl: 'Rfs_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Walls Finished Pr', sourceUrl: 'Wll_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Walls Finished SE', sourceUrl: 'Wll_Fin_SE.tif', isVisible: false, opacity: 0.8 }
   ];
 
   layersToAdd.forEach((layerData) => {
-    // NOTE: The sourceUrl is relative to the TiTiler /cogs mount point.
-    // The actual URL for TiTiler needs the absolute path within the container encoded.
-    const absolutePathInContainer = `/data/${layerData.sourceUrl}`;
-    const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
-    // Using preview endpoint with styling for single-band data.
-    // Using viridis colormap and a tentative rescale based on sample. Might need per-layer adjustment.
-    const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodedAbsolutePath}&max_size=1024&bidx=1&colormap_name=viridis&rescale=0,11`;
+    // For our serverless approach, we need to use the file path relative to the static folder
+    const relativePath = layerData.sourceUrl;
+    const encodedPath = encodeURIComponent(relativePath);
+    
+    // Using our new unified COG endpoint for previews
+    const imageUrl = `${TITILER_ENDPOINT}?operation=preview&file=${encodedPath}&max_size=1024&bidx=1&colormap_name=viridis&rescale=0,11`;
 
     const layer: RasterLayer = {
       id: `cog-${layerData.sourceUrl.replace(/[\/\.]/g, '-')}`, // Generate ID from path
@@ -235,20 +231,28 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
   });
 
   // --- Fetch bounds ---
-  // Note: layer.sourceUrl is the relative path. Prepend '/data/' for TiTiler container path.
-  const absolutePathInContainer = `/data/${layer.sourceUrl}`;
-  const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
-  const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedAbsolutePath}`;
+  const boundsUrl = `${TITILER_ENDPOINT}?operation=bounds&file=${encodeURIComponent(layer.sourceUrl)}`;
 
   try {
     console.log(`Raster: Fetching bounds for ${layerId}: ${boundsUrl}`);
     const response = await fetch(boundsUrl);
     console.log(`Raster: Bounds response status for ${layerId}: ${response.status}`);
-
+    
+    // Get content type to check if we're getting HTML instead of JSON
+    const contentType = response.headers.get('content-type') || '';
+    console.log(`Raster: Response content type: ${contentType}`);
+    
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Raster: Bounds fetch failed for ${layerId}: ${errorText}`);
       throw new Error(`TiTiler bounds error (${response.status}): ${errorText}`);
+    }
+    
+    // Check for HTML response (which would cause JSON parsing to fail)
+    if (contentType.includes('text/html')) {
+      const htmlText = await response.text();
+      console.error(`Raster: Received HTML instead of JSON for ${layerId}`, htmlText.substring(0, 100));
+      throw new Error('Received HTML instead of JSON from TiTiler endpoint');
     }
 
     const boundsJson = await response.json();

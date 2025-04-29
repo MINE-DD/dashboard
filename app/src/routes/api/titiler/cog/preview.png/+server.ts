@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 
 // TiTiler endpoint from our docker service
-const TITILER_BASE_URL = 'http://localhost:8000';
+const TITILER_BASE_URL = 'http://titiler:8000';
 
 export const GET: RequestHandler = async ({ url, fetch }) => {
   try {
