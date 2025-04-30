@@ -162,7 +162,7 @@
 			// Added type annotation
 			const layerId = layer.id;
 			const sourceId = `source-${layerId}`;
-			
+
 			// Determine if the layer should be visible now (by visibility and having bounds)
 			const layerShouldBeVisible = layer.isVisible;
 			// Check if the layer is already on the map
@@ -182,69 +182,73 @@
 				else if (!layer.isLoading && !layer.error && layer.bounds) {
 					console.log(`Map: Layer ${layerId} is ready. Adding source and layer.`);
 					try {
-							// Check if this is a direct GeoTIFF layer
-							if (layer.isDirectGeoTIFF) {
-								// Skip adding the layer here - it will be handled by the GeoTIFFLayer component
-								console.log(`Map: Layer ${layerId} is a direct GeoTIFF layer - will be added by GeoTIFFLayer component`);
-								currentMapLayers.add(layerId); // Track the layer as "on map" so we don't try to add it again
-							} else {
-								// Add source if it doesn't exist (bounds check already done)
-								if (!currentMap?.getSource(sourceId)) {
-									// Use image source type with fetched bounds
-									const imageUrl = layer.tileUrlTemplate; // This now holds the preview URL
-									const coordinates: [
-										[number, number],
-										[number, number],
-										[number, number],
-										[number, number]
-									] = [
-										[layer.bounds[0], layer.bounds[3]], // top-left [lng, lat]
-										[layer.bounds[2], layer.bounds[3]], // top-right
-										[layer.bounds[2], layer.bounds[1]], // bottom-right
-										[layer.bounds[0], layer.bounds[1]] // bottom-left
-									];
+						// Check if this is a direct GeoTIFF layer
+						if (layer.isDirectGeoTIFF) {
+							// Skip adding the layer here - it will be handled by the GeoTIFFLayer component
+							console.log(
+								`Map: Layer ${layerId} is a direct GeoTIFF layer - will be added by GeoTIFFLayer component`
+							);
+							currentMapLayers.add(layerId); // Track the layer as "on map" so we don't try to add it again
+						} else {
+							// Add source if it doesn't exist (bounds check already done)
+							if (!currentMap?.getSource(sourceId)) {
+								// Use image source type with fetched bounds
+								const imageUrl = layer.tileUrlTemplate; // This now holds the preview URL
+								const coordinates: [
+									[number, number],
+									[number, number],
+									[number, number],
+									[number, number]
+								] = [
+									[layer.bounds[0], layer.bounds[3]], // top-left [lng, lat]
+									[layer.bounds[2], layer.bounds[3]], // top-right
+									[layer.bounds[2], layer.bounds[1]], // bottom-right
+									[layer.bounds[0], layer.bounds[1]] // bottom-left
+								];
 
-									console.log(
-										`Raster: Adding image source ${sourceId} with URL: ${imageUrl} and coordinates:`,
+								console.log(
+									`Raster: Adding image source ${sourceId} with URL: ${imageUrl} and coordinates:`,
+									coordinates
+								); // Add explicit logging
+
+								// Check for problematic global bounds before defining source
+								const isGlobalBounds =
+									layer.bounds[0] === -180 &&
+									layer.bounds[1] === -90 &&
+									layer.bounds[2] === 180 &&
+									layer.bounds[3] === 90;
+
+								if (isGlobalBounds) {
+									console.error(
+										`Map: Cannot add source ${sourceId} with global bounds. Please use a GeoTIFF with a more specific extent.`
+									);
+								} else {
+									// Add source
+									currentMap.addSource(sourceId, {
+										type: 'image',
+										url: imageUrl,
 										coordinates
-									); // Add explicit logging
+									});
+									console.log(`Raster: Successfully added image source ${sourceId}`);
 
-									// Check for problematic global bounds before defining source
-									const isGlobalBounds =
-										layer.bounds[0] === -180 &&
-										layer.bounds[1] === -90 &&
-										layer.bounds[2] === 180 &&
-										layer.bounds[3] === 90;
-
-									if (isGlobalBounds) {
-										console.error(`Map: Cannot add source ${sourceId} with global bounds. Please use a GeoTIFF with a more specific extent.`);
-									} else {
-										// Add source
-										currentMap.addSource(sourceId, {
-											type: 'image',
-											url: imageUrl,
-											coordinates
-										});
-										console.log(`Raster: Successfully added image source ${sourceId}`);
-
-										// Add layer
-										currentMap.addLayer({
-											id: layerId,
-											source: sourceId,
-											type: 'raster',
-											layout: {
-												visibility: layer.isVisible ? 'visible' : 'none'
-											},
-											paint: {
-												'raster-opacity': layer.opacity,
-												'raster-resampling': 'linear'
-											}
-										});
-										console.log(`Raster: Added layer ${layerId}`);
-										currentMapLayers.add(layerId); // Track the layer
-									}
+									// Add layer
+									currentMap.addLayer({
+										id: layerId,
+										source: sourceId,
+										type: 'raster',
+										layout: {
+											visibility: layer.isVisible ? 'visible' : 'none'
+										},
+										paint: {
+											'raster-opacity': layer.opacity,
+											'raster-resampling': 'linear'
+										}
+									});
+									console.log(`Raster: Added layer ${layerId}`);
+									currentMapLayers.add(layerId); // Track the layer
 								}
 							}
+						}
 					} catch (e) {
 						console.error(`Error adding layer ${layerId}:`, e);
 						if (currentMap?.getLayer(layerId)) currentMap.removeLayer(layerId);
