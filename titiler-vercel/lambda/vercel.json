@@ -2,19 +2,19 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
+      "src": "lambda/handler.py",
       "use": "@vercel/python",
       "config": {
         "runtime": "python3.9",
         "maxLambdaSize": "50mb",
-        "maxDuration": 300
+        "installCommand": "pip install --upgrade pip && pip install -r lambda/requirements.txt"
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/index.py"
+      "dest": "lambda/handler.py"
     }
   ],
   "env": {
@@ -27,9 +27,7 @@
     "PYTHONWARNINGS": "ignore",
     "AWS_REGION": "auto",
     "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif,.TIF,.tiff,.TIFF,.xml,.XML,.aux.xml,.AUX.XML",
-    "GDAL_VERSION": "3.4.3",
     "AWS_S3_ENDPOINT": "https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev",
-    "PIP_RETRIES": "10",
-    "PIP_TIMEOUT": "100"
+    "R2_BUCKET": "planeo"
   }
 }

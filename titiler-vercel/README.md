@@ -50,7 +50,7 @@ Once deployed, your Titiler API will be available at your Vercel deployment URL.
 ### Special endpoints for your R2 structure
 
 ```
-# Access pathogens files 
+# Access pathogens files
 https://your-vercel-app.vercel.app/pathogens/your-file.tif?request_path=info
 
 # Access risk factor files

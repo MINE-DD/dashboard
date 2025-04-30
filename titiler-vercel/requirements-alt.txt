@@ -6,8 +6,7 @@ starlette==0.27.0
 uvicorn==0.22.0
 python-dotenv==1.0.0
 
-# GDAL and rasterio without extra indices (to avoid network issues)
---no-index --find-links https://wheelhouse.planet.com/
+# Use pre-built GDAL and rasterio wheels from PyPI
 GDAL==3.4.3
 rasterio==1.3.7
 

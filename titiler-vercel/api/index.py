@@ -4,7 +4,8 @@ import os
 import re
 from typing import Dict, List, Optional, Union
 
-from fastapi import FastAPI, Query, Depends, Path, HTTPException
+from fastapi import FastAPI, Query, Depends, Path, HTTPException, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from titiler.core.factory import MultiBaseTilerFactory, TilerFactory
@@ -153,3 +154,8 @@ async def proxy_to_titiler(url: str, request_path: str, **kwargs):
 for route in titiler_app.routes:
     if route not in app.routes:
         app.routes.append(route)
+
+# Define Vercel serverless handler function (recommended pattern)
+async def handler(request: Request):
+    """Vercel serverless function handler for FastAPI app."""
+    return await app(request.scope, request._receive, request._send)
