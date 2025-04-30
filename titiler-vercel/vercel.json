@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/*.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.9",
+        "buildCommand": "chmod +x build.sh && ./build.sh pip install -r requirements.txt"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
+    }
+  ],
+  "env": {
+    "PYTHONPATH": ".",
+    "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+    "VSI_CACHE": "TRUE",
+    "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
+    "GDAL_HTTP_MULTIPLEX": "YES",
+    "GDAL_HTTP_VERSION": "2",
+    "PYTHONWARNINGS": "ignore",
+    "AWS_REGION": "auto",
+    "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif,.TIF,.tiff,.TIFF,.xml,.XML,.aux.xml,.AUX.XML",
+    "GDAL_VERSION": "3.4.3",
+    "AWS_S3_ENDPOINT": "https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev"
+  }
+}
