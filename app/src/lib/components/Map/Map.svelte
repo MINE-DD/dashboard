@@ -161,28 +161,14 @@
 		layersInStore.forEach((layer: RasterLayer) => {
 			// Added type annotation
 			const layerId = layer.id;
-			const sourceId = layer.id; // Use the same ID for source and layer for simplicity
-
+			const sourceId = `source-${layerId}`;
+			
+			// Determine if the layer should be visible now (by visibility and having bounds)
 			const layerShouldBeVisible = layer.isVisible;
-			const layerIsCurrentlyOnMap = currentMap.getLayer(layerId); // Check if layer exists
+			// Check if the layer is already on the map
+			const layerIsCurrentlyOnMap = layersOnMap.has(layerId);
 
-			if (layersOnMap.has(layerId) && layerIsCurrentlyOnMap) {
-				// Layer exists on map, check only visibility for removal
-				if (!layerShouldBeVisible) {
-					// Layer should be hidden, but it's on the map -> Remove it
-					console.log(`Map: Layer ${layerId} should be hidden. Removing.`);
-					try {
-						// Remove existing layer and source using currentMap
-						if (currentMap.getLayer(layerId)) currentMap.removeLayer(layerId);
-						if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId);
-						currentMapLayers.delete(layerId); // Untrack
-					} catch (e) {
-						console.error(`Map: Error removing layer ${layerId} for visibility:`, e);
-					}
-				}
-				// Opacity is handled separately
-				layersOnMap.delete(layerId); // Mark as processed
-			} else if (layerShouldBeVisible && !layerIsCurrentlyOnMap) {
+			if (layerShouldBeVisible && !layerIsCurrentlyOnMap) {
 				// Layer should be visible, but isn't on map -> Add it OR fetch bounds
 				console.log(`Map: Layer ${layerId} should be visible. Evaluating.`);
 
@@ -196,84 +182,71 @@
 				else if (!layer.isLoading && !layer.error && layer.bounds) {
 					console.log(`Map: Layer ${layerId} is ready. Adding source and layer.`);
 					try {
-						// Add source if it doesn't exist (bounds check already done)
-						if (!currentMap?.getSource(sourceId)) {
-							// Use image source type with fetched bounds
-							const imageUrl = layer.tileUrlTemplate; // This now holds the preview URL
-							const coordinates: [
-								[number, number],
-								[number, number],
-								[number, number],
-								[number, number]
-							] = [
-								[layer.bounds[0], layer.bounds[3]], // top-left [lng, lat]
-								[layer.bounds[2], layer.bounds[3]], // top-right
-								[layer.bounds[2], layer.bounds[1]], // bottom-right
-								[layer.bounds[0], layer.bounds[1]] // bottom-left
-							];
+							// Check if this is a direct GeoTIFF layer
+							if (layer.isDirectGeoTIFF) {
+								// Skip adding the layer here - it will be handled by the GeoTIFFLayer component
+								console.log(`Map: Layer ${layerId} is a direct GeoTIFF layer - will be added by GeoTIFFLayer component`);
+								currentMapLayers.add(layerId); // Track the layer as "on map" so we don't try to add it again
+							} else {
+								// Add source if it doesn't exist (bounds check already done)
+								if (!currentMap?.getSource(sourceId)) {
+									// Use image source type with fetched bounds
+									const imageUrl = layer.tileUrlTemplate; // This now holds the preview URL
+									const coordinates: [
+										[number, number],
+										[number, number],
+										[number, number],
+										[number, number]
+									] = [
+										[layer.bounds[0], layer.bounds[3]], // top-left [lng, lat]
+										[layer.bounds[2], layer.bounds[3]], // top-right
+										[layer.bounds[2], layer.bounds[1]], // bottom-right
+										[layer.bounds[0], layer.bounds[1]] // bottom-left
+									];
 
-							console.log(
-								`Raster: Adding image source ${sourceId} with URL: ${imageUrl} and coordinates:`,
-								coordinates
-							); // Add explicit logging
+									console.log(
+										`Raster: Adding image source ${sourceId} with URL: ${imageUrl} and coordinates:`,
+										coordinates
+									); // Add explicit logging
 
-							// Check for problematic global bounds before defining source
-							const isGlobalBounds =
-								layer.bounds[0] === -180 &&
-								layer.bounds[1] === -90 &&
-								layer.bounds[2] === 180 &&
-								layer.bounds[3] === 90;
+									// Check for problematic global bounds before defining source
+									const isGlobalBounds =
+										layer.bounds[0] === -180 &&
+										layer.bounds[1] === -90 &&
+										layer.bounds[2] === 180 &&
+										layer.bounds[3] === 90;
 
-							if (isGlobalBounds) {
-								console.warn(
-									`Raster: Using image source ${sourceId} with potentially problematic global bounds.`
-								);
-								// Decide if you want to proceed or throw an error for global bounds
-							}
+									if (isGlobalBounds) {
+										console.error(`Map: Cannot add source ${sourceId} with global bounds. Please use a GeoTIFF with a more specific extent.`);
+									} else {
+										// Add source
+										currentMap.addSource(sourceId, {
+											type: 'image',
+											url: imageUrl,
+											coordinates
+										});
+										console.log(`Raster: Successfully added image source ${sourceId}`);
 
-							// Define sourceDef WITH coordinates, as layer.bounds is guaranteed here
-							const sourceDef: maplibregl.ImageSourceSpecification = {
-								type: 'image',
-								url: imageUrl,
-								coordinates: coordinates // Always include coordinates
-							};
-
-							currentMap?.addSource(sourceId, sourceDef);
-							console.log(`Raster: Successfully added image source ${sourceId}`);
-						}
-						// else { // Source might already exist if added previously but layer was removed
-						//	console.log(`Raster: Source ${sourceId} already exists.`);
-						//}
-
-						// Add layer if source exists and layer doesn't
-						if (currentMap?.getSource(sourceId) && !currentMap?.getLayer(layerId)) {
-							currentMap?.addLayer({
-								id: layerId,
-								type: 'raster', // Still use raster layer type for rendering controls like opacity
-								source: sourceId,
-								paint: {
-									'raster-opacity': layer.opacity // Set initial opacity
-								},
-								layout: {
-									visibility: 'visible' // Add as visible
+										// Add layer
+										currentMap.addLayer({
+											id: layerId,
+											source: sourceId,
+											type: 'raster',
+											layout: {
+												visibility: layer.isVisible ? 'visible' : 'none'
+											},
+											paint: {
+												'raster-opacity': layer.opacity,
+												'raster-resampling': 'linear'
+											}
+										});
+										console.log(`Raster: Added layer ${layerId}`);
+										currentMapLayers.add(layerId); // Track the layer
+									}
 								}
-							});
-							console.log(`Raster: Added layer ${layerId}`);
-							currentMapLayers.add(layerId); // Track the added layer
-
-							// Optionally fit bounds only if specific bounds were used
-							const isGlobalBounds =
-								layer.bounds[0] === -180 &&
-								layer.bounds[1] === -90 &&
-								layer.bounds[2] === 180 &&
-								layer.bounds[3] === 90;
-							if (layer.bounds && !isGlobalBounds) {
-								currentMap?.fitBounds(layer.bounds, { padding: 50, duration: 500 });
 							}
-						}
-					} catch (error) {
-						console.error(`Raster: Error adding image source/layer ${layerId}:`, error);
-						// Clean up if partially added
+					} catch (e) {
+						console.error(`Error adding layer ${layerId}:`, e);
 						if (currentMap?.getLayer(layerId)) currentMap.removeLayer(layerId);
 						if (currentMap?.getSource(sourceId)) currentMap.removeSource(sourceId);
 					}

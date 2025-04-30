@@ -1,97 +1,77 @@
-<!-- filepath: /Users/ctw/Sites/github/escience/mine-dd/dashboard/app/src/lib/components/Map/components/GeoTIFFLayer.svelte -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import type { Map as MaplibreMap } from 'maplibre-gl';
-	import { toastStore } from '$lib/stores/toast.store';
-	import type { RasterLayer } from '../store/types';
-	import { addGeoTIFFToMap } from '../utils/geotiffUtils';
+  import { onMount, onDestroy } from 'svelte';
+  import type { Map as MaplibreMap } from 'maplibre-gl';
+  import type { RasterLayer } from '../store/types';
+  import { addGeoTIFFToMap } from '../utils/geotiffUtils';
 
-	// Props
-	export let map: MaplibreMap | null = null;
-	export let layer: RasterLayer;
+  // Props
+  export let map: MaplibreMap;
+  export let layer: RasterLayer;
 
-	// State variables
-	let mounted = false;
-	let loading = false;
-	let error: string | null = null;
+  // Layer tracking
+  let layerId = `geotiff-layer-${layer.id}`;
+  let sourceId = `geotiff-source-${layer.id}`;
+  let isInitialized = false;
 
-	// Initialize the layer when the component mounts or when the map becomes available
-	$: if (mounted && map && map.loaded() && layer) {
-		initializeLayer();
-	}
+  // Initialize GeoTIFF layer
+  async function initializeLayer() {
+    try {
+      if (!map || !layer || !layer.sourceUrl) {
+        console.warn('GeoTIFF layer missing required properties');
+        return;
+      }
 
-	// Update layer when visibility or opacity changes
-	$: if (mounted && map && map.loaded() && layer) {
-		updateLayerProperties();
-	}
+      // Add the GeoTIFF layer to the map
+      await addGeoTIFFToMap(map, layer);
+      isInitialized = true;
+      console.log(`GeoTIFF layer ${layer.id} successfully initialized`);
+    } catch (error) {
+      console.error('Error initializing GeoTIFF layer:', error);
+    }
+  }
 
-	// Add the GeoTIFF layer to the map
-	async function initializeLayer() {
-		if (!map || !layer) return;
+  // Update layer when opacity changes
+  $: if (map && isInitialized && layer) {
+    // Try to update the layer's opacity
+    try {
+      if (map.getLayer(layerId)) {
+        map.setPaintProperty(layerId, 'raster-opacity', layer.opacity);
+      }
+    } catch (error) {
+      console.error(`Error updating opacity for GeoTIFF layer ${layer.id}:`, error);
+    }
+  }
 
-		loading = true;
-		error = null;
+  // Update layer when visibility changes
+  $: if (map && isInitialized && layer) {
+    try {
+      if (map.getLayer(layerId)) {
+        const visibility = layer.isVisible ? 'visible' : 'none';
+        map.setLayoutProperty(layerId, 'visibility', visibility);
+      }
+    } catch (error) {
+      console.error(`Error updating visibility for GeoTIFF layer ${layer.id}:`, error);
+    }
+  }
 
-		try {
-			await addGeoTIFFToMap(map, layer);
-			loading = false;
-		} catch (err) {
-			loading = false;
-			error = err instanceof Error ? err.message : 'Unknown error loading GeoTIFF';
-			toastStore.error(`Failed to load GeoTIFF: ${error}`);
-			console.error('Error initializing GeoTIFF layer:', err);
-		}
-	}
+  // Initialize when component mounts
+  onMount(() => {
+    initializeLayer();
+  });
 
-	// Update layer properties when they change
-	function updateLayerProperties() {
-		if (!map) return;
-
-		const layerId = `geotiff-layer-${layer.id}`;
-
-		// Update visibility
-		if (map.getLayer(layerId)) {
-			map.setLayoutProperty(layerId, 'visibility', layer.isVisible ? 'visible' : 'none');
-		}
-
-		// Update opacity
-		if (map.getLayer(layerId)) {
-			map.setPaintProperty(layerId, 'raster-opacity', layer.opacity);
-		}
-	}
-
-	// Clean up on component destruction
-	function cleanup() {
-		if (!map) return;
-
-		const sourceId = `geotiff-source-${layer.id}`;
-		const layerId = `geotiff-layer-${layer.id}`;
-
-		// Remove layer and source if they exist
-		try {
-			if (map.getLayer(layerId)) {
-				map.removeLayer(layerId);
-			}
-			if (map.getSource(sourceId)) {
-				map.removeSource(sourceId);
-			}
-		} catch (err) {
-			console.error('Error cleaning up GeoTIFF layer:', err);
-		}
-	}
-
-	onMount(() => {
-		mounted = true;
-	});
-
-	onDestroy(() => {
-		cleanup();
-	});
+  // Clean up when component is destroyed
+  onDestroy(() => {
+    if (map) {
+      try {
+        // Remove layer and source if they exist
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+        console.log(`GeoTIFF layer ${layer.id} removed from map`);
+      } catch (error) {
+        console.error(`Error cleaning up GeoTIFF layer ${layer.id}:`, error);
+      }
+    }
+  });
 </script>
 
-{#if loading}
-	<!-- Optional loading indicator -->
-	<div class="geotiff-loading-indicator" aria-hidden="true">
-		<!-- You can replace this with your own loading spinner/component -->
-	</div>
-{/if}
+<!-- This component has no visible UI of its own -->
