@@ -25,20 +25,20 @@ timeout_seconds=5
 while [ $attempt -le $max_attempts ]; do
     echo "Attempt $attempt to install dependencies..."
     "$@" && break
-    
+
     # If we get here, the command failed
     exit_code=$?
-    
+
     if [ $attempt -eq $max_attempts ]; then
         echo "Installation failed after $max_attempts attempts"
         exit $exit_code
     fi
-    
+
     # Calculate wait time with exponential backoff (5s, 10s, 20s, 40s)
     wait_time=$((timeout_seconds * 2 ** (attempt - 1)))
     echo "Waiting $wait_time seconds before retry..."
     sleep $wait_time
-    
+
     # Increment attempt counter
     ((attempt++))
 done
