@@ -22,7 +22,9 @@ export {
   updateRasterLayerVisibility,
   updateRasterLayerOpacity,
   removeRasterLayer,
-  fetchAndSetLayerBounds // Add the missing export
+  fetchAndSetLayerBounds, // Add the missing export
+  // GeoTIFF.js direct processing function
+  addDirectGeoTIFFLayerFromUrl
 } from './stores';
 
 // Re-export the filter manager functions

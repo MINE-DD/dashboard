@@ -10,13 +10,14 @@
 		isLoading,
 		dataError,
 		clearFilterCache,
-		// filteredPointsData, // Assuming this is derived elsewhere or not needed here directly
-		// Import new raster stores and functions
+		// Import raster stores and functions
 		rasterLayers,
 		addRasterLayerFromUrl,
 		updateRasterLayerVisibility,
 		updateRasterLayerOpacity,
-		removeRasterLayer
+		removeRasterLayer,
+		// Import the direct GeoTIFF function
+		addDirectGeoTIFFLayerFromUrl
 	} from '../store';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
@@ -26,6 +27,7 @@
 	// --- Raster Layer State ---
 	let cogUrlInput = '';
 	let isAddingLayer = false;
+	let useDirectGeoTIFF = true; // Set to true by default to use GeoTIFF.js
 
 	async function handleAddLayerClick() {
 		if (!cogUrlInput || isAddingLayer) return;
@@ -42,7 +44,14 @@
 		}
 
 		isAddingLayer = true;
-		await addRasterLayerFromUrl(cogUrlInput);
+
+		// Choose whether to use direct GeoTIFF.js processing or TiTiler
+		if (useDirectGeoTIFF) {
+			await addDirectGeoTIFFLayerFromUrl(cogUrlInput);
+		} else {
+			await addRasterLayerFromUrl(cogUrlInput);
+		}
+
 		isAddingLayer = false;
 		cogUrlInput = ''; // Clear input on success/attempt
 	}
@@ -364,6 +373,26 @@
 								Add
 							{/if}
 						</button>
+					</div>
+
+					<!-- New: Option to use direct GeoTIFF.js processing -->
+					<div class="mt-2 flex items-center">
+						<input
+							type="checkbox"
+							id="useDirectGeoTIFF"
+							class="checkbox checkbox-xs checkbox-primary mr-2"
+							bind:checked={useDirectGeoTIFF}
+						/>
+						<label for="useDirectGeoTIFF" class="label-text cursor-pointer text-xs">
+							Use GeoTIFF.js (client-side processing, no server required)
+						</label>
+					</div>
+					<div class="text-base-content/60 mt-1 text-xs">
+						{#if useDirectGeoTIFF}
+							GeoTIFF.js mode processes files directly in the browser without a server.
+						{:else}
+							TiTiler mode requires the TiTiler server to be running.
+						{/if}
 					</div>
 				</div>
 

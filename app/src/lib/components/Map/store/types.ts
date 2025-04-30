@@ -62,4 +62,5 @@ export interface RasterLayer {
   opacity: number; // Current opacity state (0 to 1)
   isLoading?: boolean; // Optional flag for loading state (e.g., while fetching metadata)
   error?: string | null; // Optional error message if loading failed
+  isDirectGeoTIFF?: boolean; // Flag to indicate if this layer uses direct GeoTIFF.js processing
 }

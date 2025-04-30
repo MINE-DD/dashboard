@@ -31,63 +31,58 @@ export const pathogenColors = writable<Map<string, string>>(new Map());
 
 // --- Raster Layer Store ---
 
-// Use localhost as the browser needs to access the port mapped to the host
-const TITILER_ENDPOINT = 'http://localhost:8000';
+// Define endpoints and paths
+const TITILER_ENDPOINT = 'http://localhost:8000'; // Keep for backward compatibility
+const STATIC_COGS_PATH = '/data/cogs'; // Base path to COG files
+const USE_DIRECT_GEOTIFF_BY_DEFAULT = true; // Set to true to use GeoTIFF.js by default
 
 // Helper to create the initial raster layers map
 function createInitialRasterLayers(): Map<string, RasterLayer> {
   const initialMap = new Map<string, RasterLayer>();
 
-  // Define layers based on files in data/cogs
+  // Define layers based on files in static/data/cogs
   const layersToAdd: Omit<RasterLayer, 'id' | 'tileUrlTemplate'>[] = [
-    // Keep existing TCI layer if needed, assuming it's local now
+    // SE (Standar Error files are not needed to be displayed)
     // Pathogens - SHIG
-    { name: 'SHIG 0-11 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Asym Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Asym SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_0011_Asym_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Comm Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_0011_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Comm SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_0011_Comm_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Medi Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_0011_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Medi SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_0011_Medi_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Asym Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_1223_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Asym SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_1223_Asym_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Comm Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_1223_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Comm SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_1223_Comm_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Medi Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_1223_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Medi SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_1223_Medi_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Asym Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_2459_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Asym SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_2459_Asym_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Comm Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_2459_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Comm SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_2459_Comm_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Medi Pr', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_2459_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Medi SE', sourceUrl: `${STATIC_COGS_PATH}/01_Pathogens/SHIG/SHIG_2459_Medi_SE.tif`, isVisible: false, opacity: 0.8 },
     // Risk Factors - Floor
-    { name: 'Floor Finished Pr', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Floor Finished SE', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Floor Finished Pr', sourceUrl: `${STATIC_COGS_PATH}/02_Risk_factors/Floor/Flr_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'Floor Finished SE', sourceUrl: `${STATIC_COGS_PATH}/02_Risk_factors/Floor/Flr_Fin_SE.tif`, isVisible: false, opacity: 0.8 },
     // Risk Factors - Roofs
-    { name: 'Roofs Finished Pr', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Roofs Finished SE', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Roofs Finished Pr', sourceUrl: `${STATIC_COGS_PATH}/02_Risk_factors/Roofs/Rfs_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'Roofs Finished SE', sourceUrl: `${STATIC_COGS_PATH}/02_Risk_factors/Roofs/Rfs_Fin_SE.tif`, isVisible: false, opacity: 0.8 },
     // Risk Factors - Walls
-    { name: 'Walls Finished Pr', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Walls Finished SE', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_SE.tif', isVisible: false, opacity: 0.8 }
+    { name: 'Walls Finished Pr', sourceUrl: `${STATIC_COGS_PATH}/02_Risk_factors/Walls/Wll_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'Walls Finished SE', sourceUrl: `${STATIC_COGS_PATH}/02_Risk_factors/Walls/Wll_Fin_SE.tif`, isVisible: false, opacity: 0.8 }
   ];
 
   layersToAdd.forEach((layerData) => {
-    // NOTE: The sourceUrl is relative to the TiTiler /cogs mount point.
-    // The actual URL for TiTiler needs the absolute path within the container encoded.
-    const absolutePathInContainer = `/data/${layerData.sourceUrl}`;
-    const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
-    // Using preview endpoint with styling for single-band data.
-    // Using viridis colormap and a tentative rescale based on sample. Might need per-layer adjustment.
-    const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodedAbsolutePath}&max_size=1024&bidx=1&colormap_name=viridis&rescale=0,11`;
-
+    // Simply use the direct source URL for GeoTIFF.js processing
     const layer: RasterLayer = {
-      id: `cog-${layerData.sourceUrl.replace(/[\/\.]/g, '-')}`, // Generate ID from path
+      id: `cog-${layerData.name.replace(/\s+/g, '-').toLowerCase()}`, // Generate ID from name
       name: layerData.name,
-      sourceUrl: layerData.sourceUrl, // Store relative path
-      tileUrlTemplate: imageUrl, // Store the preview URL for now
+      sourceUrl: layerData.sourceUrl, // Use full path to static file
+      tileUrlTemplate: layerData.sourceUrl, // Same URL for GeoTIFF.js
       isVisible: layerData.isVisible,
       opacity: layerData.opacity,
-      bounds: undefined, // Bounds will be fetched dynamically
+      isDirectGeoTIFF: USE_DIRECT_GEOTIFF_BY_DEFAULT, // Use GeoTIFF.js by default
       isLoading: false,
       error: null
     };
@@ -234,13 +229,38 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
     return currentLayers;
   });
 
-  // --- Fetch bounds ---
-  // Note: layer.sourceUrl is the relative path. Prepend '/data/' for TiTiler container path.
-  const absolutePathInContainer = `/data/${layer.sourceUrl}`;
-  const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
-  const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedAbsolutePath}`;
-
   try {
+    // Check if this is a direct GeoTIFF layer - if so, don't try to use TiTiler
+    if (layer.isDirectGeoTIFF) {
+      console.log(`Raster: Layer ${layerId} is using direct GeoTIFF processing - skipping TiTiler bounds fetch`);
+
+      // Set dummy bounds for now - they'll be determined when the GeoTIFF is loaded
+      // We're setting reasonable bounds for African continent as a placeholder
+      const dummyBounds: [number, number, number, number] = [
+        -20, -35, 55, 40 // west, south, east, north
+      ];
+
+      // Update the layer with dummy bounds
+      rasterLayers.update((currentLayers) => {
+        const layerToUpdate = currentLayers.get(layerId);
+        if (layerToUpdate) {
+          layerToUpdate.bounds = dummyBounds;
+          layerToUpdate.isLoading = false;
+        }
+        return currentLayers;
+      });
+
+      console.log(`Raster: Set placeholder bounds for direct GeoTIFF layer ${layerId}`);
+      return;
+    }
+
+    // Traditional TiTiler path - only used when isDirectGeoTIFF is false
+    // --- Fetch bounds ---
+    // Note: layer.sourceUrl is the relative path. Prepend '/data/' for TiTiler container path.
+    const absolutePathInContainer = `/data/${layer.sourceUrl}`;
+    const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
+    const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedAbsolutePath}`;
+
     console.log(`Raster: Fetching bounds for ${layerId}: ${boundsUrl}`);
     const response = await fetch(boundsUrl);
     console.log(`Raster: Bounds response status for ${layerId}: ${response.status}`);
@@ -291,21 +311,34 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
       return currentLayers;
     });
     console.log(`Raster: Successfully fetched and set bounds for ${layerId}`);
-
   } catch (err: any) {
     console.error(`Error fetching bounds for layer ${layerId}:`, err);
     const errorMessage = err.message || 'Failed to load COG bounds from TiTiler.';
+
+    // If this is a direct GeoTIFF layer, provide a more appropriate error message
+    const improvedMessage = layer.isDirectGeoTIFF
+      ? 'GeoTIFF bounds will be determined when the layer is loaded'
+      : errorMessage;
+
     // --- Update layer state with error ---
     rasterLayers.update((currentLayers) => {
       const layerToUpdate = currentLayers.get(layerId);
       if (layerToUpdate) {
         layerToUpdate.isLoading = false;
-        layerToUpdate.error = errorMessage;
-        layerToUpdate.name = `Error: ${layerToUpdate.name}`; // Indicate error in name
+
+        // Only set as error if not using direct GeoTIFF
+        if (!layerToUpdate.isDirectGeoTIFF) {
+          layerToUpdate.error = errorMessage;
+          layerToUpdate.name = `Error: ${layerToUpdate.name}`; // Indicate error in name
+          toastStore.error(`Error loading bounds for ${layer?.name || layerId}: ${errorMessage}`);
+        } else {
+          // For direct GeoTIFF, we'll set dummy bounds and proceed
+          layerToUpdate.bounds = [-20, -35, 55, 40]; // Default bounds for Africa
+          console.log(`Raster: Set placeholder bounds for direct GeoTIFF layer ${layerId} after error`);
+        }
       }
       return currentLayers;
     });
-    toastStore.error(`Error loading bounds for ${layer?.name || layerId}: ${errorMessage}`);
   }
 }
 
@@ -353,4 +386,67 @@ export function removeRasterLayer(id: string): void {
   });
   // Optional: Add toast notification for removal
   // toast.push({ message: `Removed layer`, type: 'info' });
+}
+
+// --- GeoTIFF.js Integration ---
+
+/**
+ * Adds a raster layer using direct GeoTIFF processing with geotiff.js
+ * (no server/TiTiler required!)
+ * @param url The URL to the GeoTIFF file
+ */
+export async function addDirectGeoTIFFLayerFromUrl(url: string): Promise<void> {
+  const layerId = `geotiff-direct-${Date.now()}`; // Simple unique ID
+
+  // Create a temporary layer entry with loading state
+  const tempLayer: RasterLayer = {
+    id: layerId,
+    name: `Loading: ${url.substring(url.lastIndexOf('/') + 1)}...`,
+    sourceUrl: url,
+    tileUrlTemplate: url, // Store the original URL as we won't use TiTiler
+    isVisible: true,
+    opacity: 0.8,
+    isLoading: true,
+    error: null,
+    isDirectGeoTIFF: true // Flag to indicate this uses direct GeoTIFF processing
+  };
+
+  // Add to store
+  rasterLayers.update((layers) => {
+    layers.set(layerId, tempLayer);
+    return layers;
+  });
+
+  try {
+    // Update the layer with a better name once we know it loaded
+    // (We'll get bounds directly when rendering)
+    const finalLayer: RasterLayer = {
+      ...tempLayer,
+      name: url.substring(url.lastIndexOf('/') + 1), // Use filename as name
+      isLoading: false
+    };
+
+    rasterLayers.update((layers) => {
+      layers.set(layerId, finalLayer);
+      return layers;
+    });
+
+    toastStore.success(`Added GeoTIFF layer: ${finalLayer.name}`);
+  } catch (err: any) {
+    console.error('Error adding direct GeoTIFF layer:', err);
+    const errorMessage = err.message || 'Failed to load GeoTIFF.';
+
+    // Update layer state with error
+    rasterLayers.update((layers) => {
+      const layerWithError = layers.get(layerId);
+      if (layerWithError) {
+        layerWithError.isLoading = false;
+        layerWithError.error = errorMessage;
+        layerWithError.name = `Error loading: ${url.substring(url.lastIndexOf('/') + 1)}`;
+      }
+      return layers;
+    });
+
+    toastStore.error(errorMessage);
+  }
 }

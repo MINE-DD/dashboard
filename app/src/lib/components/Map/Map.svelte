@@ -17,11 +17,15 @@
 		pointsData,
 		// Import raster stores and functions
 		rasterLayers,
-		fetchAndSetLayerBounds // Import the new function
+		fetchAndSetLayerBounds, // Import the new function
+		// Import new direct GeoTIFF function
+		addDirectGeoTIFFLayerFromUrl
 	} from './store'; // Corrected import path
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
+	// Import the new GeoTIFF layer component
+	import GeoTIFFLayer from './components/GeoTIFFLayer.svelte';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [35, 16]; // Default center coordinates [lng, lat]
@@ -388,6 +392,11 @@
 	<!-- Map Components -->
 	{#if map && isStyleLoaded}
 		<MapLayer {map} on:pointclick={handlePointClick} />
+
+		<!-- Render GeoTIFF.js layers -->
+		{#each [...$rasterLayers.values()].filter((layer) => layer.isDirectGeoTIFF && layer.isVisible) as layer (layer.id)}
+			<GeoTIFFLayer {map} {layer} />
+		{/each}
 	{/if}
 
 	<!-- Map Sidebar with filters -->
