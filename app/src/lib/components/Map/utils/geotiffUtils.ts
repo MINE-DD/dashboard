@@ -1,7 +1,43 @@
 import * as GeoTIFF from 'geotiff';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { RasterLayer } from '../store/types';
-import { rasterLayers } from '../store'; // Add this import for updating layer bounds
+import { rasterLayers } from '../store'; // Import for updating layer bounds
+
+/**
+ * Loads and adds a GeoTIFF directly to the map from a URL
+ * @param map MapLibre map instance
+ * @param layer Raster layer configuration
+ */
+export async function addGeoTIFFToMap(map: MaplibreMap, layer: RasterLayer): Promise<void> {
+  try {
+    // Determine the actual URL to fetch
+    const sourceUrl = layer.sourceUrl;
+    let fetchUrl = sourceUrl;
+    
+    // If the URL starts with cog://, remove that prefix
+    if (sourceUrl.startsWith('cog://')) {
+      fetchUrl = sourceUrl.replace('cog://', '');
+    }
+    
+    // For files in the /data/ directory, adjust the path correctly for SvelteKit
+    // In SvelteKit, static files are served from the root path, not /static/
+    if (fetchUrl.startsWith('/data/')) {
+      // In SvelteKit, the static folder content is available directly at the root URL
+      fetchUrl = fetchUrl; // Keep as is, don't add /static/
+    }
+    
+    console.log(`GeoTIFF: Loading layer ${layer.id} from URL: ${fetchUrl}`);
+    
+    // Load and render using our existing methods
+    const image = await loadGeoTIFF(fetchUrl);
+    await renderGeoTIFFOnMap(map, layer, image);
+    
+    return Promise.resolve();
+  } catch (error) {
+    console.error(`Error adding GeoTIFF layer ${layer.id}:`, error);
+    return Promise.reject(error);
+  }
+}
 
 /**
  * Loads a GeoTIFF file directly in the browser using GeoTIFF.js
@@ -310,7 +346,7 @@ function getBboxFromGeoTransform(
 
 /**
  * Renders a GeoTIFF image on a MapLibre map
- * @param map MapLibre map instance
+ * @param map Maplibre map instance
  * @param layer Raster layer configuration
  * @param image GeoTIFF image
  */
@@ -664,21 +700,5 @@ export async function renderGeoTIFFOnMap(
   } catch (error) {
     console.error(`GeoTIFF: Error rendering ${layer.id}:`, error);
     throw error;
-  }
-}
-
-/**
- * Loads and adds a GeoTIFF directly to the map from a URL
- * @param map MapLibre map instance
- * @param layer Raster layer configuration
- */
-export async function addGeoTIFFToMap(map: MaplibreMap, layer: RasterLayer): Promise<void> {
-  try {
-    const image = await loadGeoTIFF(layer.sourceUrl);
-    await renderGeoTIFFOnMap(map, layer, image);
-    return Promise.resolve();
-  } catch (error) {
-    console.error(`Error adding GeoTIFF layer ${layer.id}:`, error);
-    return Promise.reject(error);
   }
 }
