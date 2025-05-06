@@ -24,7 +24,7 @@
 	import MapPopover from './components/MapPopover.svelte';
 
 	// Props that can be passed to the component
-	export let initialCenter: [number, number] = [35, 16]; // Default center coordinates [lng, lat]
+	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
 	export let initialZoom: number = 2; // Default zoom level - closer to see the COG details
 	export let initialStyleId: string | null = null; // Optional style ID to use
 	export let pointDataUrl: string = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
