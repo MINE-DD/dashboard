@@ -343,6 +343,24 @@ export function updateRasterLayerOpacity(id: string, opacity: number): void {
 }
 
 /**
+ * Updates the opacity of all visible raster layers.
+ * @param opacity The new opacity value (0 to 1).
+ */
+export function updateAllRasterLayersOpacity(opacity: number): void {
+  console.log(`Store: Updating opacity for all visible layers to ${opacity}`);
+  rasterLayers.update((layers) => {
+    // Iterate through all layers and update opacity for visible ones
+    layers.forEach((layer) => {
+      if (layer.isVisible) {
+        // Clamp opacity between 0 and 1
+        layer.opacity = Math.max(0, Math.min(1, opacity));
+      }
+    });
+    return layers;
+  });
+}
+
+/**
  * Removes a raster layer from the store.
  * @param id The ID of the layer to remove.
  */

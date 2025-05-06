@@ -62,4 +62,13 @@ export interface RasterLayer {
   opacity: number; // Current opacity state (0 to 1)
   isLoading?: boolean; // Optional flag for loading state (e.g., while fetching metadata)
   error?: string | null; // Optional error message if loading failed
+  autoShown?: boolean; // Flag to indicate if layer was automatically shown by filter selection
+}
+
+// Mapping types for filter to raster layer connections
+export interface FilterToRasterMapping {
+  pathogen: string;
+  ageGroup: string;
+  syndrome: string;
+  layerId: string;
 }

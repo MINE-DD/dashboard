@@ -21,9 +21,16 @@ export {
   addRasterLayerFromUrl,
   updateRasterLayerVisibility,
   updateRasterLayerOpacity,
+  updateAllRasterLayersOpacity,
   removeRasterLayer,
   fetchAndSetLayerBounds // Add the missing export
 } from './stores';
+
+// Re-export filter-to-raster mapping functionality
+export {
+  autoVisibleRasterLayers,
+  initFilterRasterConnection
+} from './filterRasterMapping';
 
 // Re-export the filter manager functions
 export {

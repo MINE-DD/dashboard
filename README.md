@@ -40,6 +40,9 @@ The application is built using the following technologies:
     *   Allows users to toggle the visibility and adjust the opacity of raster layers.
     *   Supports loading remote COG layers directly via URL input in the sidebar (proxied through TiTiler).
     *   Uses nearest-neighbor resampling to maintain sharp edges in raster data during zoom operations.
+    *   Automatically displays relevant raster layers based on filter selections (pathogen, age group, syndrome).
+    *   Provides a global opacity slider to adjust all visible raster layers simultaneously.
+    *   Ensures point data (dots) always appear on top of raster layers for better visibility through a comprehensive approach that handles dynamic layer additions.
 
 ## Development Setup
 
@@ -97,8 +100,14 @@ The script can be modified to adjust:
 
 ## Next Steps
 
-*(This section will outline planned features and improvements.)*
+* Implement thorough testing of the filter-to-raster mapping functionality to ensure it works correctly in all scenarios.
+* Optimize performance when dealing with many raster layers simultaneously.
+* Add visual feedback when raster layers are loading or when filters are applied.
+* Expand the filter-to-raster mapping to include additional pathogens and data categories.
+* Improve documentation of the raster layer system for future developers.
 
 ## Known Issues
 
-*(This section will list any known bugs or limitations.)*
+* Performance may degrade when many raster layers are visible simultaneously.
+* Some naming inconsistencies exist between CSV data and raster layer IDs, requiring manual mapping.
+* Duplicate age group options may appear in filter dropdowns in certain scenarios.

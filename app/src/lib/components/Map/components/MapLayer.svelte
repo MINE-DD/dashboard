@@ -52,6 +52,24 @@
 		if (map) map.getCanvas().style.cursor = '';
 	}
 
+	// Helper function to ensure points are always on top of all other layers
+	function ensurePointsOnTop() {
+		if (map && map.getLayer('points-layer')) {
+			// Move the points layer to the top of all layers
+			map.moveLayer('points-layer');
+			console.log('Ensured points layer is on top of all other layers');
+		}
+	}
+
+	// Handle source data events to ensure points stay on top when new layers are added
+	function handleSourceData(e: any) {
+		// Only act when a source is loaded and points layer exists
+		if (e.sourceDataType === 'metadata' && map && map.getLayer('points-layer')) {
+			// Ensure points are on top whenever any source is loaded
+			ensurePointsOnTop();
+		}
+	}
+
 	// Define a style change handler that can be bound properly
 	function handleStyleChange() {
 		// console.log('Style change detected, will re-add points once style is loaded');
@@ -59,6 +77,7 @@
 		// Remove the old handler to avoid duplicates
 		if (map) {
 			map.off('styledata', handleStyleChange);
+			map.off('sourcedata', handleSourceData);
 		}
 
 		// Reset point-added flag to allow re-adding
@@ -135,6 +154,7 @@
 				});
 
 				// Add a circle layer for the points with colors based on pathogen type
+				// Ensure it's added on top of all other layers by using a high z-index
 				map.addLayer({
 					id: 'points-layer',
 					type: 'circle',
@@ -142,12 +162,16 @@
 					paint: {
 						'circle-radius': 10, // Keeping the bigger dots (10px radius)
 						// Use a match expression to color by pathogen
-						'circle-color': generatePathogenColorExpression(),
+						'circle-color': generatePathogenColorExpression() as any,
 						'circle-opacity': 0.8,
 						'circle-stroke-width': 1,
 						'circle-stroke-color': '#ffffff'
 					}
 				});
+
+				// Move the points layer to the top of all layers
+				// This ensures it's always on top of raster layers
+				ensurePointsOnTop();
 			} else {
 				// Update the source data if it already exists
 				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
@@ -164,6 +188,9 @@
 			// Set up style change handler
 			map.on('styledata', handleStyleChange);
 
+			// Set up source data handler to ensure points stay on top when new layers are added
+			map.on('sourcedata', handleSourceData);
+
 			console.log(`Successfully added ${$pointsData.features.length} points to map`);
 			layerAdded = true;
 		} catch (error) {
@@ -176,7 +203,11 @@
 	// Reactively update the circle colors when pathogen colors change
 	$: if (map && map.getLayer('points-layer') && $pathogenColors.size > 0 && pointsAdded) {
 		try {
-			map.setPaintProperty('points-layer', 'circle-color', generatePathogenColorExpression());
+			map.setPaintProperty(
+				'points-layer',
+				'circle-color',
+				generatePathogenColorExpression() as any
+			);
 		} catch (error) {
 			console.error('Error updating circle colors:', error);
 		}
@@ -240,6 +271,7 @@
 				map.off('mouseleave', 'points-layer', handleMouseLeave);
 			}
 			map.off('styledata', handleStyleChange);
+			map.off('sourcedata', handleSourceData);
 
 			// Remove layers and sources
 			try {

@@ -25,7 +25,7 @@
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [35, 16]; // Default center coordinates [lng, lat]
-	export let initialZoom: number = 8; // Default zoom level - closer to see the COG details
+	export let initialZoom: number = 2; // Default zoom level - closer to see the COG details
 	export let initialStyleId: string | null = null; // Optional style ID to use
 	export let pointDataUrl: string = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
@@ -91,7 +91,8 @@
 					container: mapContainer,
 					style: initialStyle.url,
 					center: initialCenter || [28.4, -15.0], // Use provided center or default
-					zoom: initialZoom || 4 // Use provided zoom or default
+					zoom: initialZoom || 4
+					// renderWorldCopies: true // Use provided zoom or default
 				});
 
 				// Log the map object for debugging
