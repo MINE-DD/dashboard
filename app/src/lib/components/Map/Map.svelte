@@ -35,6 +35,9 @@
 	let isStyleLoaded = false; // Tracks if the *current* style is loaded
 	let currentMapLayers = new Set<string>(); // Track layers currently on the map
 
+	// Reference to the MapLayer component instance
+	let mapLayerComponent: MapLayer;
+
 	// Popover state
 	let showPopover = false;
 	let popoverCoordinates: [number, number] | null = null;
@@ -258,6 +261,16 @@
 							console.log(`Raster: Added layer ${layerId}`);
 							currentMapLayers.add(layerId); // Track the added layer
 
+							// Ensure points are on top after adding a raster layer
+							if (mapLayerComponent) {
+								mapLayerComponent.bringPointsToFront();
+							}
+
+							// Ensure points are on top after adding a raster layer
+							if (mapLayerComponent) {
+								mapLayerComponent.bringPointsToFront();
+							}
+
 							// Optionally fit bounds only if specific bounds were used
 							const isGlobalBounds =
 								layer.bounds[0] === -180 &&
@@ -388,7 +401,8 @@
 
 	<!-- Map Components -->
 	{#if map && isStyleLoaded}
-		<MapLayer {map} on:pointclick={handlePointClick} />
+		<!-- Bind to the MapLayer component to call its functions -->
+		<MapLayer {map} on:pointclick={handlePointClick} bind:this={mapLayerComponent} />
 	{/if}
 
 	<!-- Map Sidebar with filters -->

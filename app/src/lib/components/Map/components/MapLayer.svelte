@@ -24,6 +24,11 @@
 	const dispatch = createEventDispatcher();
 	let layerAdded = false;
 
+	// Expose a function to be called by the parent component
+	export function bringPointsToFront() {
+		ensurePointsOnTop();
+	}
+
 	// ===== MAIN RENDERING APPROACH =====
 
 	// Track if we've already added points to avoid duplicates
@@ -69,19 +74,19 @@
 		}
 	}
 
-	// Handle source data events to ensure points stay on top when new layers are added
-	function handleSourceData(e: any) {
-		// Only act when a source is loaded and points layer exists, and it's not our own source
-		if (
-			e.sourceDataType === 'metadata' &&
-			map &&
-			map.getLayer('points-layer') &&
-			e.sourceId !== 'points-source'
-		) {
-			// Ensure points are on top whenever any other source is loaded
-			ensurePointsOnTop();
-		}
-	}
+	// Remove the handleSourceData listener as we will trigger from Map.svelte
+	// function handleSourceData(e: any) {
+	// 	// Only act when a source is loaded and points layer exists, and it's not our own source
+	// 	if (
+	// 		e.sourceDataType === 'metadata' &&
+	// 		map &&
+	// 		map.getLayer('points-layer') &&
+	// 		e.sourceId !== 'points-source'
+	// 	) {
+	// 		// Ensure points are on top whenever any other source is loaded
+	// 		ensurePointsOnTop();
+	// 	}
+	// }
 
 	// Define a style change handler that can be bound properly
 	function handleStyleChange() {
@@ -90,7 +95,7 @@
 		// Remove the old handler to avoid duplicates
 		if (map) {
 			map.off('styledata', handleStyleChange);
-			map.off('sourcedata', handleSourceData);
+			// map.off('sourcedata', handleSourceData); // Removed
 		}
 
 		// Reset point-added flag to allow re-adding
@@ -229,8 +234,8 @@
 			// Set up style change handler
 			map.on('styledata', handleStyleChange);
 
-			// Set up source data handler to ensure points stay on top when new layers are added
-			map.on('sourcedata', handleSourceData);
+			// Remove the source data handler as we will trigger from Map.svelte
+			// map.on('sourcedata', handleSourceData);
 
 			console.log(`Successfully added ${$pointsData.features.length} points to map`);
 			layerAdded = true;
@@ -312,7 +317,8 @@
 				map.off('mouseleave', 'points-layer', handleMouseLeave);
 			}
 			map.off('styledata', handleStyleChange);
-			map.off('sourcedata', handleSourceData);
+			// Remove the source data handler
+			// map.off('sourcedata', handleSourceData);
 
 			// Remove layers and sources
 			try {
