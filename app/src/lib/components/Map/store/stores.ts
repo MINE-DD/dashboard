@@ -32,7 +32,7 @@ export const pathogenColors = writable<Map<string, string>>(new Map());
 // --- Raster Layer Store ---
 
 // Use localhost as the browser needs to access the port mapped to the host
-const TITILER_ENDPOINT = 'http://localhost:9080';
+const TITILER_ENDPOINT = import.meta.env.VITE_TITILER_ENDPOINT;
 
 // Helper to create the initial raster layers map
 function createInitialRasterLayers(): Map<string, RasterLayer> {
