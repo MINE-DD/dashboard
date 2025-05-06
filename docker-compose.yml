@@ -21,6 +21,7 @@ services:
 
   titiler:
     image: ghcr.io/developmentseed/titiler:latest
+    platform: linux/arm64
     ports:
       - "9080:8000"
     volumes:
