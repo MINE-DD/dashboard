@@ -144,15 +144,15 @@
 </script>
 
 <div
-	class=" shadow-xs grid max-h-[calc(100%-20px)] overflow-clip rounded-lg border border-white/20 bg-white/70 backdrop-blur-md backdrop-filter transition-all duration-300"
+	class="grid max-h-[calc(100%-20px)] overflow-clip rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 shadow-lg backdrop-blur-md backdrop-filter transition-all duration-300"
 >
 	<!-- Sidebar header with toggle button -->
-	<div class="z-10 border-b p-3">
+	<div class="z-10 border-b border-white/30 bg-gradient-to-r from-white/40 to-white/20 p-4">
 		<button
 			class="flex w-full items-center justify-between"
 			on:click={() => (collapsed = !collapsed)}
 		>
-			<h2 class="text-base-content m-0 text-lg font-medium">Data Explorer</h2>
+			<h2 class="text-base-content m-0 text-xl font-semibold">Data Explorer</h2>
 			<span
 				class="btn btn-sm btn-ghost btn-square"
 				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -188,13 +188,16 @@
 				<div class="text-error mt-2 text-sm">Error: {$dataError}</div>
 			{:else if $pathogens?.size > 0}
 				<!-- Simplified condition, adjust if needed -->
-				<div class="text-base-content/70 mt-2 text-sm">
+				<div class="mt-3">
 					<div class="flex items-center justify-between">
-						{visiblePoints} of {totalPoints} points
+						<div class="flex items-baseline">
+							<span class="text-primary text-lg font-bold">{visiblePoints}</span>
+							<span class="text-base-content/70 mx-1 text-sm">of</span>
+							<span class="text-base-content/80 text-base font-medium">{totalPoints}</span>
+							<span class="text-base-content/70 ml-1 text-sm">points</span>
+						</div>
 						{#if hasActiveFilters}
-							<button class="btn btn-xs btn-ghost text-primary" on:click={clearAllFilters}>
-								Clear Filters
-							</button>
+							<button class="btn" on:click={clearAllFilters}>Clear Filters</button>
 						{/if}
 					</div>
 				</div>
@@ -204,108 +207,128 @@
 
 	{#if !collapsed}
 		<!-- Content -->
-		<div class="flex h-full max-h-[calc(100vh-250px)] w-80 flex-col overflow-y-scroll p-3 pt-2">
+		<div
+			class="flex h-full max-h-[calc(100vh-250px)] w-80 flex-col space-y-4 overflow-y-auto p-4 pt-3"
+		>
 			<!-- Filter Sections -->
-			<div class="form-control card my-2 w-full">
-				<div class="text-base-content/70 mb-2 text-xs">
-					Options marked with <span class="text-primary">*</span>
+			<div class="form-control w-full">
+				<div class="text-base-content/70 mb-2 text-xs italic">
+					Options marked with <span class="text-primary font-medium">*</span>
 					have associated raster layers.
 				</div>
-				<label class="label">
-					<span class="label-text flex items-center font-medium">
-						Pathogens
-						{#if selectedPathogenCount > 0}
-							<span class="badge badge-primary badge-sm ml-2">{selectedPathogenCount}</span>
-						{/if}
-					</span>
-				</label>
+				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
+					<label class="label px-0 py-1">
+						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
+							Pathogens
+						</span>
+					</label>
 
-				<!-- Pathogen Options -->
-				<div class="outline-base-200 grid grid-cols-2 gap-2 overflow-y-auto rounded-xl p-1 outline">
-					{#each Array.from($pathogens || []).sort() as pathogen}
-						<div
-							class={`hover:bg-base-300 flex cursor-pointer items-center rounded p-1 transition-opacity ${
-								$selectedPathogens?.has(pathogen)
-									? 'bg-base-200 font-medium opacity-100'
-									: 'opacity-80'
-							}`}
-							on:click={() => {
-								$selectedPathogens = toggleSelection($selectedPathogens, pathogen);
-								clearFilterCache(); // Clear cache to update filtered data
-							}}
-						>
-							<span
-								class="border-base-300 mr-2 inline-block h-3 w-3 rounded-full border"
-								style="background-color: {$pathogenColors?.get(pathogen) || '#ccc'}"
-							></span>
-							<span class="truncate text-xs">
-								{hasRasterLayers('pathogen', pathogen) ? `${pathogen} *` : pathogen}
-							</span>
-						</div>
-					{/each}
+					<!-- Pathogen Options -->
+					<div class="grid grid-cols-2 gap-2 overflow-y-auto rounded-xl p-1">
+						{#each Array.from($pathogens || []).sort() as pathogen}
+							<div
+								class={`hover:bg-primary/10 flex cursor-pointer items-center rounded-md p-2 transition-all duration-200 ${
+									$selectedPathogens?.has(pathogen)
+										? 'bg-primary/20 font-medium opacity-100 shadow-sm'
+										: 'bg-white/60 opacity-90'
+								}`}
+								on:click={() => {
+									$selectedPathogens = toggleSelection($selectedPathogens, pathogen);
+									clearFilterCache(); // Clear cache to update filtered data
+								}}
+							>
+								<span
+									class="mr-2 inline-block h-4 w-4 shrink-0 rounded-full border border-white/50 shadow-sm"
+									style="background-color: {$pathogenColors?.get(pathogen) || '#ccc'}"
+								></span>
+								<span class="truncate text-sm">
+									{pathogen}
+									{#if hasRasterLayers('pathogen', pathogen)}
+										<span class="text-primary font-medium">*</span>
+									{/if}
+								</span>
+							</div>
+						{/each}
+					</div>
 				</div>
 			</div>
 
 			<!-- Age Groups -->
-			<div class="form-control my-2 w-full">
-				<label class="label">
-					<span class="label-text flex items-center font-medium">
-						Age Groups
-						{#if selectedAgeGroupCount > 0}
-							<span class="badge badge-primary badge-sm ml-2">{selectedAgeGroupCount}</span>
-						{/if}
-					</span>
-				</label>
-				<select
-					class="select select-bordered w-full"
-					on:change={(e) => handleSelectChange(e, 'ageGroups')}
-				>
-					<option value="" selected={$selectedAgeGroups.size === 0}>Select Age Group</option>
-					{#each Array.from($ageGroups || []).sort() as ageGroup}
-						<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
-							{hasRasterLayers('ageGroup', ageGroup) ? `${ageGroup} *` : ageGroup}
-						</option>
-					{/each}
-				</select>
+			<div class="form-control w-full">
+				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
+					<label class="label px-0 py-1">
+						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
+							Age Groups
+						</span>
+					</label>
+					<select
+						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full border-white/50 bg-white/80 focus:ring"
+						on:change={(e) => handleSelectChange(e, 'ageGroups')}
+					>
+						<option value="" selected={$selectedAgeGroups.size === 0}>Select Age Group</option>
+						{#each Array.from($ageGroups || []).sort() as ageGroup}
+							<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
+								{ageGroup}{hasRasterLayers('ageGroup', ageGroup) ? ' *' : ''}
+							</option>
+						{/each}
+					</select>
+				</div>
 			</div>
 
 			<!-- Syndromes -->
-			<div class="form-control my-2 w-full">
-				<label class="label">
-					<span class="label-text flex items-center font-medium">
-						Syndromes
-						{#if selectedSyndromeCount > 0}
-							<span class="badge badge-primary badge-sm ml-2">{selectedSyndromeCount}</span>
-						{/if}
-					</span>
-				</label>
-				<select
-					class="select select-bordered w-full"
-					on:change={(e) => handleSelectChange(e, 'syndromes')}
-				>
-					<option value="" selected={$selectedSyndromes.size === 0}>Select Syndrome</option>
-					{#each Array.from($syndromes || []).sort() as syndrome}
-						<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
-							{hasRasterLayers('syndrome', syndrome) ? `${syndrome} *` : syndrome}
-						</option>
-					{/each}
-				</select>
+			<div class="form-control w-full">
+				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
+					<label class="label px-0 py-1">
+						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
+							Syndromes
+						</span>
+					</label>
+					<select
+						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full border-white/50 bg-white/80 focus:ring"
+						on:change={(e) => handleSelectChange(e, 'syndromes')}
+					>
+						<option value="" selected={$selectedSyndromes.size === 0}>Select Syndrome</option>
+						{#each Array.from($syndromes || []).sort() as syndrome}
+							<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
+								{syndrome}{hasRasterLayers('syndrome', syndrome) ? ' *' : ''}
+							</option>
+						{/each}
+					</select>
+				</div>
 			</div>
 
 			<!-- Active Raster Layers Info -->
 			{#if $autoVisibleRasterLayers.size > 0}
-				<div class="border-base-300 bg-base-200 mt-4 rounded-lg border p-3">
-					<h3 class="text-base-content mb-2 text-sm font-medium">
+				<div
+					class="border-secondary/30 from-secondary/10 to-primary/10 rounded-lg border bg-gradient-to-r p-4 shadow-sm"
+				>
+					<h3 class="text-secondary-focus mb-3 flex items-center text-base font-medium">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="text-secondary mr-1 h-5 w-5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+							/>
+						</svg>
 						Active Raster Layers ({$autoVisibleRasterLayers.size})
 					</h3>
-					<div class="max-h-[150px] overflow-y-auto">
+					<div class="mb-3 max-h-[150px] overflow-y-auto rounded-md bg-white/70 p-2">
 						{#each Array.from($autoVisibleRasterLayers) as layerId}
 							{#if $rasterLayers.has(layerId)}
 								{@const layer = $rasterLayers.get(layerId)}
 								{#if layer}
-									<div class="mb-2 flex items-center">
-										<span class="badge badge-primary badge-xs mr-2"></span>
-										<span class="text-xs">{layer.name}</span>
+									<div
+										class="hover:bg-primary/10 mb-2 flex items-center rounded-md p-1 transition-colors"
+									>
+										<span class="badge badge-xs bg-primary mr-2 border-none"></span>
+										<span class="text-secondary-focus text-sm">{layer.name}</span>
 									</div>
 								{/if}
 							{/if}
@@ -313,22 +336,28 @@
 					</div>
 
 					<!-- Global Opacity Control -->
-					<div class="form-control mt-3">
-						<label class="label py-1">
-							<span class="label-text text-xs font-medium">Global Opacity</span>
-							<span class="label-text-alt text-xs">{globalOpacity}%</span>
+					<div class="form-control">
+						<label class="label flex justify-between py-1">
+							<span class="label-text text-secondary-focus text-sm font-medium">
+								Global Opacity
+							</span>
+							<span class="label-text-alt text-secondary text-sm font-bold">{globalOpacity}%</span>
 						</label>
-						<input
-							type="range"
-							min="0"
-							max="100"
-							bind:value={globalOpacity}
-							on:input={() => updateAllRasterLayersOpacity(globalOpacity / 100)}
-							class="range range-primary range-xs"
-						/>
+						<div class="relative">
+							<input
+								type="range"
+								min="0"
+								max="100"
+								bind:value={globalOpacity}
+								on:input={() => updateAllRasterLayersOpacity(globalOpacity / 100)}
+								class="range range-xs from-secondary/30 to-primary/50 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gradient-to-r"
+							/>
+							<div class="text-secondary absolute -bottom-4 left-0 text-xs">0%</div>
+							<div class="text-secondary absolute -bottom-4 right-0 text-xs">100%</div>
+						</div>
 					</div>
 
-					<div class="text-base-content/70 mt-2 text-xs">
+					<div class="text-secondary/80 mt-4 text-xs italic">
 						Raster layers are automatically shown based on your filter selections.
 					</div>
 				</div>
