@@ -26,6 +26,10 @@ services:
       - "9080:8000"
     volumes:
       - ./data/cogs:/data:ro
+    labels:
+      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.middlewares=titiler-stripprefix
+      - traefik.http.middlewares.titiler-stripprefix.stripprefix.prefixes=/titiler
+
     environment:
       - GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR
       - VSI_CACHE=TRUE
