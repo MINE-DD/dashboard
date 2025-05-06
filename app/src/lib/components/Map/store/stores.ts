@@ -43,32 +43,32 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
     // Keep existing TCI layer if needed, assuming it's local now
     // Pathogens - SHIG
     { name: 'SHIG 0-11 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_SE.tif', isVisible: false, opacity: 0.8 },
     { name: 'SHIG 0-11 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_SE.tif', isVisible: false, opacity: 0.8 },
     { name: 'SHIG 0-11 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_SE.tif', isVisible: false, opacity: 0.8 },
     { name: 'SHIG 12-23 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_SE.tif', isVisible: false, opacity: 0.8 },
     { name: 'SHIG 12-23 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_SE.tif', isVisible: false, opacity: 0.8 },
     { name: 'SHIG 12-23 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_SE.tif', isVisible: false, opacity: 0.8 },
     { name: 'SHIG 24-59 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_SE.tif', isVisible: false, opacity: 0.8 },
     { name: 'SHIG 24-59 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_SE.tif', isVisible: false, opacity: 0.8 },
     { name: 'SHIG 24-59 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_SE.tif', isVisible: false, opacity: 0.8 },
     // Risk Factors - Floor
     { name: 'Floor Finished Pr', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Floor Finished SE', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'Floor Finished SE', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_SE.tif', isVisible: false, opacity: 0.8 },
     // Risk Factors - Roofs
     { name: 'Roofs Finished Pr', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Roofs Finished SE', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    // { name: 'Roofs Finished SE', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_SE.tif', isVisible: false, opacity: 0.8 },
     // Risk Factors - Walls
     { name: 'Walls Finished Pr', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    { name: 'Walls Finished SE', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_SE.tif', isVisible: false, opacity: 0.8 }
+    // { name: 'Walls Finished SE', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_SE.tif', isVisible: false, opacity: 0.8 }
   ];
 
   layersToAdd.forEach((layerData) => {
