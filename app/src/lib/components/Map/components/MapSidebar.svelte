@@ -192,9 +192,13 @@
 					<div class="flex items-center justify-between">
 						<div class="flex items-baseline">
 							<span class="text-primary text-lg font-bold">{visiblePoints}</span>
-							<span class="text-base-content/70 mx-1 text-sm">of</span>
-							<span class="text-base-content/80 text-base font-medium">{totalPoints}</span>
-							<span class="text-base-content/70 ml-1 text-sm">points</span>
+							{#if hasActiveFilters}
+								<span class="text-base-content/70 mx-1 text-sm">of</span>
+								<span class="text-base-content/80 text-base font-medium">{totalPoints}</span>
+								<span class="text-base-content/70 ml-1 text-sm">points</span>
+							{:else}
+								<span class="text-base-content/70 ml-1 text-sm">points</span>
+							{/if}
 						</div>
 						{#if hasActiveFilters}
 							<button class="btn" on:click={clearAllFilters}>Clear Filters</button>
