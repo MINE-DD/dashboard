@@ -27,7 +27,7 @@ services:
     volumes:
       - ./data/cogs:/data:ro
     labels:
-      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.middlewares=titiler-stripprefix
+      - "traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.rule=Host(`planeo.ctwhome.com`) && PathPrefix(`/titiler`)"
       - traefik.http.middlewares.titiler-stripprefix.stripprefix.prefixes=/titiler
 
     environment:
