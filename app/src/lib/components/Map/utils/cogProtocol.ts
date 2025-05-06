@@ -21,28 +21,28 @@ export function addCogProtocol(map: MaplibreMap): void {
  * The COG protocol handler function
  * This simplified version passes the URL through to a TiTiler endpoint
  */
-function cogProtocolHandler(params: RequestParameters, callback: (error: Error | null, data?: {data: ArrayBuffer; cacheControl?: string; expires?: string} | {data: ArrayBuffer}[]) => void): void {
+function cogProtocolHandler(params: RequestParameters, callback: (error: Error | null, data?: { data: ArrayBuffer; cacheControl?: string; expires?: string } | { data: ArrayBuffer }[]) => void): void {
   const url = params.url;
-  
+
   if (!url) {
     callback(new Error('No URL provided for COG protocol'));
     return;
   }
-  
+
   console.log('COG protocol handling URL:', url);
-  
+
   // Extract the COG URL (remove the cog:// prefix)
   const cogUrl = url.replace(/^cog:\/\//, '');
-  
+
   // Convert this to a TiTiler request
   // We're using the local TiTiler instance by default
   const titilerEndpoint = 'http://localhost:8000';
-  
+
   // Build the TiTiler URL for this tile request
-  const [z, x, y] = params.url.match(/\/(\d+)\/(\d+)\/(\d+)\.webp$/)?.[1-3] || [];
-  
+  const [z, x, y] = params.url.match(/\/(\d+)\/(\d+)\/(\d+)\.webp$/)?.[1 - 3] || [];
+
   let titilerUrl: string;
-  
+
   if (z && x && y) {
     // This is a tile request
     titilerUrl = `${titilerEndpoint}/cog/tiles/${z}/${x}/${y}.webp?url=${encodeURIComponent(cogUrl)}`;
@@ -50,9 +50,9 @@ function cogProtocolHandler(params: RequestParameters, callback: (error: Error |
     // This is a metadata request
     titilerUrl = `${titilerEndpoint}/cog/info?url=${encodeURIComponent(cogUrl)}`;
   }
-  
+
   console.log('COG protocol forwarding to TiTiler:', titilerUrl);
-  
+
   // Make the request to TiTiler
   fetch(titilerUrl)
     .then(response => {

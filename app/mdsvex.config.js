@@ -13,8 +13,8 @@ export default {
     dashes: 'oldschool'
   },
   layout: {
-    md: "./src/lib/markdown-layouts/default.svelte",  // Use relative path
-    svx: "./src/lib/markdown-layouts/default.svelte"  // Use relative path
+    md: "./src/lib/markdown-layouts/default.svelte",  // Use relative path from app directory
+    svx: "./src/lib/markdown-layouts/default.svelte"  // Use relative path from app directory
   },
   remarkPlugins: [
     videos,

@@ -2,6 +2,7 @@
 	import { onMount, onDestroy, afterUpdate } from 'svelte'; // Merged imports
 	import maplibregl from 'maplibre-gl'; // Remove named Map import
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { cogProtocol } from '@geomatico/maplibre-cog-protocol'; // Import from ESM build
 	import {
 		MAP_STYLES,
 		MapStyleCategory,
@@ -75,11 +76,11 @@
 		if (mapContainer && !map) {
 			// Ensure map isn't already initialized
 			// Determine which style to use - prioritize initialStyleId if provided
-			let initialStyle = $selectedMapStyle;
+			let initialStyle: MapStyle = $selectedMapStyle as MapStyle;
 			if (initialStyleId) {
 				const styleFromId = getStyleById(initialStyleId);
 				if (styleFromId) {
-					initialStyle = styleFromId;
+					initialStyle = styleFromId as MapStyle;
 					// Update the store to match the initial style
 					selectedMapStyle.set(initialStyle);
 				} else {
@@ -128,13 +129,17 @@
 					// Reactive block below will handle re-adding layers from store
 				});
 
-				map.on('error', (e) => {
+				map.on('error', (e: maplibregl.ErrorEvent) => {
 					console.error('MapLibre error:', e);
 				});
 			} catch (error) {
 				console.error('Error initializing map:', error);
 				map = null; // Ensure map is null if initialization failed
 			}
+
+			// Add the COG protocol
+			maplibregl.addProtocol('cog', cogProtocol);
+			console.log('Maplibre COG protocol added.');
 		}
 	});
 

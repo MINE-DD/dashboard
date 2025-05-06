@@ -67,7 +67,7 @@
   "dependencies": {
     "@auth/pg-adapter": "^1.7.4",
     "@auth/sveltekit": "^1.7.4",
-    "@geomatico/maplibre-cog-protocol": "github:geomatico/maplibre-cog-protocol",
+    "@geomatico/maplibre-cog-protocol": "AgroDT/maplibre-cog-protocol#exports",
     "@google/generative-ai": "^0.21.0",
     "@iconify/json": "^2.2.294",
     "@types/bcryptjs": "^2.4.6",
