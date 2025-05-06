@@ -1,24 +1,5 @@
 name: mine-dd
 services:
-  # postgres:
-  #   image: postgres:latest
-  #   env_file:
-  #     - app/.env
-  #   environment:
-  #     POSTGRES_USER: ${DB_USER:-postgres}
-  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-  #     POSTGRES_DB: ${DB_NAME:-plan-eo}
-  #   ports:
-  #     - "${DB_PORT:-5432}:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   restart: unless-stopped
-
   titiler:
     image: georam/titiler:latest
     platform: linux/arm64
@@ -27,7 +8,41 @@ services:
     volumes:
       - ./data/cogs:/data:ro
     labels:
-      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.rule=Host(`planeo.ctwhome.com`) && PathPrefix(`/titiler`)
+      - coolify.managed=true
+      - coolify.version=4.0.0-beta.416
+      - coolify.applicationId=26
+      - coolify.type=application
+      - coolify.name=titiler-psgw8wg4s4k4ss4k0cs80ok4-204920454795
+      - coolify.resourceName=m-i-n-e-d-ddashboardmain-vckcc40kc84c8wwo4g4wokog
+      - coolify.projectName=mide-dd
+      - coolify.serviceName=m-i-n-e-d-ddashboardmain-vckcc40kc84c8wwo4g4wokog
+      - coolify.environmentName=production
+      - coolify.pullRequestId=0
+      - traefik.enable=true
+      - traefik.http.middlewares.gzip.compress=true
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.routers.http-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.entryPoints=http
+      - traefik.http.routers.http-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.middlewares=redirect-to-https
+      - "traefik.http.routers.http-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.rule=Host(`planeo.ctwhome.com`) && PathPrefix(`/`)"
+      - traefik.http.routers.http-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.service=http-0-psgw8wg4s4k4ss4k0cs80ok4-titiler
+      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.entryPoints=https
+      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.middlewares=gzip
+      - "traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.rule=Host(`planeo.ctwhome.com`) && PathPrefix(`/titiler`)"
+      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.service=https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler
+      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.tls.certresolver=letsencrypt
+      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.tls=true
+      - traefik.http.routers.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.middlewares=titiler-stripprefix
+      - traefik.http.middlewares.titiler-stripprefix.stripprefix.prefixes=/titiler
+      - traefik.http.services.http-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.loadbalancer.server.port=8000
+      - traefik.http.services.https-0-psgw8wg4s4k4ss4k0cs80ok4-titiler.loadbalancer.server.port=8000
+      - "caddy_0.encode=zstd gzip"
+      - "caddy_0.handle_path.0_reverse_proxy={{upstreams 8000}}"
+      - "caddy_0.handle_path=/*"
+      - caddy_0.header=-Server
+      - "caddy_0.try_files={path} /index.html /index.php"
+      - "caddy_0=https://planeo.ctwhome.com"
+      - caddy_ingress_network=psgw8wg4s4k4ss4k0cs80ok4
+
     environment:
       - GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR
       - VSI_CACHE=TRUE
@@ -45,21 +60,6 @@ services:
     command: uvicorn titiler.application.main:app --host 0.0.0.0 --port 8000 --workers 1
     restart: unless-stopped
 
-  # migrate:
-  #   image: oven/bun:1
-  #   working_dir: /app
-  #   volumes:
-  #     - ./app/:/app
-  #   env_file:
-  #     - app/.env
-  #   environment:
-  #     - NODE_ENV=development
-  #     - DB_HOST=postgres
-  #   command: sh -c "sleep 5 && DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-topsveltekit}' bunx node-pg-migrate up"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-
   frontend:
     image: oven/bun:1
     working_dir: /app
@@ -75,17 +75,3 @@ services:
     command: sh -c "bun install && bun run dev"
     # command: sh -c "bun install && bun run dev"
     restart: unless-stopped
-
-  # seed:
-  #   profiles:
-  #     - seed
-  #   image: postgres:latest
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     PGPASSWORD: ${DB_PASSWORD:-postgres}
-  #   command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-plan-eo} -f /seed-database/seed.sql
-  #   volumes:
-  #     - ./app/seed-database:/seed-database
-# volumes:
-#   postgres_data:
