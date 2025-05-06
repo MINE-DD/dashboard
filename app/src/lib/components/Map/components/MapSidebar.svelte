@@ -83,10 +83,8 @@
 
 	// Helper function to toggle a value in a Set
 	function toggleSelection(set: Set<string>, value: string): Set<string> {
-		const newSet = new Set(set);
-		if (newSet.has(value)) {
-			newSet.delete(value);
-		} else {
+		const newSet = new Set<string>();
+		if (!set.has(value)) {
 			newSet.add(value);
 		}
 		return newSet;
@@ -112,17 +110,19 @@
 		clearFilterCache();
 	}
 
-	// Handle multiple select change
-	function handleMultipleSelect(event: Event, category: 'pathogens' | 'ageGroups' | 'syndromes') {
+	// Handle select change
+	function handleSelectChange(event: Event, category: 'ageGroups' | 'syndromes') {
 		const select = event.target as HTMLSelectElement;
-		const selectedOptions = Array.from(select.selectedOptions).map((option) => option.value);
+		const selectedValue = select.value;
 
-		if (category === 'pathogens') {
-			$selectedPathogens = new Set(selectedOptions);
-		} else if (category === 'ageGroups') {
-			$selectedAgeGroups = new Set(selectedOptions);
+		if (category === 'ageGroups') {
+			const newSet = new Set<string>();
+			if (selectedValue) newSet.add(selectedValue);
+			$selectedAgeGroups = newSet;
 		} else if (category === 'syndromes') {
-			$selectedSyndromes = new Set(selectedOptions);
+			const newSet = new Set<string>();
+			if (selectedValue) newSet.add(selectedValue);
+			$selectedSyndromes = newSet;
 		}
 
 		clearFilterCache();
@@ -207,7 +207,7 @@
 		<!-- Content -->
 		<div class="flex h-full max-h-[calc(100vh-250px)] w-80 flex-col overflow-y-scroll p-3 pt-2">
 			<!-- Filter Sections -->
-			<div class="form-control my-2 w-full">
+			<div class="form-control card my-2 w-full">
 				<div class="text-base-content/70 mb-2 text-xs">
 					Options marked with <span class="text-primary">*</span>
 					have associated raster layers.
@@ -220,28 +220,34 @@
 						{/if}
 					</span>
 				</label>
-				<select
-					class="select select-bordered select-sm w-full"
-					multiple
-					size={Math.min(5, $pathogens?.size || 1)}
-					on:change={(e) => handleMultipleSelect(e, 'pathogens')}
-				>
+
+				<!-- Pathogen Options -->
+				<div class="outline-base-200 grid grid-cols-2 gap-2 overflow-y-auto rounded-xl p-1 outline">
 					{#each Array.from($pathogens || []).sort() as pathogen}
-						<option value={pathogen} selected={$selectedPathogens?.has(pathogen)}>
-							{hasRasterLayers('pathogen', pathogen) ? `${pathogen} *` : pathogen}
-						</option>
+						<div
+							class={`hover:bg-base-300 flex cursor-pointer items-center rounded p-1 transition-opacity ${
+								$selectedPathogens?.has(pathogen)
+									? 'bg-base-200 font-medium opacity-100'
+									: 'opacity-80'
+							}`}
+							on:click={() => {
+								$selectedPathogens = toggleSelection($selectedPathogens, pathogen);
+								clearFilterCache(); // Clear cache to update filtered data
+							}}
+						>
+							<span
+								class="border-base-300 mr-2 inline-block h-3 w-3 rounded-full border"
+								style="background-color: {$pathogenColors?.get(pathogen) || '#ccc'}"
+							></span>
+							<span class="truncate text-xs">
+								{hasRasterLayers('pathogen', pathogen) ? `${pathogen} *` : pathogen}
+							</span>
+						</div>
 					{/each}
-				</select>
-				<div class="mt-1 flex justify-between">
-					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('pathogens', true)}>
-						Select All
-					</button>
-					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('pathogens', false)}>
-						Clear
-					</button>
 				</div>
 			</div>
 
+			<!-- Age Groups -->
 			<div class="form-control my-2 w-full">
 				<label class="label">
 					<span class="label-text flex items-center font-medium">
@@ -252,27 +258,19 @@
 					</span>
 				</label>
 				<select
-					class="select select-bordered select-sm w-full"
-					multiple
-					size={Math.min(5, $ageGroups?.size || 1)}
-					on:change={(e) => handleMultipleSelect(e, 'ageGroups')}
+					class="select select-bordered w-full"
+					on:change={(e) => handleSelectChange(e, 'ageGroups')}
 				>
+					<option value="" selected={$selectedAgeGroups.size === 0}>Select Age Group</option>
 					{#each Array.from($ageGroups || []).sort() as ageGroup}
 						<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
 							{hasRasterLayers('ageGroup', ageGroup) ? `${ageGroup} *` : ageGroup}
 						</option>
 					{/each}
 				</select>
-				<div class="mt-1 flex justify-between">
-					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('ageGroups', true)}>
-						Select All
-					</button>
-					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('ageGroups', false)}>
-						Clear
-					</button>
-				</div>
 			</div>
 
+			<!-- Syndromes -->
 			<div class="form-control my-2 w-full">
 				<label class="label">
 					<span class="label-text flex items-center font-medium">
@@ -283,50 +281,16 @@
 					</span>
 				</label>
 				<select
-					class="select select-bordered select-sm w-full"
-					multiple
-					size={Math.min(5, $syndromes?.size || 1)}
-					on:change={(e) => handleMultipleSelect(e, 'syndromes')}
+					class="select select-bordered w-full"
+					on:change={(e) => handleSelectChange(e, 'syndromes')}
 				>
+					<option value="" selected={$selectedSyndromes.size === 0}>Select Syndrome</option>
 					{#each Array.from($syndromes || []).sort() as syndrome}
 						<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
 							{hasRasterLayers('syndrome', syndrome) ? `${syndrome} *` : syndrome}
 						</option>
 					{/each}
 				</select>
-				<div class="mt-1 flex justify-between">
-					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('syndromes', true)}>
-						Select All
-					</button>
-					<button class="btn btn-xs btn-ghost" on:click={() => toggleAll('syndromes', false)}>
-						Clear
-					</button>
-				</div>
-			</div>
-
-			<div class="border-base-300 bg-base-200 mt-4 rounded-lg border p-3">
-				<h3 class="text-base-content mb-2 text-sm font-medium">Pathogen Legend</h3>
-				<div class="grid max-h-[150px] grid-cols-2 gap-2 pr-1">
-					{#each Array.from($pathogenColors?.entries() || []) as [pathogen, color]}
-						<div
-							class={`hover:bg-base-300 flex cursor-pointer items-center rounded p-1 transition-opacity ${
-								$selectedPathogens?.has(pathogen) || ($selectedPathogens?.size || 0) === 0
-									? 'opacity-100'
-									: 'opacity-50'
-							}`}
-							on:click={() => {
-								$selectedPathogens = toggleSelection($selectedPathogens, pathogen);
-								clearFilterCache(); // Clear cache to update filtered data
-							}}
-						>
-							<span
-								class="border-base-300 mr-2 inline-block h-3 w-3 rounded-full border"
-								style="background-color: {color}"
-							></span>
-							<span class="truncate text-xs">{pathogen}</span>
-						</div>
-					{/each}
-				</div>
 			</div>
 
 			<!-- Active Raster Layers Info -->
