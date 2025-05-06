@@ -20,7 +20,7 @@ services:
   #   restart: unless-stopped
 
   titiler:
-    image: ghcr.io/developmentseed/titiler:latest
+    image: georam/titiler:latest
     platform: linux/arm64
     ports:
       - "9080:8000"
