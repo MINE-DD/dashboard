@@ -13,7 +13,9 @@ export default {
     dashes: 'oldschool'
   },
   layout: {
+    // ts-ignore
     md: "./src/lib/markdown-layouts/default.svelte",  // Use relative path
+    // ts-ignore
     svx: "./src/lib/markdown-layouts/default.svelte"  // Use relative path
   },
   remarkPlugins: [
