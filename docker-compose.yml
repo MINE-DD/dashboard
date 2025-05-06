@@ -1,6 +1,5 @@
 name: mine-dd
 services:
-
   # postgres:
   #   image: postgres:latest
   #   env_file:
@@ -24,7 +23,7 @@ services:
     platform: linux/amd64
     image: ghcr.io/developmentseed/titiler:latest
     ports:
-      - "8000:8000"
+      - "9080:8000"
     volumes:
       - ./data/cogs:/data:ro
     environment:
@@ -86,7 +85,5 @@ services:
   #   command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-plan-eo} -f /seed-database/seed.sql
   #   volumes:
   #     - ./app/seed-database:/seed-database
-
-
 # volumes:
 #   postgres_data:
