@@ -10,7 +10,8 @@
 		isLoading,
 		dataError,
 		clearFilterCache,
-		// filteredPointsData, // Assuming this is derived elsewhere or not needed here directly
+		filteredPointsData, // Uncommented to use for point counting
+		pointsData, // Added for total points count
 		// Import new raster stores and functions
 		rasterLayers,
 		addRasterLayerFromUrl,
@@ -72,9 +73,9 @@
 	// Sidebar configuration
 	let collapsed = false;
 
-	// Stats for selected filters (Assuming filteredPointsData is available or derived elsewhere)
-	// $: visiblePoints = $filteredPointsData?.features?.length || 0; // Add null checks if needed
-	// $: totalPoints = $pathogens?.size > 0 ? $filteredPointsData?.features?.length || 0 : 0; // Add null checks if needed
+	// Stats for selected filters
+	$: visiblePoints = $filteredPointsData?.features?.length || 0;
+	$: totalPoints = $pointsData?.features?.length || 0;
 	$: selectedPathogenCount = $selectedPathogens?.size || 0; // Add null checks
 	$: selectedAgeGroupCount = $selectedAgeGroups?.size || 0; // Add null checks
 	$: selectedSyndromeCount = $selectedSyndromes?.size || 0; // Add null checks
@@ -189,9 +190,7 @@
 				<!-- Simplified condition, adjust if needed -->
 				<div class="text-base-content/70 mt-2 text-sm">
 					<div class="flex items-center justify-between">
-						<!-- {visiblePoints} of {totalPoints} points -->
-						<!-- Commented out if stats aren't needed -->
-						Points Loaded
+						{visiblePoints} of {totalPoints} points
 						{#if hasActiveFilters}
 							<button class="btn btn-xs btn-ghost text-primary" on:click={clearAllFilters}>
 								Clear Filters
