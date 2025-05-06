@@ -53,19 +53,32 @@
 	}
 
 	// Helper function to ensure points are always on top of all other layers
+	let lastLogTime = 0;
+	const logInterval = 5000; // Log message at most every 5 seconds
+
 	function ensurePointsOnTop() {
 		if (map && map.getLayer('points-layer')) {
 			// Move the points layer to the top of all layers
 			map.moveLayer('points-layer');
-			console.log('Ensured points layer is on top of all other layers');
+
+			const now = Date.now();
+			if (now - lastLogTime > logInterval) {
+				console.log('Ensured points layer is on top of all other layers');
+				lastLogTime = now;
+			}
 		}
 	}
 
 	// Handle source data events to ensure points stay on top when new layers are added
 	function handleSourceData(e: any) {
-		// Only act when a source is loaded and points layer exists
-		if (e.sourceDataType === 'metadata' && map && map.getLayer('points-layer')) {
-			// Ensure points are on top whenever any source is loaded
+		// Only act when a source is loaded and points layer exists, and it's not our own source
+		if (
+			e.sourceDataType === 'metadata' &&
+			map &&
+			map.getLayer('points-layer') &&
+			e.sourceId !== 'points-source'
+		) {
+			// Ensure points are on top whenever any other source is loaded
 			ensurePointsOnTop();
 		}
 	}
@@ -88,7 +101,22 @@
 			// console.log('Attempting to re-add points after style change');
 			if (map && map.loaded()) {
 				try {
-					addPointsToMap();
+					// Check if source and layer already exist before attempting to add
+					let sourceExists = false;
+					let layerExists = false;
+					try {
+						sourceExists = !!map.getSource('points-source');
+						layerExists = !!map.getLayer('points-layer');
+					} catch (e) {
+						// Ignore errors if source/layer don't exist
+					}
+
+					if (!sourceExists || !layerExists) {
+						addPointsToMap();
+					} else {
+						// If source and layer exist, just ensure points are on top
+						ensurePointsOnTop();
+					}
 				} catch (e) {
 					console.error('Error re-adding points after style change:', e);
 
@@ -96,7 +124,20 @@
 					setTimeout(() => {
 						console.log('Second attempt to add points after style change');
 						if (map && map.loaded()) {
-							addPointsToMap();
+							// Check again before adding
+							let sourceExists = false;
+							let layerExists = false;
+							try {
+								sourceExists = !!map.getSource('points-source');
+								layerExists = !!map.getLayer('points-layer');
+							} catch (e) {
+								// Ignore errors
+							}
+							if (!sourceExists || !layerExists) {
+								addPointsToMap();
+							} else {
+								ensurePointsOnTop();
+							}
 						}
 					}, 500);
 				}
@@ -214,7 +255,7 @@
 	}
 
 	// Add points when map is provided and data loads
-	$: if (map && $pointsData.features.length > 0 && !pointsAdded) {
+	$: if (map && $pointsData.features.length > 0 && !pointsAdded && map.loaded()) {
 		console.log('Map and data available - initial attempt to add points');
 		addPointsToMap();
 
