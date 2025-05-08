@@ -17,6 +17,7 @@ services:
       - PYTHONWARNINGS=ignore
       - WORKERS_PER_CORE=1
       - MAX_WORKERS=1
+      - CORS_ORIGINS=*
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 60s
