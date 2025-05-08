@@ -33,6 +33,8 @@ export const pathogenColors = writable<Map<string, string>>(new Map());
 
 // Use localhost as the browser needs to access the port mapped to the host
 const TITILER_ENDPOINT = import.meta.env.VITE_TITILER_ENDPOINT || 'http://localhost:8000';
+// Path prefix for data files in the TiTiler container
+const TITILER_DATA_PREFIX = import.meta.env.VITE_TITILER_DATA_PREFIX || '/data/';
 
 // Helper to create the initial raster layers map
 function createInitialRasterLayers(): Map<string, RasterLayer> {
@@ -72,9 +74,9 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
   ];
 
   layersToAdd.forEach((layerData) => {
-    // NOTE: The sourceUrl is relative to the TiTiler /cogs mount point.
+    // NOTE: The sourceUrl is relative to the TiTiler mount point.
     // The actual URL for TiTiler needs the absolute path within the container encoded.
-    const absolutePathInContainer = `/data/${layerData.sourceUrl}`;
+    const absolutePathInContainer = `${TITILER_DATA_PREFIX}${layerData.sourceUrl}`;
     const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
     // Using preview endpoint with styling for single-band data.
     // Using viridis colormap and a tentative rescale based on sample. Might need per-layer adjustment.
@@ -235,8 +237,8 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
   });
 
   // --- Fetch bounds ---
-  // Note: layer.sourceUrl is the relative path. Prepend '/data/' for TiTiler container path.
-  const absolutePathInContainer = `/data/${layer.sourceUrl}`;
+  // Note: layer.sourceUrl is the relative path. Prepend with TITILER_DATA_PREFIX for TiTiler container path.
+  const absolutePathInContainer = `${TITILER_DATA_PREFIX}${layer.sourceUrl}`;
   const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
   const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedAbsolutePath}`;
 

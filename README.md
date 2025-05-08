@@ -43,6 +43,7 @@ The application is built using the following technologies:
     *   Automatically displays relevant raster layers based on filter selections (pathogen, age group, syndrome).
     *   Provides a global opacity slider to adjust all visible raster layers simultaneously.
     *   Ensures point data (dots) always appear on top of raster layers for better visibility through a comprehensive approach that handles dynamic layer additions.
+    *   Configurable data path prefix via the `VITE_TITILER_DATA_PREFIX` environment variable (default: `/data/`).
 
 ## Development Setup
 
