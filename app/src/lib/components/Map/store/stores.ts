@@ -40,47 +40,48 @@ const TITILER_DATA_PREFIX = import.meta.env.VITE_TITILER_DATA_PREFIX || '/data/'
 function createInitialRasterLayers(): Map<string, RasterLayer> {
   const initialMap = new Map<string, RasterLayer>();
 
+  const baseR2url = 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/'
   // Define layers based on files in data/cogs
   const layersToAdd: Omit<RasterLayer, 'id' | 'tileUrlTemplate'>[] = [
     // Keep existing TCI layer if needed, assuming it's local now
     // Pathogens - SHIG
-    { name: 'SHIG 0-11 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 0-11 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 0-11 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 0-11 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_0011_Medi_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 12-23 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 12-23 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 12-23 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_1223_Medi_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Asym Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 24-59 Asym SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Asym_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Comm Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 24-59 Comm SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Comm_SE.tif', isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Medi Pr', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'SHIG 24-59 Medi SE', sourceUrl: '01_Pathogens/SHIG/SHIG_2459_Medi_SE.tif', isVisible: false, opacity: 0.8 },
+
+    { name: 'SHIG 0-11 Asym Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Asym SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_0011_Asym_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Comm Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_0011_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Comm SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_0011_Comm_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 0-11 Medi Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_0011_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 0-11 Medi SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_0011_Medi_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Asym Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_1223_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Asym SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_1223_Asym_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Comm Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_1223_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Comm SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_1223_Comm_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 12-23 Medi Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_1223_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 12-23 Medi SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_1223_Medi_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Asym Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_2459_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Asym SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_2459_Asym_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Comm Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_2459_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Comm SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_2459_Comm_SE.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'SHIG 24-59 Medi Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_2459_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'SHIG 24-59 Medi SE', sourceUrl:`${baseR2url}01_Pathogens/SHIG/SHIG_2459_Medi_SE.tif`, isVisible: false, opacity: 0.8 },
     // Risk Factors - Floor
-    { name: 'Floor Finished Pr', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'Floor Finished SE', sourceUrl: '02_Risk_factors/Floor/Flr_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Floor Finished Pr', sourceUrl: `${baseR2url}02_Risk_factors/Floor/Flr_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'Floor Finished SE', sourceUrl:`${baseR2url}02_Risk_factors/Floor/Flr_Fin_SE.tif`, isVisible: false, opacity: 0.8 },
     // Risk Factors - Roofs
-    { name: 'Roofs Finished Pr', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'Roofs Finished SE', sourceUrl: '02_Risk_factors/Roofs/Rfs_Fin_SE.tif', isVisible: false, opacity: 0.8 },
+    { name: 'Roofs Finished Pr', sourceUrl: `${baseR2url}02_Risk_factors/Roofs/Rfs_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'Roofs Finished SE', sourceUrl:`${baseR2url}02_Risk_factors/Roofs/Rfs_Fin_SE.tif`, isVisible: false, opacity: 0.8 },
     // Risk Factors - Walls
-    { name: 'Walls Finished Pr', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_Pr.tif', isVisible: false, opacity: 0.8 },
-    // { name: 'Walls Finished SE', sourceUrl: '02_Risk_factors/Walls/Wll_Fin_SE.tif', isVisible: false, opacity: 0.8 }
+    { name: 'Walls Finished Pr', sourceUrl: `${baseR2url}02_Risk_factors/Walls/Wll_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
+    // { name: 'Walls Finished SE', sourceUrl:`${baseR2url}02_Risk_factors/Walls/Wll_Fin_SE.tif`, isVisible: false, opacity: 0.8 }
   ];
 
   layersToAdd.forEach((layerData) => {
-    // NOTE: The sourceUrl is relative to the TiTiler mount point.
-    // The actual URL for TiTiler needs the absolute path within the container encoded.
-    const absolutePathInContainer = `${TITILER_DATA_PREFIX}${layerData.sourceUrl}`;
-    const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
+    // NOTE: For direct URLs to cloud storage, we don't need to prepend any path prefix
+    // Just encode the URL directly
+    const encodedUrl = encodeURIComponent(layerData.sourceUrl);
     // Using preview endpoint with styling for single-band data.
     // Using viridis colormap and a tentative rescale based on sample. Might need per-layer adjustment.
-    const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodedAbsolutePath}&max_size=1024&bidx=1&colormap_name=viridis&rescale=0,11`;
+    const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodedUrl}&max_size=1024&bidx=1&colormap_name=viridis&rescale=0,11`;
 
     const layer: RasterLayer = {
       id: `cog-${layerData.sourceUrl.replace(/[\/\.]/g, '-')}`, // Generate ID from path
@@ -237,10 +238,9 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
   });
 
   // --- Fetch bounds ---
-  // Note: layer.sourceUrl is the relative path. Prepend with TITILER_DATA_PREFIX for TiTiler container path.
-  const absolutePathInContainer = `${TITILER_DATA_PREFIX}${layer.sourceUrl}`;
-  const encodedAbsolutePath = encodeURIComponent(absolutePathInContainer);
-  const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedAbsolutePath}`;
+  // Note: For direct URLs to cloud storage, we don't need to prepend any path prefix
+  const encodedUrl = encodeURIComponent(layer.sourceUrl);
+  const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedUrl}`;
 
   try {
     console.log(`Raster: Fetching bounds for ${layerId}: ${boundsUrl}`);

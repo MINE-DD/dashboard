@@ -35,7 +35,9 @@ The application is built using the following technologies:
 *   **TiTiler Integration:**
     *   Serves Cloud-Optimized GeoTIFF (COG) raster data efficiently.
     *   Runs as a dedicated Docker service (`docker-compose.yml`).
-    *   COG files are expected to be located in the `data/cogs` directory (Note: This directory might need to be created if not present).
+    *   Supports multiple data sources:
+        *   Local files in the `data/cogs` directory (using `VITE_TITILER_DATA_PREFIX` environment variable)
+        *   Cloud storage via Cloudflare R2 (using direct URLs)
     *   Displays COG data using an image-based approach compatible across platforms, including Apple Silicon.
     *   Allows users to toggle the visibility and adjust the opacity of raster layers.
     *   Supports loading remote COG layers directly via URL input in the sidebar (proxied through TiTiler).
@@ -43,7 +45,6 @@ The application is built using the following technologies:
     *   Automatically displays relevant raster layers based on filter selections (pathogen, age group, syndrome).
     *   Provides a global opacity slider to adjust all visible raster layers simultaneously.
     *   Ensures point data (dots) always appear on top of raster layers for better visibility through a comprehensive approach that handles dynamic layer additions.
-    *   Configurable data path prefix via the `VITE_TITILER_DATA_PREFIX` environment variable (default: `/data/`).
 
 ## Development Setup
 

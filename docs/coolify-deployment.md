@@ -45,9 +45,13 @@ If you encounter port conflicts (like the one with port 8000), you'll need to mo
 1. For the TiTiler service, change the port mapping from `8000:8000` to an available port, e.g., `8001:8000` or `8080:8000`
 2. Make sure to update the `VITE_TITILER_ENDPOINT` environment variable to match the new port if you're exposing TiTiler directly
 
-### 4. Configure Volume Mounts
+### 4. Data Storage Options
 
-Ensure that your data files are correctly mounted in the TiTiler container:
+You have two options for storing your COG files:
+
+#### Option A: Local Storage with Volume Mounts
+
+If you want to store your COG files locally on the Coolify server:
 
 1. Check that the volume mapping for TiTiler is correctly set up in Coolify
 2. If your data files are in a different location or structure than expected, you can adjust the `VITE_TITILER_DATA_PREFIX` environment variable to match
@@ -57,6 +61,24 @@ For example, if your COG files are located at `/data/coolify/applications/psgw8w
 ```
 VITE_TITILER_DATA_PREFIX=/data/coolify/applications/psgw8wg4s4k4ss4k0cs80ok4/data/cogs/
 ```
+
+#### Option B: Cloud Storage with Cloudflare R2 (Recommended)
+
+Using Cloudflare R2 for storing your COG files offers better scalability and simplifies deployment:
+
+1. Create a Cloudflare R2 bucket and upload your COG files, maintaining the same directory structure
+2. Make the bucket publicly accessible or set up appropriate CORS configuration
+3. Update the application code to use direct URLs to your R2 bucket:
+   - In `app/src/lib/components/Map/store/stores.ts`, set the `baseR2url` variable to your R2 bucket URL
+   - In `app/src/lib/components/Map/store/filterRasterMapping.ts`, update the `baseR2url` to match
+
+Example R2 configuration:
+```javascript
+// In stores.ts and filterRasterMapping.ts
+const baseR2url = 'https://your-bucket-name.r2.cloudflarestorage.com/cogs/';
+```
+
+With this approach, you don't need to set the `VITE_TITILER_DATA_PREFIX` environment variable, as the application will use the full URLs directly.
 
 ### 5. Configure Domain Routing
 
@@ -99,9 +121,16 @@ If you see errors like:
 
 This indicates that TiTiler cannot find the expected data files. Check:
 
+#### For Local Storage:
 1. That your data files are uploaded to the correct location on the server
 2. That the volume mounting in Coolify is correct
 3. That the `VITE_TITILER_DATA_PREFIX` environment variable is set correctly to point to where your files are actually located
+
+#### For Cloudflare R2:
+1. That your files are uploaded to the R2 bucket with the correct paths
+2. That the bucket is publicly accessible or has appropriate CORS configuration
+3. That the `baseR2url` in the code points to the correct R2 bucket URL
+4. That TiTiler can access external URLs (it should by default)
 
 ### Routing Issues
 
