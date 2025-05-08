@@ -22,6 +22,7 @@
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
+	import GeoTIFFExample from './components/GeoTIFFExample.svelte';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
@@ -403,6 +404,15 @@
 	{#if map && isStyleLoaded}
 		<!-- Bind to the MapLayer component to call its functions -->
 		<MapLayer {map} on:pointclick={handlePointClick} bind:this={mapLayerComponent} />
+
+		<!-- GeoTIFF.js Example Component -->
+		<GeoTIFFExample
+			{map}
+			url="https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif"
+			layerId="geotiff-example"
+			sourceId="geotiff-example-source"
+			opacity={0.8}
+		/>
 	{/if}
 
 	<!-- Map Sidebar with filters -->

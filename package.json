@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "geotiff": "^2.1.3"
+  }
+}
