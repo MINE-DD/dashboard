@@ -4,7 +4,7 @@ services:
     image: georam/titiler:latest
     platform: linux/arm64
     ports:
-      - "9080:8000"
+      - "8000:8000"
     volumes:
       - ./data/cogs:/data:ro
     labels:
