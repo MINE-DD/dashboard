@@ -3,7 +3,7 @@ export function generateColors(uniqueValues: Set<string>): Map<string, string> {
   const colorMap = new Map<string, string>();
   const colors = [
     '#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00',
-    '#ffff33', '#a65628', '#f781bf', '#999999', '#8dd3c7',
+    '#FFB336', '#a65628', '#f781bf', '#999999', '#8dd3c7',
     '#bebada', '#fb8072', '#80b1d3', '#fdb462', '#b3de69'
   ];
 
