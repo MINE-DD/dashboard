@@ -120,8 +120,8 @@
 	// Helper function to get color based on prevalence value
 	function getPrevalenceColor(prevalence: number): string {
 		if (prevalence < 0.1) return '#4daf4a'; // Low: green
-		if (prevalence < 0.3) return '#ffff33'; // Medium: yellow
-		if (prevalence < 0.5) return '#ff7f00'; // High: orange
+		if (prevalence < 0.3) return '#ff7f00'; // Medium: orange
+		if (prevalence < 0.5) return '#E4581C'; // High: lighter red
 		return '#e41a1c'; // Very high: red
 	}
 </script>
@@ -139,6 +139,12 @@
 		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 	}
 
+	:global(.maplibregl-popup-close-button) {
+		width: 30px;
+		height: 30px;
+		font-size: 18px;
+		border-radius: 8px;
+	}
 	:global(.popup-title) {
 		display: flex;
 		justify-content: space-between;
@@ -157,6 +163,7 @@
 	:global(.prevalence-badge) {
 		display: inline-block;
 		padding: 2px 8px;
+		margin-right: 10px;
 		border-radius: 12px;
 		color: white;
 		font-size: 13px;
