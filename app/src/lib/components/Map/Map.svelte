@@ -17,18 +17,23 @@
 		pointsData,
 		// Import raster stores and functions
 		rasterLayers,
-		fetchAndSetLayerBounds // Import the new function
+		fetchAndSetLayerBounds, // Import the new function
+		updateAllRasterLayersOpacity // Import for opacity control
 	} from './store'; // Corrected import path
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
-	import GeoTIFFExample from './components/GeoTIFFExample.svelte';
+	// Import URL parameter utilities
+	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
 	export let initialZoom: number = 2; // Default zoom level - closer to see the COG details
 	export let initialStyleId: string | null = null; // Optional style ID to use
 	export let pointDataUrl: string = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
+
+	// Track the global opacity value for raster layers
+	let globalOpacity = 80; // Default to 80%
 
 	let mapContainer: HTMLElement;
 	let map: maplibregl.Map | null = null; // Use qualified type
@@ -73,6 +78,20 @@
 	// Initialize map and controls
 	onMount(async () => {
 		if (mapContainer && !map) {
+			// Parse URL parameters before initializing map
+			const urlParams = parseUrlFilters();
+
+			// Override initial values with URL parameters if present
+			if (urlParams.center) initialCenter = urlParams.center;
+			if (urlParams.zoom) initialZoom = urlParams.zoom;
+			if (urlParams.styleId) initialStyleId = urlParams.styleId;
+
+			// Process opacity from URL if present
+			if (urlParams.opacity !== undefined) {
+				// Update global opacity for raster layers (value between 0-100)
+				updateAllRasterLayersOpacity(urlParams.opacity / 100);
+			}
+
 			// Ensure map isn't already initialized
 			// Determine which style to use - prioritize initialStyleId if provided
 			let initialStyle = $selectedMapStyle;
@@ -95,8 +114,8 @@
 					container: mapContainer,
 					style: initialStyle.url,
 					center: initialCenter || [28.4, -15.0], // Use provided center or default
-					zoom: initialZoom || 4
-					// renderWorldCopies: true // Use provided zoom or default
+					zoom: initialZoom || 4,
+					renderWorldCopies: true // Enable world copies for better wrapping at edges
 				});
 
 				// Log the map object for debugging
@@ -112,13 +131,22 @@
 					'bottom-left'
 				);
 
+				// Create a debounced update function for map movements
+				const debouncedUpdateUrl = debounce(() => {
+					serializeFiltersToUrl(map, globalOpacity);
+				}, 500); // 500ms delay to avoid excessive updates during panning/zooming
+
 				// --- Event Listeners ---
 				map.on('load', () => {
-					console.log('Map "load" event fired');
+					// console.log('Map "load" event fired');
 					isStyleLoaded = true;
 					// Load point data only after the initial map load
 					loadPointsData(pointDataUrl);
 					// Reactive block below will handle adding initial layers from store
+
+					// Add map movement listeners to update URL
+					map.on('moveend', debouncedUpdateUrl);
+					map.on('zoomend', debouncedUpdateUrl);
 				});
 
 				map.on('styledata', () => {
@@ -200,23 +228,68 @@
 						// Add source if it doesn't exist (bounds check already done)
 						if (!currentMap?.getSource(sourceId)) {
 							// Use image source type with fetched bounds
-							const imageUrl = layer.tileUrlTemplate; // This now holds the preview URL
-							const coordinates: [
+							if (!layer.dataUrl) {
+								console.error(`Raster: Missing dataUrl for layer ${layerId}`);
+								throw new Error(`Missing dataUrl for layer ${layerId}`);
+							}
+							const imageUrl = layer.dataUrl; // This now holds the processed GeoTIFF data URL
+							// Check if we need to swap coordinates (some GeoTIFFs use lat,lng order instead of lng,lat)
+							// This is a common issue that can cause the raster to be positioned incorrectly
+							const swapCoordinates = layer.swapCoordinates || false;
+
+							// Create coordinates array for the image corners
+							// The order is critical: top-left, top-right, bottom-right, bottom-left
+
+							// Check if these are global bounds (or close to it)
+							const isGlobalOrNearGlobalBounds =
+								Math.abs(layer.bounds[0] + 180) < 1 &&
+								Math.abs(layer.bounds[1] + 90) < 1 &&
+								Math.abs(layer.bounds[2] - 180) < 1 &&
+								Math.abs(layer.bounds[3] - 90) < 1;
+
+							// For global bounds, use a special case to ensure proper wrapping
+							let coordinates: [
 								[number, number],
 								[number, number],
 								[number, number],
 								[number, number]
-							] = [
-								[layer.bounds[0], layer.bounds[3]], // top-left [lng, lat]
-								[layer.bounds[2], layer.bounds[3]], // top-right
-								[layer.bounds[2], layer.bounds[1]], // bottom-right
-								[layer.bounds[0], layer.bounds[1]] // bottom-left
 							];
 
-							console.log(
-								`Raster: Adding image source ${sourceId} with URL: ${imageUrl} and coordinates:`,
-								coordinates
-							); // Add explicit logging
+							if (isGlobalOrNearGlobalBounds) {
+								console.log(`Raster: Using global bounds mapping for ${layerId}`);
+								// For global bounds, use values that work with Web Mercator projection
+								// Avoid using exactly 90/-90 for latitude as they cause infinite y-coordinates
+								coordinates = [
+									[-180, 85], // top-left (limit latitude to 85 degrees)
+									[180, 85], // top-right
+									[180, -85], // bottom-right
+									[-180, -85] // bottom-left
+								];
+							} else {
+								// For non-global bounds, use the standard mapping
+								coordinates = swapCoordinates
+									? [
+											[layer.bounds[3], layer.bounds[0]], // top-left [lat, lng] if swapped
+											[layer.bounds[3], layer.bounds[2]], // top-right
+											[layer.bounds[1], layer.bounds[2]], // bottom-right
+											[layer.bounds[1], layer.bounds[0]] // bottom-left
+										]
+									: [
+											[layer.bounds[0], layer.bounds[3]], // top-left [lng, lat] normal order
+											[layer.bounds[2], layer.bounds[3]], // top-right
+											[layer.bounds[2], layer.bounds[1]], // bottom-right
+											[layer.bounds[0], layer.bounds[1]] // bottom-left
+										];
+							}
+
+							// console.log(
+							// 	`Raster: Adding image source ${sourceId} with URL: ${imageUrl} and coordinates:`,
+							// 	coordinates
+							// );
+							// console.log(
+							// 	`Raster: Coordinate order:`,
+							// 	swapCoordinates ? 'lat,lng (swapped)' : 'lng,lat (normal)'
+							// );
 
 							// Check for problematic global bounds before defining source
 							const isGlobalBounds =
@@ -362,6 +435,22 @@
 		});
 	}
 
+	// Update URL when style changes
+	$: if (map && isStyleLoaded && $selectedMapStyle) {
+		// Debounce style changes to avoid excessive URL updates
+		setTimeout(() => {
+			serializeFiltersToUrl(map, globalOpacity);
+		}, 100);
+	}
+
+	// Monitor filter changes to update URL
+	$: if (map && isStyleLoaded) {
+		// Use a small timeout to batch filter changes that might happen together
+		setTimeout(() => {
+			serializeFiltersToUrl(map, globalOpacity);
+		}, 100);
+	}
+
 	onDestroy(() => {
 		if (map) {
 			console.log('Map onDestroy: Removing map instance.');
@@ -404,21 +493,18 @@
 	{#if map && isStyleLoaded}
 		<!-- Bind to the MapLayer component to call its functions -->
 		<MapLayer {map} on:pointclick={handlePointClick} bind:this={mapLayerComponent} />
-
-		<!-- GeoTIFF.js Example Component -->
-		<GeoTIFFExample
-			{map}
-			url="https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif"
-			layerId="geotiff-example"
-			sourceId="geotiff-example-source"
-			opacity={0.8}
-		/>
 	{/if}
 
 	<!-- Map Sidebar with filters -->
 	<div class="absolute left-6 top-16 z-10">
 		<!-- Added z-index -->
-		<MapSidebar />
+		<MapSidebar
+			bind:globalOpacity
+			on:opacitychange={(e) => {
+				// Update URL when opacity changes
+				serializeFiltersToUrl(map, e.detail.opacity);
+			}}
+		/>
 	</div>
 
 	<!-- Point Popover for details -->

@@ -1,0 +1,257 @@
+import * as GeoTIFF from 'geotiff';
+
+/**
+ * Interface for GeoTIFF metadata
+ */
+export interface GeoTIFFMetadata {
+  width: number;
+  height: number;
+  bounds: number[];
+  resolution: number[];
+  samplesPerPixel: number;
+  [key: string]: any;
+}
+
+/**
+ * Interface for GeoTIFF processing options
+ */
+export interface ProcessingOptions {
+  colormap?: string; // e.g., 'viridis'
+  rescale?: [number, number]; // Min/max values for rescaling
+  noDataValue?: number; // Value to treat as transparent
+  noDataThreshold?: number; // Threshold for treating values as no-data (e.g., 0.01)
+}
+
+/**
+ * Default viridis colormap similar to what TiTiler uses
+ */
+export const VIRIDIS_COLORMAP = [
+  [68, 1, 84], // Dark purple
+  [72, 40, 120], // Purple
+  [62, 73, 137], // Blue
+  [49, 104, 142], // Light blue
+  [38, 130, 142], // Cyan
+  [31, 158, 137], // Teal
+  [53, 183, 121], // Green
+  [109, 205, 89], // Light green
+  [180, 222, 44], // Yellow-green
+  [253, 231, 37] // Yellow
+];
+
+/**
+ * Load a GeoTIFF from a URL and return the image and metadata
+ */
+export async function loadGeoTIFF(url: string): Promise<{
+  image: any;
+  metadata: GeoTIFFMetadata;
+}> {
+  console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
+  const tiff = await GeoTIFF.fromUrl(url);
+  const image = await tiff.getImage();
+
+  // Extract metadata
+  const imageWidth = image.getWidth();
+  const imageHeight = image.getHeight();
+  const imageBounds = image.getBoundingBox();
+
+  const metadata: GeoTIFFMetadata = {
+    width: imageWidth,
+    height: imageHeight,
+    bounds: imageBounds as number[],
+    resolution: image.getResolution(),
+    samplesPerPixel: image.getSamplesPerPixel()
+  };
+
+  // console.log('GeoTIFF Processor: Metadata loaded:', metadata);
+  return { image, metadata };
+}
+
+/**
+ * Validate and adjust bounds if needed
+ */
+export function validateBounds(bounds: number[]): number[] {
+  // Initialize bounds with a default value to avoid null issues
+  if (!bounds || bounds.length !== 4) {
+    console.warn('GeoTIFF Processor: Missing or invalid bounds, using global bounds');
+    return [-180, -90, 180, 90]; // Use global bounds instead of Africa default
+  }
+
+  // Check for Web Mercator global bounds (approximately ±20037508.34, ±10018754.17)
+  const isWebMercatorGlobalBounds =
+    Math.abs(bounds[0] + 20037508.34) < 100 &&
+    Math.abs(bounds[1] + 10018754.17) < 100 &&
+    Math.abs(bounds[2] - 20037508.34) < 100 &&
+    Math.abs(bounds[3] - 10018754.17) < 100;
+
+  if (isWebMercatorGlobalBounds) {
+    console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84 bounds');
+    return [-180, -90, 180, 90]; // Use exact global bounds
+  }
+
+  // Check for invalid coordinates in WGS84
+  if (
+    bounds.some((coord) => typeof coord !== 'number' || !isFinite(coord)) ||
+    bounds[0] < -180 || bounds[0] > 180 || // west
+    bounds[2] < -180 || bounds[2] > 180 || // east
+    bounds[1] < -90 || bounds[1] > 90 || // south
+    bounds[3] < -90 || bounds[3] > 90     // north
+  ) {
+    console.warn('GeoTIFF Processor: Invalid or out-of-range bounds, using global bounds:', bounds);
+    return [-180, -90, 180, 90]; // Use global bounds instead of Africa default
+  }
+
+  // For any bounds that are close to global, just use global bounds
+  const isNearGlobalBounds =
+    Math.abs(bounds[0] + 180) < 10 &&
+    Math.abs(bounds[1] + 90) < 10 &&
+    Math.abs(bounds[2] - 180) < 10 &&
+    Math.abs(bounds[3] - 90) < 10;
+
+  if (isNearGlobalBounds) {
+    console.log('GeoTIFF Processor: Bounds are close to global, using exact global bounds');
+    return [-180, -90, 180, 90];
+  }
+
+  console.log('GeoTIFF Processor: Using bounds:', bounds);
+  return bounds;
+}
+
+/**
+ * Get color from the viridis colormap
+ * Using the exact same implementation as in GeoTIFFExample.svelte
+ */
+function getViridisColor(value: number): [number, number, number] {
+  // Rescale value from 0-11 to 0-1 (similar to TiTiler's rescale=0,11)
+  const rescaledValue = Math.min(1, Math.max(0, value / 11));
+
+  // Map to colormap index
+  const index = rescaledValue * (VIRIDIS_COLORMAP.length - 1);
+  const lowerIndex = Math.floor(index);
+  const upperIndex = Math.min(VIRIDIS_COLORMAP.length - 1, lowerIndex + 1);
+  const t = index - lowerIndex; // Interpolation factor
+
+  // Interpolate between colors
+  if (lowerIndex === upperIndex) {
+    // Ensure we return a tuple of exactly 3 numbers
+    const color = VIRIDIS_COLORMAP[lowerIndex];
+    return [color[0], color[1], color[2]];
+  }
+
+  const lowerColor = VIRIDIS_COLORMAP[lowerIndex];
+  const upperColor = VIRIDIS_COLORMAP[upperIndex];
+
+  // Ensure we return a tuple of exactly 3 numbers
+  return [
+    Math.round(lowerColor[0] * (1 - t) + upperColor[0] * t),
+    Math.round(lowerColor[1] * (1 - t) + upperColor[1] * t),
+    Math.round(lowerColor[2] * (1 - t) + upperColor[2] * t)
+  ];
+}
+
+/**
+ * Process GeoTIFF data and return a data URL
+ */
+export async function processGeoTIFF(
+  image: any,
+  options: ProcessingOptions = {}
+): Promise<string> {
+  const width = image.getWidth();
+  const height = image.getHeight();
+
+  console.log('GeoTIFF Processor: Reading raster data...');
+  const data = await image.readRasters();
+
+  // Create a canvas to render the data
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get canvas context');
+
+  // Create an ImageData object
+  const imageData = ctx.createImageData(width, height);
+
+  // Find data range to determine no-data values
+  const rasterData = data as any;
+  let minValue = Infinity;
+  let maxValue = -Infinity;
+
+  // Scan for min/max values and identify no-data areas
+  for (let i = 0; i < width * height; i++) {
+    const value = rasterData[0][i]; // First band
+    if (value !== 0 && !isNaN(value)) {
+      minValue = Math.min(minValue, value);
+      maxValue = Math.max(maxValue, value);
+    }
+  }
+
+  console.log(`GeoTIFF Processor: Data range: ${minValue} to ${maxValue}`);
+
+  // Use provided rescale values or default to the detected range
+  const rescale = options.rescale || [minValue, maxValue];
+  const noDataThreshold = options.noDataThreshold || 0.01;
+
+  // Apply colormap to raster data with better no-data handling
+  for (let i = 0; i < width * height; i++) {
+    const value = rasterData[0][i]; // First band
+
+    // More aggressive no-data detection
+    // Consider values very close to 0 or outside reasonable range as no-data
+    if (value === 0 || isNaN(value) || value < minValue * 0.01) {
+      // Transparent for no-data values
+      imageData.data[i * 4] = 0;
+      imageData.data[i * 4 + 1] = 0;
+      imageData.data[i * 4 + 2] = 0;
+      imageData.data[i * 4 + 3] = 0;
+    } else {
+      // Apply viridis colormap
+      const [r, g, b] = getViridisColor(value);
+      imageData.data[i * 4] = r;
+      imageData.data[i * 4 + 1] = g;
+      imageData.data[i * 4 + 2] = b;
+      imageData.data[i * 4 + 3] = 255; // Alpha
+    }
+  }
+
+  // Put the image data on the canvas
+  ctx.putImageData(imageData, 0, 0);
+
+  // Convert canvas to data URL
+  const dataUrl = canvas.toDataURL('image/png');
+  console.log('GeoTIFF Processor: Created data URL');
+
+  return dataUrl;
+}
+
+/**
+ * Load and process a GeoTIFF from a URL
+ */
+export async function loadAndProcessGeoTIFF(
+  url: string,
+  options: ProcessingOptions = {}
+): Promise<{
+  dataUrl: string;
+  metadata: GeoTIFFMetadata;
+  bounds: number[];
+}> {
+  try {
+    // Load the GeoTIFF
+    const { image, metadata } = await loadGeoTIFF(url);
+
+    // Initialize bounds with a default value to avoid null issues
+    let bounds = (metadata.bounds as number[]) || [-20, -35, 55, 40]; // Default to Africa if null
+    console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
+
+    // Validate and adjust bounds
+    bounds = validateBounds(bounds);
+
+    // Process the GeoTIFF
+    const dataUrl = await processGeoTIFF(image, options);
+
+    return { dataUrl, metadata, bounds };
+  } catch (error) {
+    console.error('GeoTIFF Processor: Error processing GeoTIFF:', error);
+    throw error;
+  }
+}

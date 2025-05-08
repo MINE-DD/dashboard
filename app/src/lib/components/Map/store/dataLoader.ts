@@ -100,16 +100,16 @@ export async function loadPointsData(url: string): Promise<void> {
       // Ensure Shigella is always available as a pathogen option
       // since we have raster layers for it
       pathogenSet.add('Shigella spp.');
-      console.log('Added Shigella spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
+      // console.log('Added Shigella spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
 
       // Don't add duplicate age groups, we'll handle this in the UI
-      console.log('Current age groups from data:', Array.from(ageGroupSet));
+      // console.log('Current age groups from data:', Array.from(ageGroupSet));
 
       // Ensure syndromes needed for raster layers are available
       syndromeSet.add('Asymptomatic');
       syndromeSet.add('Community');
       syndromeSet.add('Medical');
-      console.log('Added syndromes for raster layers. Current syndromes:', Array.from(syndromeSet));
+      // console.log('Added syndromes for raster layers. Current syndromes:', Array.from(syndromeSet));
 
       // Update stores
       pathogens.set(pathogenSet);

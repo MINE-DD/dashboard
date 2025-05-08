@@ -19,6 +19,7 @@
 		updateRasterLayerOpacity,
 		updateAllRasterLayersOpacity,
 		removeRasterLayer,
+		updateRasterLayerCoordinateSwap, // Import the new function
 		// Import filter-to-raster mapping functionality
 		initFilterRasterConnection,
 		autoVisibleRasterLayers
@@ -26,11 +27,15 @@
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	// Import the filter-to-raster mappings to check which options have raster layers
 	import { filterToRasterMappings } from '../store/filterRasterMapping';
 	import type { FilterToRasterMapping } from '../store/types';
+	// Import URL parameter utilities
+	import { parseUrlFilters, serializeFiltersToUrl, debounce } from '../utils/urlParams';
 
 	// Helper functions to check if an option has associated raster layers
 	function hasRasterLayers(type: 'pathogen' | 'ageGroup' | 'syndrome', value: string): boolean {
@@ -48,7 +53,7 @@
 	// --- Raster Layer State ---
 	let cogUrlInput = '';
 	let isAddingLayer = false;
-	let globalOpacity = 80; // Default global opacity (0-100)
+	export let globalOpacity = 80; // Default to 80%, now exposed as a prop
 
 	async function handleAddLayerClick() {
 		if (!cogUrlInput || isAddingLayer) return;
@@ -60,7 +65,6 @@
 			// Use toast store if available, otherwise console log
 			console.error('Invalid URL format');
 			// import { toastStore } from '$lib/stores/toast.store'; // Import if needed
-			// toastStore.error('Invalid URL format');
 			return;
 		}
 
@@ -109,6 +113,17 @@
 		$selectedAgeGroups = new Set();
 		$selectedSyndromes = new Set();
 		clearFilterCache();
+
+		// Update URL by removing filter parameters
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			// Remove filter parameters
+			url.searchParams.delete('p');
+			url.searchParams.delete('a');
+			url.searchParams.delete('s');
+			// Keep other parameters (style, center, zoom, opacity)
+			goto(url.toString(), { replaceState: true, keepfocus: true, noscroll: true });
+		}
 	}
 
 	// Handle select change
@@ -133,6 +148,14 @@
 	onMount(() => {
 		// Initialize the filter-to-raster connection
 		filterRasterUnsubscribe = initFilterRasterConnection();
+
+		// Parse URL parameters to set initial opacity
+		const urlParams = parseUrlFilters();
+		if (urlParams.opacity !== undefined) {
+			globalOpacity = urlParams.opacity;
+			// Apply the opacity to all raster layers
+			updateAllRasterLayersOpacity(globalOpacity / 100);
+		}
 	});
 
 	// Clean up subscription when component is destroyed
@@ -329,10 +352,25 @@
 								{@const layer = $rasterLayers.get(layerId)}
 								{#if layer}
 									<div
-										class="hover:bg-primary/10 mb-2 flex items-center rounded-md p-1 transition-colors"
+										class="hover:bg-primary/10 mb-2 flex flex-col rounded-md p-1 transition-colors"
 									>
-										<span class="badge badge-xs bg-primary mr-2 border-none"></span>
-										<span class="text-secondary-focus text-sm">{layer.name}</span>
+										<div class="flex items-center">
+											<span class="badge badge-xs bg-primary mr-2 border-none"></span>
+											<span class="text-secondary-focus text-sm">{layer.name}</span>
+										</div>
+										<div class="ml-4 mt-1 flex items-center">
+											<label class="flex cursor-pointer items-center gap-2">
+												<input
+													type="checkbox"
+													class="checkbox checkbox-xs"
+													checked={layer.swapCoordinates || false}
+													on:change={() => {
+														updateRasterLayerCoordinateSwap(layerId, !layer.swapCoordinates);
+													}}
+												/>
+												<span class="text-xs">Swap Coordinates</span>
+											</label>
+										</div>
 									</div>
 								{/if}
 							{/if}
@@ -353,7 +391,13 @@
 								min="0"
 								max="100"
 								bind:value={globalOpacity}
-								on:input={() => updateAllRasterLayersOpacity(globalOpacity / 100)}
+								on:input={() => {
+									// Update opacity for all layers
+									updateAllRasterLayersOpacity(globalOpacity / 100);
+
+									// Dispatch an event to notify parent component
+									dispatch('opacitychange', { opacity: globalOpacity });
+								}}
 								class="range range-xs from-secondary/30 to-primary/50 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gradient-to-r"
 							/>
 							<div class="text-secondary absolute -bottom-4 left-0 text-xs">0%</div>

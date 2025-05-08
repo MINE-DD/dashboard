@@ -18,6 +18,7 @@
 	let metadata: any = null;
 	let dataUrl: string | null = null;
 	let bounds: number[] | null = null;
+	let swapCoordinates = false; // Allow manual toggling of coordinate order
 
 	const dispatch = createEventDispatcher();
 
@@ -38,13 +39,25 @@
 			const imageWidth = image.getWidth();
 			const imageHeight = image.getHeight();
 			const imageBounds = image.getBoundingBox();
+			const fileDirectory = image.getFileDirectory();
+
+			// Check for projection information
+			const geoKeys = fileDirectory.GeoKeys || {};
+			const projectionInfo = {
+				modelType: geoKeys.GTModelTypeGeoKey,
+				projectedCSType: geoKeys.ProjectedCSTypeGeoKey,
+				geographicType: geoKeys.GeographicTypeGeoKey
+			};
+
+			console.log('GeoTIFF Example: Projection info:', projectionInfo);
 
 			metadata = {
 				width: imageWidth,
 				height: imageHeight,
 				bounds: imageBounds,
 				resolution: image.getResolution(),
-				samplesPerPixel: image.getSamplesPerPixel()
+				samplesPerPixel: image.getSamplesPerPixel(),
+				projectionInfo: projectionInfo
 			};
 
 			console.log('GeoTIFF Example: Metadata loaded:', metadata);
@@ -52,6 +65,11 @@
 			// Initialize bounds with a default value to avoid null issues
 			bounds = (imageBounds as number[]) || [-20, -35, 55, 40]; // Default to Africa if null
 			console.log('GeoTIFF Example: Raw bounds from GeoTIFF:', bounds);
+
+			// Ensure bounds is always defined
+			if (!bounds) {
+				bounds = [-20, -35, 55, 40]; // Default to Africa
+			}
 
 			// Use TiTiler to get more accurate bounds
 			try {
@@ -72,8 +90,13 @@
 						bounds = boundsJson.bounds;
 
 						// Check for global bounds and adjust if needed
+						// Ensure bounds is defined and has the expected elements
 						const isGlobalBounds =
-							bounds[0] === -180 && bounds[1] === -90 && bounds[2] === 180 && bounds[3] === 90;
+							bounds &&
+							bounds[0] === -180 &&
+							bounds[1] === -90 &&
+							bounds[2] === 180 &&
+							bounds[3] === 90;
 
 						if (isGlobalBounds) {
 							console.warn(
@@ -239,25 +262,82 @@
 			// Define coordinates for the image
 			// [top-left, top-right, bottom-right, bottom-left]
 			// Ensure bounds has at least 4 elements
-			if (bounds.length < 4) {
+			if (!bounds || bounds.length < 4) {
 				throw new Error('Invalid bounds: expected at least 4 elements');
 			}
 
-			// Use the bounds directly
-			const west = bounds[0];
-			const south = bounds[1];
-			const east = bounds[2];
-			const north = bounds[3];
+			// Extract and validate bounds
+			let west = bounds[0];
+			let south = bounds[1];
+			let east = bounds[2];
+			let north = bounds[3];
 
+			// Check if bounds are in a reasonable range for WGS84 coordinates
+			// If not, they might be in a different projection and need to be handled differently
+			const isValidLongitude = (lon: number) => lon >= -180 && lon <= 180;
+			const isValidLatitude = (lat: number) => lat >= -90 && lat <= 90;
+
+			// Log the bounds for debugging
+			console.log('GeoTIFF Example: Raw bounds:', { west, south, east, north });
+
+			// Validate bounds and adjust if necessary
+			if (
+				!isValidLongitude(west) ||
+				!isValidLongitude(east) ||
+				!isValidLatitude(north) ||
+				!isValidLatitude(south)
+			) {
+				console.warn('GeoTIFF Example: Bounds appear to be in a non-WGS84 projection:', bounds);
+				// If bounds are not in WGS84, we could try to transform them here
+				// For now, we'll use default bounds for Africa as a fallback
+				console.warn('GeoTIFF Example: Using default bounds for Africa');
+				const defaultBounds = [-20, -35, 55, 40]; // Default to Africa
+				west = defaultBounds[0];
+				south = defaultBounds[1];
+				east = defaultBounds[2];
+				north = defaultBounds[3];
+			}
+
+			// If the metadata contains projection info, we can use it to determine if coordinate swapping might be needed
+			if (metadata?.projectionInfo) {
+				// Log the projection info for debugging
+				console.log('GeoTIFF Example: Using projection info to determine coordinate order');
+
+				// Check for specific projection types that might need coordinate swapping
+				// This is a simplified check and might need to be expanded based on the specific GeoTIFFs you're using
+				const projectedCSType = metadata.projectionInfo.projectedCSType;
+				if (projectedCSType) {
+					console.log(`GeoTIFF Example: Projected CS Type: ${projectedCSType}`);
+					// Some projected coordinate systems might need swapping
+					// This would need to be customized based on your specific data
+
+					// Note: We're not automatically setting swapCoordinates here anymore
+					// Instead, we're letting the user toggle it manually with the checkbox
+				}
+			}
+
+			// Create coordinates array for the image corners
+			// The order is critical: top-left, top-right, bottom-right, bottom-left
 			const coordinates: [[number, number], [number, number], [number, number], [number, number]] =
-				[
-					[west, north], // top-left [lng, lat]
-					[east, north], // top-right
-					[east, south], // bottom-right
-					[west, south] // bottom-left
-				];
+				swapCoordinates
+					? [
+							[north, west], // top-left [lat, lng] if swapped
+							[north, east], // top-right
+							[south, east], // bottom-right
+							[south, west] // bottom-left
+						]
+					: [
+							[west, north], // top-left [lng, lat] normal order
+							[east, north], // top-right
+							[east, south], // bottom-right
+							[west, south] // bottom-left
+						];
 
 			console.log('GeoTIFF Example: Adding image source with coordinates:', coordinates);
+			console.log(
+				'GeoTIFF Example: Coordinate order:',
+				swapCoordinates ? 'lat,lng (swapped)' : 'lng,lat (normal)'
+			);
 
 			// Add source
 			map.addSource(sourceId, {
@@ -344,6 +424,10 @@
 			<label>
 				Opacity: {(opacity * 100).toFixed(0)}%
 				<input type="range" min="0" max="1" step="0.01" bind:value={opacity} />
+			</label>
+			<label>
+				<input type="checkbox" bind:checked={swapCoordinates} on:change={addLayerToMap} />
+				Swap Coordinates (fix positioning)
 			</label>
 			<div class="metadata">
 				<details>

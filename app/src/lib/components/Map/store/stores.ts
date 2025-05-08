@@ -1,6 +1,7 @@
 import { writable, get } from 'svelte/store';
 import type { FeatureIndex, PointFeatureCollection, RasterLayer } from './types';
 import { toastStore } from '$lib/stores/toast.store';
+import { loadAndProcessGeoTIFF, validateBounds } from './geoTiffProcessor';
 
 // Indices for fast filtering
 export const pathogenIndex = writable<FeatureIndex>(new Map());
@@ -31,10 +32,8 @@ export const pathogenColors = writable<Map<string, string>>(new Map());
 
 // --- Raster Layer Store ---
 
-// Use localhost as the browser needs to access the port mapped to the host
-const TITILER_ENDPOINT = import.meta.env.VITE_TITILER_ENDPOINT || 'http://localhost:8000';
-// Path prefix for data files in the TiTiler container
-const TITILER_DATA_PREFIX = import.meta.env.VITE_TITILER_DATA_PREFIX || '/data/';
+// Default rescale values for GeoTIFF processing
+const DEFAULT_RESCALE: [number, number] = [0, 11];
 
 // Helper to create the initial raster layers map
 function createInitialRasterLayers(): Map<string, RasterLayer> {
@@ -42,7 +41,7 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
 
   const baseR2url = 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/'
   // Define layers based on files in data/cogs
-  const layersToAdd: Omit<RasterLayer, 'id' | 'tileUrlTemplate'>[] = [
+  const layersToAdd: Omit<RasterLayer, 'id'>[] = [
     // Keep existing TCI layer if needed, assuming it's local now
     // Pathogens - SHIG
 
@@ -76,23 +75,17 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
   ];
 
   layersToAdd.forEach((layerData) => {
-    // NOTE: For direct URLs to cloud storage, we don't need to prepend any path prefix
-    // Just encode the URL directly
-    const encodedUrl = encodeURIComponent(layerData.sourceUrl);
-    // Using preview endpoint with styling for single-band data.
-    // Using viridis colormap and a tentative rescale based on sample. Might need per-layer adjustment.
-    const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodedUrl}&max_size=1024&bidx=1&colormap_name=viridis&rescale=0,11`;
-
     const layer: RasterLayer = {
       id: `cog-${layerData.sourceUrl.replace(/[\/\.]/g, '-')}`, // Generate ID from path
       name: layerData.name,
       sourceUrl: layerData.sourceUrl, // Store relative path
-      tileUrlTemplate: imageUrl, // Store the preview URL for now
       isVisible: layerData.isVisible,
       opacity: layerData.opacity,
       bounds: undefined, // Bounds will be fetched dynamically
       isLoading: false,
-      error: null
+      error: null,
+      colormap: 'viridis',
+      rescale: DEFAULT_RESCALE
     };
     initialMap.set(layer.id, layer);
   });
@@ -107,27 +100,23 @@ export const rasterLayers = writable<Map<string, RasterLayer>>(createInitialRast
 
 /**
  * Adds a new raster layer from a given URL.
- * Fetches metadata from TiTiler's tilejson endpoint if possible.
+ * Uses GeoTIFF.js to load and process the data directly in the browser.
  * @param url The URL of the COG file.
  */
 export async function addRasterLayerFromUrl(url: string): Promise<void> {
   const layerId = `cog-url-${Date.now()}`; // Simple unique ID
-  const encodedUrl = encodeURIComponent(url);
-  const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedUrl}`;
-  // Use preview, adding default RGB bands
-  const imageUrl = `${TITILER_ENDPOINT}/cog/preview.png?url=${encodedUrl}&max_size=1024&bidx=1&bidx=2&bidx=3`;
 
   // Create a temporary layer entry with loading state
   const tempLayer: RasterLayer = {
     id: layerId,
     name: `Loading: ${url.substring(url.lastIndexOf('/') + 1)}...`,
     sourceUrl: url,
-    // tileJsonUrl: tileJsonUrl, // Not fetching tilejson anymore
-    tileUrlTemplate: imageUrl, // Store preview URL
     isVisible: true,
     opacity: 0.8,
     isLoading: true,
-    error: null
+    error: null,
+    colormap: 'viridis',
+    rescale: DEFAULT_RESCALE
   };
 
   rasterLayers.update((layers) => {
@@ -136,56 +125,20 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
   });
 
   try {
-    // Fetch bounds from TiTiler
-    console.log(`Raster: Fetching bounds: ${boundsUrl}`);
-    const response = await fetch(boundsUrl);
-    console.log(`Raster: Bounds response status: ${response.status}`);
+    console.log(`Raster: Loading GeoTIFF from URL: ${url}`);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Raster: Bounds fetch failed: ${errorText}`);
-      throw new Error(`TiTiler bounds error (${response.status}): ${errorText}`);
-    }
+    // Load and process the GeoTIFF
+    const { dataUrl, metadata, bounds } = await loadAndProcessGeoTIFF(url, {
+      rescale: DEFAULT_RESCALE
+    });
 
-    const boundsJson = await response.json();
-    // Log BEFORE validation
-    console.log('Raster: Received bounds JSON from TiTiler:', JSON.stringify(boundsJson));
-
-    // Validate bounds - use 'let' to allow modification
-    let receivedBounds = boundsJson?.bounds;
-    if (
-      !receivedBounds ||
-      receivedBounds.length !== 4 ||
-      receivedBounds.some((coord: number | null) => typeof coord !== 'number' || !isFinite(coord)) ||
-      receivedBounds[0] < -180 || receivedBounds[0] > 180 || // west
-      receivedBounds[2] < -180 || receivedBounds[2] > 180 || // east
-      receivedBounds[1] < -90 || receivedBounds[1] > 90 || // south
-      receivedBounds[3] < -90 || receivedBounds[3] > 90     // north
-    ) {
-      console.error('Raster: Invalid or out-of-range bounds received from TiTiler:', receivedBounds);
-      throw new Error('Invalid bounds received from TiTiler');
-    }
-
-    // Check for problematic global bounds
-    const isGlobalBounds =
-      receivedBounds[0] === -180 &&
-      receivedBounds[1] === -90 &&
-      receivedBounds[2] === 180 &&
-      receivedBounds[3] === 90;
-
-    if (isGlobalBounds) {
-      console.warn('Raster: Received global bounds, cannot display accurately as image layer.');
-      console.warn('Raster: Received global bounds, attempting to use slightly smaller bounds.');
-      // Replace global bounds with slightly smaller ones as a workaround
-      receivedBounds = [-179.9, -89.9, 179.9, 89.9];
-      // No longer throwing an error here, proceed with modified bounds
-    }
-
-    // Update the layer with fetched bounds and final name
+    // Update the layer with processed data and metadata
     const finalLayer: RasterLayer = {
       ...tempLayer,
       name: url.substring(url.lastIndexOf('/') + 1), // Use filename as name for now
-      bounds: receivedBounds, // Store validated or modified bounds
+      dataUrl: dataUrl, // Store the processed image data URL
+      bounds: bounds as [number, number, number, number], // Store validated bounds
+      metadata: metadata, // Store the GeoTIFF metadata
       isLoading: false
     };
 
@@ -196,7 +149,7 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
     toastStore.success(`Loaded layer: ${finalLayer.name}`);
   } catch (err: any) {
     console.error('Error adding raster layer:', err);
-    const errorMessage = err.message || 'Failed to load COG metadata from TiTiler.';
+    const errorMessage = err.message || 'Failed to load or process GeoTIFF.';
     // Update layer state with error
     rasterLayers.update((layers) => {
       const layerWithError = layers.get(layerId);
@@ -212,22 +165,21 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
 }
 
 /**
- * Fetches and sets the bounds for a specific raster layer if they are missing.
- * @param layerId The ID of the layer to fetch bounds for.
+ * Fetches and sets the bounds and data URL for a specific raster layer if they are missing.
+ * @param layerId The ID of the layer to process.
  */
 export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
   const layers = get(rasterLayers);
   const layer = layers.get(layerId);
 
   // Only proceed if layer exists, has no bounds, and isn't already loading
-  if (!layer || layer.bounds || layer.isLoading) {
-    // console.log(`Raster: Skipping bounds fetch for ${layerId} (exists, has bounds, or loading)`);
+  if (!layer || (layer.bounds && layer.dataUrl) || layer.isLoading) {
     return;
   }
 
-  console.log(`Raster: Triggering bounds fetch for layer ${layerId}`);
+  console.log(`Raster: Processing GeoTIFF for layer ${layerId}`);
 
-  // --- Mark as loading ---
+  // Mark as loading
   rasterLayers.update((currentLayers) => {
     const layerToUpdate = currentLayers.get(layerId);
     if (layerToUpdate) {
@@ -237,67 +189,29 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
     return currentLayers;
   });
 
-  // --- Fetch bounds ---
-  // Note: For direct URLs to cloud storage, we don't need to prepend any path prefix
-  const encodedUrl = encodeURIComponent(layer.sourceUrl);
-  const boundsUrl = `${TITILER_ENDPOINT}/cog/bounds?url=${encodedUrl}`;
-
   try {
-    console.log(`Raster: Fetching bounds for ${layerId}: ${boundsUrl}`);
-    const response = await fetch(boundsUrl);
-    console.log(`Raster: Bounds response status for ${layerId}: ${response.status}`);
+    // Load and process the GeoTIFF
+    const { dataUrl, metadata, bounds } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
+      rescale: layer.rescale || DEFAULT_RESCALE
+    });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Raster: Bounds fetch failed for ${layerId}: ${errorText}`);
-      throw new Error(`TiTiler bounds error (${response.status}): ${errorText}`);
-    }
-
-    const boundsJson = await response.json();
-    console.log(`Raster: Received bounds JSON for ${layerId}:`, JSON.stringify(boundsJson));
-
-    // Validate bounds
-    let receivedBounds = boundsJson?.bounds;
-    if (
-      !receivedBounds ||
-      receivedBounds.length !== 4 ||
-      receivedBounds.some((coord: number | null) => typeof coord !== 'number' || !isFinite(coord)) ||
-      receivedBounds[0] < -180 || receivedBounds[0] > 180 || // west
-      receivedBounds[2] < -180 || receivedBounds[2] > 180 || // east
-      receivedBounds[1] < -90 || receivedBounds[1] > 90 || // south
-      receivedBounds[3] < -90 || receivedBounds[3] > 90     // north
-    ) {
-      console.error(`Raster: Invalid or out-of-range bounds received for ${layerId}:`, receivedBounds);
-      throw new Error('Invalid bounds received from TiTiler');
-    }
-
-    // Check for problematic global bounds (adjust if needed)
-    const isGlobalBounds =
-      receivedBounds[0] === -180 &&
-      receivedBounds[1] === -90 &&
-      receivedBounds[2] === 180 &&
-      receivedBounds[3] === 90;
-
-    if (isGlobalBounds) {
-      console.warn(`Raster: Received global bounds for ${layerId}, using slightly smaller bounds.`);
-      receivedBounds = [-179.9, -89.9, 179.9, 89.9];
-    }
-
-    // --- Update layer with bounds ---
+    // Update layer with processed data
     rasterLayers.update((currentLayers) => {
       const layerToUpdate = currentLayers.get(layerId);
       if (layerToUpdate) {
-        layerToUpdate.bounds = receivedBounds;
+        layerToUpdate.bounds = bounds as [number, number, number, number];
+        layerToUpdate.dataUrl = dataUrl;
+        layerToUpdate.metadata = metadata;
         layerToUpdate.isLoading = false;
       }
       return currentLayers;
     });
-    console.log(`Raster: Successfully fetched and set bounds for ${layerId}`);
+    console.log(`Raster: Successfully processed GeoTIFF for ${layerId}`);
 
   } catch (err: any) {
-    console.error(`Error fetching bounds for layer ${layerId}:`, err);
-    const errorMessage = err.message || 'Failed to load COG bounds from TiTiler.';
-    // --- Update layer state with error ---
+    console.error(`Error processing GeoTIFF for layer ${layerId}:`, err);
+    const errorMessage = err.message || 'Failed to process GeoTIFF.';
+    // Update layer state with error
     rasterLayers.update((currentLayers) => {
       const layerToUpdate = currentLayers.get(layerId);
       if (layerToUpdate) {
@@ -307,7 +221,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
       }
       return currentLayers;
     });
-    toastStore.error(`Error loading bounds for ${layer?.name || layerId}: ${errorMessage}`);
+    toastStore.error(`Error processing GeoTIFF for ${layer?.name || layerId}: ${errorMessage}`);
   }
 }
 
@@ -373,4 +287,21 @@ export function removeRasterLayer(id: string): void {
   });
   // Optional: Add toast notification for removal
   // toast.push({ message: `Removed layer`, type: 'info' });
+}
+
+/**
+ * Updates the coordinate swapping flag for a specific raster layer.
+ * This is used to fix positioning issues when GeoTIFFs use different coordinate orders.
+ * @param id The ID of the layer to update.
+ * @param swapCoordinates Whether to swap coordinates (true for lat,lng order, false for lng,lat order).
+ */
+export function updateRasterLayerCoordinateSwap(id: string, swapCoordinates: boolean): void {
+  console.log(`Store: Updating coordinate swap for ${id} to ${swapCoordinates}`);
+  rasterLayers.update((layers) => {
+    const layer = layers.get(id);
+    if (layer) {
+      layer.swapCoordinates = swapCoordinates;
+    }
+    return layers;
+  });
 }
