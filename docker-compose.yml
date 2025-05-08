@@ -22,6 +22,8 @@ services:
       - WORKERS_PER_CORE=1
       - MAX_WORKERS=1
       - CORS_ORIGINS=*
+      - TITILER_API_CORS_ALLOW_METHODS=GET,POST,DELETE,OPTIONS,PUT,PATCH
+      - TITILER_API_CORS_ALLOW_HEADERS=*
       # Uncomment and set these if you need authenticated access to R2
       # - AWS_ACCESS_KEY_ID=your_r2_access_key
       # - AWS_SECRET_ACCESS_KEY=your_r2_secret_key
