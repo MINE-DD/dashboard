@@ -1,31 +1,11 @@
 // Import geotiff from CDN for static deployments
-// Note: We're adding a dynamic import that will work in both development and production
 import { browser } from '$app/environment';
 
-// Declare a variable to hold the GeoTIFF module
-let GeoTIFF: any;
-
-// Function to dynamically load GeoTIFF module
-async function loadGeoTIFFModule() {
-  if (browser) {
-    if (!GeoTIFF) {
-      try {
-        // Try importing from node_modules first (for development)
-        try {
-          GeoTIFF = await import('geotiff');
-        } catch (e) {
-          // Fallback to CDN if importing from node_modules fails
-          const module = await import('https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js');
-          GeoTIFF = module.default || module;
-        }
-      } catch (error) {
-        console.error('Failed to load GeoTIFF library:', error);
-        throw new Error('GeoTIFF library could not be loaded');
-      }
-    }
-    return GeoTIFF;
+// Access the global geotiff library that's loaded via CDN in app.html
+declare global {
+  interface Window {
+    GeoTIFF: any;
   }
-  return null; // Return null on server-side
 }
 
 /**
@@ -75,13 +55,41 @@ export async function loadGeoTIFF(url: string): Promise<{
 }> {
   console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
   
-  // Ensure GeoTIFF module is loaded
-  const GeoTIFFModule = await loadGeoTIFFModule();
-  if (!GeoTIFFModule) {
-    throw new Error('GeoTIFF module not available (server-side rendering)');
+  // Check if we're in the browser and GeoTIFF is available globally
+  if (!browser) {
+    throw new Error('GeoTIFF processing is only available in browser environments');
   }
-
-  const tiff = await GeoTIFFModule.fromUrl(url);
+  
+  // Use the global GeoTIFF library loaded from CDN in app.html
+  let tiff;
+  try {
+    // First try using the global window.GeoTIFF
+    if (window.GeoTIFF && typeof window.GeoTIFF.fromUrl === 'function') {
+      tiff = await window.GeoTIFF.fromUrl(url);
+    } 
+    // Fallback to try accessing it from the global scope
+    else if (typeof GeoTIFF !== 'undefined' && typeof GeoTIFF.fromUrl === 'function') {
+      tiff = await GeoTIFF.fromUrl(url);
+    }
+    // If neither approach works, try dynamic import as last resort
+    else {
+      try {
+        const module = await import('geotiff');
+        tiff = await module.fromUrl(url);
+      } catch (e) {
+        console.error('Failed to import geotiff dynamically:', e);
+        throw new Error('GeoTIFF library not available');
+      }
+    }
+  } catch (error) {
+    console.error('Error loading GeoTIFF:', error);
+    throw new Error(`Failed to load GeoTIFF from URL: ${url}`);
+  }
+  
+  if (!tiff) {
+    throw new Error('Failed to load GeoTIFF library');
+  }
+  
   const image = await tiff.getImage();
 
   // Extract metadata
@@ -97,7 +105,6 @@ export async function loadGeoTIFF(url: string): Promise<{
     samplesPerPixel: image.getSamplesPerPixel()
   };
 
-  // console.log('GeoTIFF Processor: Metadata loaded:', metadata);
   return { image, metadata };
 }
 
