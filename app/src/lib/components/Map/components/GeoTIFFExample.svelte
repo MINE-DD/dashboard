@@ -1,4 +1,4 @@
-<script lang="ts">
+<!-- <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import * as GeoTIFF from 'geotiff';
 	import type { Map as MaplibreMap } from 'maplibre-gl';
@@ -535,3 +535,4 @@
 		overflow: auto;
 	}
 </style>
+ -->
