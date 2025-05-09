@@ -23,12 +23,37 @@ jobs:
         working-directory: ./app
         run: npm install --legacy-peer-deps
 
-      - name: Create markdown layout directory
-        run: mkdir -p app/src/lib/markdown-layouts
-
-      - name: Create default markdown layout
+      - name: Setup SvelteKit project
+        working-directory: ./app
         run: |
-          cat << 'EOF' > app/src/lib/markdown-layouts/default.svelte
+          # Create the SvelteKit directory structure if it doesn't exist
+          mkdir -p .svelte-kit
+
+          # Create a basic tsconfig.json in the .svelte-kit directory
+          cat << 'EOF' > .svelte-kit/tsconfig.json
+          {
+            "compilerOptions": {
+              "allowJs": true,
+              "checkJs": true,
+              "esModuleInterop": true,
+              "forceConsistentCasingInFileNames": true,
+              "resolveJsonModule": true,
+              "skipLibCheck": true,
+              "sourceMap": true,
+              "strict": true,
+              "moduleResolution": "bundler"
+            }
+          }
+          EOF
+
+      - name: Create markdown layout directory and file
+        working-directory: ./app
+        run: |
+          # Create the markdown layouts directory
+          mkdir -p src/lib/markdown-layouts
+          
+          # Create the default markdown layout
+          cat << 'EOF' > src/lib/markdown-layouts/default.svelte
           <script>
             // Get the frontmatter data
             export let data;
