@@ -65,6 +65,9 @@
     "vitest": "^2.1.8"
   },
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@auth/pg-adapter": "^1.7.4",
     "@auth/sveltekit": "^1.7.4",
