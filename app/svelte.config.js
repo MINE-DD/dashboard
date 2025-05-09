@@ -24,13 +24,13 @@ const config = {
 		// https://kit.svelte.dev/docs/adapter-static
 		adapter: adapter({
 				runtime: 'edge',
-				fallback: '200.html', // may differ from host to host
+				// fallback: '200.html', // may differ from host to host
 			// dynamic_origin: true,
-			precompress: {
-				brotli: true,
-				gzip: true,
-				files: ['html', 'js', 'json', 'css', 'svg', 'xml', 'wasm']
-			}
+			// precompress: {
+			// 	brotli: true,
+			// 	gzip: true,
+			// 	files: ['html', 'js', 'json', 'css', 'svg', 'xml', 'wasm']
+			// }
 		}),
 
 		alias: {
