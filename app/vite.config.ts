@@ -23,6 +23,12 @@ export default defineConfig({
 	],
 	// Set base path for GitHub Pages deployment, will be the repository name
 	base: process.env.BASE_PATH || '',
+	// Externalize the geotiff module to fix the build error
+	build: {
+		rollupOptions: {
+			external: ['geotiff']
+		}
+	},
 	// optimizeDeps: {
 	// 	disabled: true,
 	// },
