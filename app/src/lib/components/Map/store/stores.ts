@@ -288,20 +288,3 @@ export function removeRasterLayer(id: string): void {
   // Optional: Add toast notification for removal
   // toast.push({ message: `Removed layer`, type: 'info' });
 }
-
-/**
- * Updates the coordinate swapping flag for a specific raster layer.
- * This is used to fix positioning issues when GeoTIFFs use different coordinate orders.
- * @param id The ID of the layer to update.
- * @param swapCoordinates Whether to swap coordinates (true for lat,lng order, false for lng,lat order).
- */
-export function updateRasterLayerCoordinateSwap(id: string, swapCoordinates: boolean): void {
-  console.log(`Store: Updating coordinate swap for ${id} to ${swapCoordinates}`);
-  rasterLayers.update((layers) => {
-    const layer = layers.get(id);
-    if (layer) {
-      layer.swapCoordinates = swapCoordinates;
-    }
-    return layers;
-  });
-}

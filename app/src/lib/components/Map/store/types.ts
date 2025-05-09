@@ -65,7 +65,6 @@ export interface RasterLayer {
   metadata?: any; // Store GeoTIFF metadata
   colormap?: string; // Store colormap name (e.g., 'viridis')
   rescale?: [number, number]; // Min/max values for rescaling
-  swapCoordinates?: boolean; // Flag to swap coordinate order (lat/lng vs lng/lat)
 }
 
 // Mapping types for filter to raster layer connections

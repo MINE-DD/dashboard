@@ -19,7 +19,6 @@
 		updateRasterLayerOpacity,
 		updateAllRasterLayersOpacity,
 		removeRasterLayer,
-		updateRasterLayerCoordinateSwap, // Import the new function
 		// Import filter-to-raster mapping functionality
 		initFilterRasterConnection,
 		autoVisibleRasterLayers
@@ -122,7 +121,7 @@
 			url.searchParams.delete('a');
 			url.searchParams.delete('s');
 			// Keep other parameters (style, center, zoom, opacity)
-			goto(url.toString(), { replaceState: true, keepfocus: true, noscroll: true });
+			goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
 		}
 	}
 
@@ -357,19 +356,6 @@
 										<div class="flex items-center">
 											<span class="badge badge-xs bg-primary mr-2 border-none"></span>
 											<span class="text-secondary-focus text-sm">{layer.name}</span>
-										</div>
-										<div class="ml-4 mt-1 flex items-center">
-											<label class="flex cursor-pointer items-center gap-2">
-												<input
-													type="checkbox"
-													class="checkbox checkbox-xs"
-													checked={layer.swapCoordinates || false}
-													on:change={() => {
-														updateRasterLayerCoordinateSwap(layerId, !layer.swapCoordinates);
-													}}
-												/>
-												<span class="text-xs">Swap Coordinates</span>
-											</label>
 										</div>
 									</div>
 								{/if}

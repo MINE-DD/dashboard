@@ -233,62 +233,36 @@
 								throw new Error(`Missing dataUrl for layer ${layerId}`);
 							}
 							const imageUrl = layer.dataUrl; // This now holds the processed GeoTIFF data URL
-							// Check if we need to swap coordinates (some GeoTIFFs use lat,lng order instead of lng,lat)
-							// This is a common issue that can cause the raster to be positioned incorrectly
-							const swapCoordinates = layer.swapCoordinates || false;
-
 							// Create coordinates array for the image corners
 							// The order is critical: top-left, top-right, bottom-right, bottom-left
 
-							// Check if these are global bounds (or close to it)
-							const isGlobalOrNearGlobalBounds =
-								Math.abs(layer.bounds[0] + 180) < 1 &&
-								Math.abs(layer.bounds[1] + 90) < 1 &&
-								Math.abs(layer.bounds[2] - 180) < 1 &&
-								Math.abs(layer.bounds[3] - 90) < 1;
+							// Extract and validate bounds
+							// The bounds have already been validated in geoTiffProcessor.ts
+							let west = layer.bounds[0];
+							let south = layer.bounds[1];
+							let east = layer.bounds[2];
+							let north = layer.bounds[3];
 
-							// For global bounds, use a special case to ensure proper wrapping
-							let coordinates: [
+							// Log the bounds for debugging
+							console.log(`Raster: Using bounds for ${layerId}:`, { west, south, east, north });
+
+							// Create coordinates array for the image corners using standard lng,lat order
+							// The order is critical: top-left, top-right, bottom-right, bottom-left
+							const coordinates: [
 								[number, number],
 								[number, number],
 								[number, number],
 								[number, number]
+							] = [
+								[west, north], // top-left [lng, lat]
+								[east, north], // top-right
+								[east, south], // bottom-right
+								[west, south] // bottom-left
 							];
-
-							if (isGlobalOrNearGlobalBounds) {
-								console.log(`Raster: Using global bounds mapping for ${layerId}`);
-								// For global bounds, use values that work with Web Mercator projection
-								// Avoid using exactly 90/-90 for latitude as they cause infinite y-coordinates
-								coordinates = [
-									[-180, 85], // top-left (limit latitude to 85 degrees)
-									[180, 85], // top-right
-									[180, -85], // bottom-right
-									[-180, -85] // bottom-left
-								];
-							} else {
-								// For non-global bounds, use the standard mapping
-								coordinates = swapCoordinates
-									? [
-											[layer.bounds[3], layer.bounds[0]], // top-left [lat, lng] if swapped
-											[layer.bounds[3], layer.bounds[2]], // top-right
-											[layer.bounds[1], layer.bounds[2]], // bottom-right
-											[layer.bounds[1], layer.bounds[0]] // bottom-left
-										]
-									: [
-											[layer.bounds[0], layer.bounds[3]], // top-left [lng, lat] normal order
-											[layer.bounds[2], layer.bounds[3]], // top-right
-											[layer.bounds[2], layer.bounds[1]], // bottom-right
-											[layer.bounds[0], layer.bounds[1]] // bottom-left
-										];
-							}
 
 							// console.log(
 							// 	`Raster: Adding image source ${sourceId} with URL: ${imageUrl} and coordinates:`,
 							// 	coordinates
-							// );
-							// console.log(
-							// 	`Raster: Coordinate order:`,
-							// 	swapCoordinates ? 'lat,lng (swapped)' : 'lng,lat (normal)'
 							// );
 
 							// Check for problematic global bounds before defining source

@@ -67,13 +67,13 @@ export async function loadGeoTIFF(url: string): Promise<{
 }
 
 /**
- * Validate and adjust bounds if needed
+ * Validate and adjust bounds if needed, including handling latitude limits for global bounds
  */
 export function validateBounds(bounds: number[]): number[] {
   // Initialize bounds with a default value to avoid null issues
   if (!bounds || bounds.length !== 4) {
     console.warn('GeoTIFF Processor: Missing or invalid bounds, using global bounds');
-    return [-180, -90, 180, 90]; // Use global bounds instead of Africa default
+    return [-180, -85, 180, 85]; // Use global bounds with latitude limits
   }
 
   // Check for Web Mercator global bounds (approximately ±20037508.34, ±10018754.17)
@@ -84,8 +84,8 @@ export function validateBounds(bounds: number[]): number[] {
     Math.abs(bounds[3] - 10018754.17) < 100;
 
   if (isWebMercatorGlobalBounds) {
-    console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84 bounds');
-    return [-180, -90, 180, 90]; // Use exact global bounds
+    console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84 bounds with latitude limits');
+    return [-180, -85, 180, 85]; // Use global bounds with latitude limits
   }
 
   // Check for invalid coordinates in WGS84
@@ -97,10 +97,10 @@ export function validateBounds(bounds: number[]): number[] {
     bounds[3] < -90 || bounds[3] > 90     // north
   ) {
     console.warn('GeoTIFF Processor: Invalid or out-of-range bounds, using global bounds:', bounds);
-    return [-180, -90, 180, 90]; // Use global bounds instead of Africa default
+    return [-180, -85, 180, 85]; // Use global bounds with latitude limits
   }
 
-  // For any bounds that are close to global, just use global bounds
+  // For any bounds that are close to global, use slightly smaller bounds to avoid issues
   const isNearGlobalBounds =
     Math.abs(bounds[0] + 180) < 10 &&
     Math.abs(bounds[1] + 90) < 10 &&
@@ -108,12 +108,25 @@ export function validateBounds(bounds: number[]): number[] {
     Math.abs(bounds[3] - 90) < 10;
 
   if (isNearGlobalBounds) {
-    console.log('GeoTIFF Processor: Bounds are close to global, using exact global bounds');
-    return [-180, -90, 180, 90];
+    console.log('GeoTIFF Processor: Bounds are close to global, using slightly smaller bounds');
+    return [-179.9, -89.9, 179.9, 89.9]; // Use slightly smaller bounds to avoid issues
   }
 
-  console.log('GeoTIFF Processor: Using bounds:', bounds);
-  return bounds;
+  // For non-global bounds, check if latitudes are too extreme and limit them if needed
+  let [west, south, east, north] = bounds;
+
+  // Limit extreme latitudes to avoid projection issues
+  if (north > 85) {
+    console.log(`GeoTIFF Processor: Limiting north latitude from ${north} to 85`);
+    north = 85;
+  }
+  if (south < -85) {
+    console.log(`GeoTIFF Processor: Limiting south latitude from ${south} to -85`);
+    south = -85;
+  }
+
+  console.log('GeoTIFF Processor: Using bounds:', [west, south, east, north]);
+  return [west, south, east, north];
 }
 
 /**

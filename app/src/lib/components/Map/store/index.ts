@@ -23,8 +23,7 @@ export {
   updateRasterLayerOpacity,
   updateAllRasterLayersOpacity,
   removeRasterLayer,
-  fetchAndSetLayerBounds, // Add the missing export
-  updateRasterLayerCoordinateSwap // Export the new function
+  fetchAndSetLayerBounds // Add the missing export
 } from './stores';
 
 // Re-export filter-to-raster mapping functionality
