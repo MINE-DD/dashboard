@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import Login from '$lib/components/ui/Login/LoginButton.svelte';
 	import { toggleMenu } from '$lib/stores/menu.store';
+	import { base } from '$app/paths';
 	import IconamoonMenuBurgerHorizontalBold from '~icons/iconamoon/menu-burger-horizontal-bold';
 	import menuItems from '$lib/models/menu-itmes';
 
@@ -41,7 +42,7 @@
 			</button>
 			<a
 				class="no-drag mr-3 h-auto max-w-[140px] flex-initial flex-shrink-0 select-none sm:max-w-[160px]"
-				href="/"
+				href="{base}/"
 			>
 				<Logo />
 			</a>
@@ -53,7 +54,7 @@
 						class="menu-link"
 						onclick={() => (active = link.title)}
 						class:active={activeCategory === link.title}
-						href={link.path}
+						href="{base}{link.path}"
 					>
 						{link.displayTitle}
 					</a>

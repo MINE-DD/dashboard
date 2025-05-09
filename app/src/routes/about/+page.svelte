@@ -1,5 +1,6 @@
 <script>
   // About page component
+  import { base } from '$app/paths';
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -14,7 +15,7 @@
 
     <p>Climate change threatens human health and our planet's health. Diarrheal disease is the number two killer of children across the globe. Unchecked, climate change and its impacts on our planet will likely reverse hard-won gains in battling diarrheal diseases. Policy makers need to understand how diarrheal disease burden will change and how we can better protect children in a climate-uncertain future. We propose using artificial intelligence to mine existing literature to describe how climate might change diarrheal diseases in the future. We then will use this knowledge to project the risk of diarrheal disease into the future, preparing communities and informing policy makers.</p>
 
-    <p>The Plan-EO dashboard, available <a href="/dashboard">here</a>, is a preliminary output of this work, giving you access to a suite of interactive maps to explore.</p>
+    <p>The Plan-EO dashboard, available <a href="{base}/dashboard">here</a>, is a preliminary output of this work, giving you access to a suite of interactive maps to explore.</p>
 
     <h2>Project Links</h2>
 
