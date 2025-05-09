@@ -239,6 +239,7 @@
 
 							// Extract and validate bounds
 							// The bounds have already been validated in geoTiffProcessor.ts
+							// and converted from Web Mercator to lat/lng if needed
 							let west = layer.bounds[0];
 							let south = layer.bounds[1];
 							let east = layer.bounds[2];
@@ -246,6 +247,10 @@
 
 							// Log the bounds for debugging
 							console.log(`Raster: Using bounds for ${layerId}:`, { west, south, east, north });
+
+							// Check if the layer has projection information
+							const projectionInfo = layer.metadata?.projection;
+							console.log(`Raster: Layer ${layerId} projection:`, projectionInfo);
 
 							// Create coordinates array for the image corners using standard lng,lat order
 							// The order is critical: top-left, top-right, bottom-right, bottom-left

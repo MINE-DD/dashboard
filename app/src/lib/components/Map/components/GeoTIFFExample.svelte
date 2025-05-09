@@ -305,23 +305,24 @@
 
 			// Function to convert Web Mercator coordinates to Lat/Lng
 			function mercatorToLatLng(mercatorX: number, mercatorY: number): [number, number] {
-				// Convert Web Mercator X,Y to lat/lng
-				// X goes from -20037508.34 to 20037508.34
-				// Y goes from -20037508.34 to 20037508.34
+				// Earth's radius in meters at the equator
+				const earthRadius = 6378137;
 
-				const x = mercatorX;
-				const y = mercatorY;
+				// Convert X coordinate from meters to longitude in degrees
+				const lng = (mercatorX / earthRadius) * (180 / Math.PI);
 
-				// Convert to lat/lng
-				const lng = (x / 20037508.34) * 180;
-				let lat = (y / 20037508.34) * 180;
-
-				// Convert latitude using inverse Mercator projection
-				lat = ((2 * Math.atan(Math.exp((lat * Math.PI) / 180)) - Math.PI / 2) * 180) / Math.PI;
+				// Convert Y coordinate from meters to latitude in degrees
+				// Using the inverse Mercator projection formula
+				const lat =
+					(Math.PI / 2 - 2 * Math.atan(Math.exp(-mercatorY / earthRadius))) * (180 / Math.PI);
 
 				// Clamp to valid lat/lng range
 				const clampedLng = Math.max(-180, Math.min(180, lng));
 				const clampedLat = Math.max(-85.051129, Math.min(85.051129, lat));
+
+				console.log(
+					`Mercator conversion: [${mercatorX}, ${mercatorY}] -> [${clampedLng}, ${clampedLat}]`
+				);
 
 				return [clampedLng, clampedLat];
 			}
@@ -338,7 +339,9 @@
 				// Use the actual bounds from the GeoTIFF or TiTiler
 				console.log('GeoTIFF Example: Using actual bounds for coordinates');
 
-				if (isWebMercator && Math.abs(bounds[0]) > 180) {
+				// Check for Web Mercator projection (EPSG:3857) or large coordinate values
+				// Web Mercator coordinates are in meters and typically have large values
+				if (isWebMercator || Math.abs(bounds[0]) > 180 || Math.abs(bounds[2]) > 180) {
 					// Convert Web Mercator coordinates to lat/lng
 					console.log('GeoTIFF Example: Converting Web Mercator coordinates to lat/lng');
 
@@ -405,7 +408,12 @@
 				// Use converted bounds if we have them, otherwise use world bounds
 				let fitBounds: [[number, number], [number, number]];
 
-				if (isWebMercator && bounds && bounds.length === 4 && Math.abs(bounds[0]) > 180) {
+				if (
+					isWebMercator ||
+					(bounds &&
+						bounds.length === 4 &&
+						(Math.abs(bounds[0]) > 180 || Math.abs(bounds[2]) > 180))
+				) {
 					// Convert Web Mercator bounds to lat/lng for fitting
 					const sw = mercatorToLatLng(bounds[0], bounds[1]);
 					const ne = mercatorToLatLng(bounds[2], bounds[3]);

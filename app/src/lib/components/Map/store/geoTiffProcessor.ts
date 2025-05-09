@@ -67,13 +67,55 @@ export async function loadGeoTIFF(url: string): Promise<{
 }
 
 /**
- * Validate and adjust bounds if needed, including handling latitude limits for global bounds
+ * Function to convert Web Mercator coordinates to Lat/Lng
  */
-export function validateBounds(bounds: number[]): number[] {
+export function mercatorToLatLng(mercatorX: number, mercatorY: number): [number, number] {
+  // Earth's radius in meters at the equator
+  const earthRadius = 6378137;
+
+  // Convert X coordinate from meters to longitude in degrees
+  const lng = (mercatorX / earthRadius) * (180 / Math.PI);
+
+  // Convert Y coordinate from meters to latitude in degrees
+  // Using the inverse Mercator projection formula
+  const lat = (Math.PI / 2 - 2 * Math.atan(Math.exp(-mercatorY / earthRadius))) * (180 / Math.PI);
+
+  // Clamp to valid lat/lng range
+  const clampedLng = Math.max(-180, Math.min(180, lng));
+  const clampedLat = Math.max(-85.051129, Math.min(85.051129, lat));
+
+  return [clampedLng, clampedLat];
+}
+
+/**
+ * Validate and adjust bounds if needed, including handling latitude limits for global bounds
+ * @param bounds The bounds to validate
+ * @param projectionInfo Optional projection information (e.g., 'EPSG:3857')
+ */
+export function validateBounds(bounds: number[], projectionInfo?: string): number[] {
   // Initialize bounds with a default value to avoid null issues
   if (!bounds || bounds.length !== 4) {
     console.warn('GeoTIFF Processor: Missing or invalid bounds, using global bounds');
     return [-180, -85, 180, 85]; // Use global bounds with latitude limits
+  }
+
+  // Check if projection is Web Mercator or if coordinates are outside WGS84 range
+  const isWebMercator = projectionInfo === 'EPSG:3857' ||
+    Math.abs(bounds[0]) > 180 ||
+    Math.abs(bounds[2]) > 180;
+
+  if (isWebMercator) {
+    console.log('GeoTIFF Processor: Detected Web Mercator coordinates, converting to WGS84');
+
+    // Convert Web Mercator bounds to lat/lng
+    const sw = mercatorToLatLng(bounds[0], bounds[1]);
+    const ne = mercatorToLatLng(bounds[2], bounds[3]);
+
+    console.log('GeoTIFF Processor: Converted Web Mercator bounds:');
+    console.log(`  Original: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
+    console.log(`  Converted: [${sw[0]}, ${sw[1]}, ${ne[0]}, ${ne[1]}]`);
+
+    return [sw[0], sw[1], ne[0], ne[1]];
   }
 
   // Check for Web Mercator global bounds (approximately ±20037508.34, ±10018754.17)
@@ -252,12 +294,30 @@ export async function loadAndProcessGeoTIFF(
     // Load the GeoTIFF
     const { image, metadata } = await loadGeoTIFF(url);
 
+    // Extract projection information from GeoTIFF metadata
+    let projectionInfo = null;
+    try {
+      const geoKeys = image.getGeoKeys();
+      if (geoKeys && geoKeys.ProjectedCSTypeGeoKey) {
+        projectionInfo = `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`;
+        console.log(`GeoTIFF Processor: Detected projection ${projectionInfo}`);
+      } else if (geoKeys && geoKeys.GeographicTypeGeoKey) {
+        projectionInfo = `EPSG:${geoKeys.GeographicTypeGeoKey}`;
+        console.log(`GeoTIFF Processor: Detected geographic CRS ${projectionInfo}`);
+      }
+
+      // Store projection info in metadata
+      metadata.projection = projectionInfo;
+    } catch (err) {
+      console.warn('GeoTIFF Processor: Error extracting projection info:', err);
+    }
+
     // Initialize bounds with a default value to avoid null issues
     let bounds = (metadata.bounds as number[]) || [-20, -35, 55, 40]; // Default to Africa if null
     console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
 
-    // Validate and adjust bounds
-    bounds = validateBounds(bounds);
+    // Validate and adjust bounds, passing projection info
+    bounds = validateBounds(bounds, projectionInfo || undefined);
 
     // Process the GeoTIFF
     const dataUrl = await processGeoTIFF(image, options);
