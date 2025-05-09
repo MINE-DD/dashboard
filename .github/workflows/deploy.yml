@@ -11,42 +11,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: 20
+          bun-version: latest
 
       - name: Install dependencies
         working-directory: ./app
-        run: npm install --legacy-peer-deps
-
-      - name: Remove problematic about page
-        working-directory: ./app
-        run: |
-          # Temporarily remove or rename the about page that's causing build issues
-          if [ -f src/routes/about/+page.md ]; then
-            mv src/routes/about/+page.md src/routes/about/_page.md.bak
-          fi
-          
-          # Create a simple replacement page
-          mkdir -p src/routes/about
-          cat << 'EOF' > src/routes/about/+page.svelte
-          <script>
-            // Simple placeholder
-          </script>
-          
-          <div class="container mx-auto p-4">
-            <h1 class="text-2xl font-bold">About</h1>
-            <p>This page is temporarily unavailable.</p>
-          </div>
-          EOF
+        run: bun install
 
       - name: Build
         working-directory: ./app
         env:
           BASE_PATH: "/${{ github.event.repository.name }}"
         run: |
-          npm run build
+          bun run build
           # create .nojekyll file to prevent GitHub from processing with Jekyll
           touch build/.nojekyll
 
