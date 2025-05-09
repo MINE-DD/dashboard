@@ -38,37 +38,44 @@
 			const imageWidth = image.getWidth();
 			const imageHeight = image.getHeight();
 			const imageBounds = image.getBoundingBox();
+
+			// Extract more detailed metadata
 			const fileDirectory = image.getFileDirectory();
+			const geoKeys = image.getGeoKeys();
 
 			// Check for projection information
-			const geoKeys = fileDirectory.GeoKeys || {};
-			const projectionInfo = {
-				modelType: geoKeys.GTModelTypeGeoKey,
-				projectedCSType: geoKeys.ProjectedCSTypeGeoKey,
-				geographicType: geoKeys.GeographicTypeGeoKey
-			};
+			let projectionInfo = null;
+			try {
+				if (geoKeys && geoKeys.ProjectedCSTypeGeoKey) {
+					projectionInfo = `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`;
+				} else if (geoKeys && geoKeys.GeographicTypeGeoKey) {
+					projectionInfo = `EPSG:${geoKeys.GeographicTypeGeoKey}`;
+				}
+			} catch (err) {
+				console.warn('GeoTIFF Example: Error extracting projection info:', err);
+			}
 
-			console.log('GeoTIFF Example: Projection info:', projectionInfo);
-
+			// Collect all metadata
 			metadata = {
 				width: imageWidth,
 				height: imageHeight,
 				bounds: imageBounds,
 				resolution: image.getResolution(),
 				samplesPerPixel: image.getSamplesPerPixel(),
-				projectionInfo: projectionInfo
+				fileDirectory: fileDirectory,
+				geoKeys: geoKeys,
+				projection: projectionInfo,
+				origin: image.getOrigin()
 			};
 
-			console.log('GeoTIFF Example: Metadata loaded:', metadata);
+			console.log('GeoTIFF Example: Detailed metadata loaded:', metadata);
+			console.log('GeoTIFF Example: Projection info:', projectionInfo);
+			console.log('GeoTIFF Example: File directory:', fileDirectory);
+			console.log('GeoTIFF Example: GeoKeys:', geoKeys);
 
 			// Initialize bounds with a default value to avoid null issues
 			bounds = (imageBounds as number[]) || [-20, -35, 55, 40]; // Default to Africa if null
 			console.log('GeoTIFF Example: Raw bounds from GeoTIFF:', bounds);
-
-			// Ensure bounds is always defined
-			if (!bounds) {
-				bounds = [-20, -35, 55, 40]; // Default to Africa
-			}
 
 			// Use TiTiler to get more accurate bounds
 			try {
@@ -84,12 +91,24 @@
 					const boundsJson = await response.json();
 					console.log('GeoTIFF Example: Received bounds from TiTiler:', boundsJson);
 
+					// Log all properties from TiTiler response
+					console.log('GeoTIFF Example: TiTiler response details:');
+					for (const key in boundsJson) {
+						console.log(`  - ${key}:`, boundsJson[key]);
+					}
+
+					// Check for CRS information
+					if (boundsJson.crs) {
+						console.log('GeoTIFF Example: TiTiler CRS:', boundsJson.crs);
+					}
+
 					if (boundsJson?.bounds && boundsJson.bounds.length === 4) {
 						// Update bounds with TiTiler data
 						bounds = boundsJson.bounds;
+						console.log('GeoTIFF Example: Raw bounds from TiTiler:', bounds);
 
 						// Check for global bounds and adjust if needed
-						// Ensure bounds is defined and has the expected elements
+						// Make sure bounds is not null before accessing its elements
 						const isGlobalBounds =
 							bounds &&
 							bounds[0] === -180 &&
@@ -127,13 +146,16 @@
 			console.log('GeoTIFF Example: Reading raster data...');
 			const data = await image.readRasters();
 
-			// Create a canvas to render the data
+			// Create a canvas with transparent background
 			const canvas = document.createElement('canvas');
 			canvas.width = imageWidth;
 			canvas.height = imageHeight;
 
-			const ctx = canvas.getContext('2d');
+			const ctx = canvas.getContext('2d', { alpha: true });
 			if (!ctx) throw new Error('Could not get canvas context');
+
+			// Clear canvas with transparent background
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 			// Create an ImageData object
 			const imageData = ctx.createImageData(imageWidth, imageHeight);
@@ -142,19 +164,19 @@
 			// Using viridis colormap similar to TiTiler
 			console.log('GeoTIFF Example: Rendering to canvas...');
 
-			// Define viridis colormap (similar to what TiTiler uses)
-			// This is a simplified version with key points from the viridis colormap
+			// Define a modified colormap with less purple tones
+			// Starting with more blues and greens instead of purples
 			const viridisColormap = [
-				[68, 1, 84], // Dark purple
-				[72, 40, 120], // Purple
-				[62, 73, 137], // Blue
-				[49, 104, 142], // Light blue
-				[38, 130, 142], // Cyan
-				[31, 158, 137], // Teal
+				[0, 32, 77], // Dark blue
+				[0, 66, 128], // Medium blue
+				[0, 97, 142], // Blue
+				[0, 128, 153], // Teal
+				[0, 155, 136], // Teal-green
 				[53, 183, 121], // Green
 				[109, 205, 89], // Light green
 				[180, 222, 44], // Yellow-green
-				[253, 231, 37] // Yellow
+				[223, 227, 24], // Yellow
+				[253, 231, 37] // Bright yellow
 			];
 
 			// Function to get color from the viridis colormap
@@ -202,34 +224,34 @@
 
 			console.log(`GeoTIFF Example: Data range: ${minValue} to ${maxValue}`);
 
-			// Apply colormap to raster data with better no-data handling
+			// Apply colormap to raster data with more aggressive no-data handling
 			for (let i = 0; i < imageWidth * imageHeight; i++) {
 				const value = rasterData[0][i]; // First band
 
 				// More aggressive no-data detection
-				// Consider values very close to 0 or outside reasonable range as no-data
-				if (value === 0 || isNaN(value) || value < minValue * 0.01) {
-					// Transparent for no-data values
+				// Consider values that are 0, NaN, or very small as no-data
+				if (value === 0 || isNaN(value) || value < minValue * 0.05 || value < 0.001) {
+					// Make no-data values completely transparent
 					imageData.data[i * 4] = 0;
 					imageData.data[i * 4 + 1] = 0;
 					imageData.data[i * 4 + 2] = 0;
-					imageData.data[i * 4 + 3] = 0;
+					imageData.data[i * 4 + 3] = 0; // Completely transparent
 				} else {
-					// Apply viridis colormap
+					// Apply viridis colormap for actual data
 					const [r, g, b] = getViridisColor(value);
 					imageData.data[i * 4] = r;
 					imageData.data[i * 4 + 1] = g;
 					imageData.data[i * 4 + 2] = b;
-					imageData.data[i * 4 + 3] = 255; // Alpha
+					imageData.data[i * 4 + 3] = 255; // Fully opaque
 				}
 			}
 
 			// Put the image data on the canvas
 			ctx.putImageData(imageData, 0, 0);
 
-			// Convert canvas to data URL
-			dataUrl = canvas.toDataURL('image/png');
-			console.log('GeoTIFF Example: Created data URL');
+			// Convert canvas to data URL with PNG format to preserve transparency
+			dataUrl = canvas.toDataURL('image/png', 1.0);
+			console.log('GeoTIFF Example: Created data URL with transparency');
 
 			// Add the layer to the map
 			addLayerToMap();
@@ -258,74 +280,115 @@
 				map.removeSource(sourceId);
 			}
 
-			// Define coordinates for the image
-			// [top-left, top-right, bottom-right, bottom-left]
-			// Ensure bounds has at least 4 elements
-			if (!bounds || bounds.length < 4) {
-				throw new Error('Invalid bounds: expected at least 4 elements');
+			// Check if we have projection information from the GeoTIFF
+			const projectionInfo = metadata?.projection;
+			console.log('GeoTIFF Example: Using projection info for coordinates:', projectionInfo);
+
+			// Get the bounds from the GeoTIFF or TiTiler
+			const geotiffBounds = metadata?.bounds;
+			console.log('GeoTIFF Example: GeoTIFF bounds for reference:', geotiffBounds);
+
+			// Calculate coordinates based on the projection
+			let fixedCoordinates: [
+				[number, number],
+				[number, number],
+				[number, number],
+				[number, number]
+			];
+
+			// Web Mercator has limitations at extreme latitudes, so we use 85.051129 as the max latitude
+			// This is the maximum latitude in the Web Mercator projection (EPSG:3857)
+			const WEB_MERCATOR_MAX_LAT = 85.051129;
+
+			// Check if we have Web Mercator projection (EPSG:3857)
+			const isWebMercator = projectionInfo === 'EPSG:3857';
+
+			// Function to convert Web Mercator coordinates to Lat/Lng
+			function mercatorToLatLng(mercatorX: number, mercatorY: number): [number, number] {
+				// Convert Web Mercator X,Y to lat/lng
+				// X goes from -20037508.34 to 20037508.34
+				// Y goes from -20037508.34 to 20037508.34
+
+				const x = mercatorX;
+				const y = mercatorY;
+
+				// Convert to lat/lng
+				const lng = (x / 20037508.34) * 180;
+				let lat = (y / 20037508.34) * 180;
+
+				// Convert latitude using inverse Mercator projection
+				lat = ((2 * Math.atan(Math.exp((lat * Math.PI) / 180)) - Math.PI / 2) * 180) / Math.PI;
+
+				// Clamp to valid lat/lng range
+				const clampedLng = Math.max(-180, Math.min(180, lng));
+				const clampedLat = Math.max(-85.051129, Math.min(85.051129, lat));
+
+				return [clampedLng, clampedLat];
 			}
 
-			// Extract and validate bounds
-			let west = bounds[0];
-			let south = bounds[1];
-			let east = bounds[2];
-			let north = bounds[3];
-
-			// Check if bounds are in a reasonable range for WGS84 coordinates
-			// If not, they might be in a different projection and need to be handled differently
-			const isValidLongitude = (lon: number) => lon >= -180 && lon <= 180;
-			const isValidLatitude = (lat: number) => lat >= -90 && lat <= 90;
-
-			// Log the bounds for debugging
-			console.log('GeoTIFF Example: Raw bounds:', { west, south, east, north });
-
-			// Validate bounds and adjust if necessary
+			// Try to use a more accurate approach based on the GeoTIFF bounds if available
 			if (
-				!isValidLongitude(west) ||
-				!isValidLongitude(east) ||
-				!isValidLatitude(north) ||
-				!isValidLatitude(south)
+				bounds &&
+				bounds.length === 4 &&
+				bounds[0] !== -180 &&
+				bounds[1] !== -90 &&
+				bounds[2] !== 180 &&
+				bounds[3] !== 90
 			) {
-				console.warn('GeoTIFF Example: Bounds appear to be in a non-WGS84 projection:', bounds);
-				// If bounds are not in WGS84, we could try to transform them here
-				// For now, we'll use default bounds for Africa as a fallback
-				console.warn('GeoTIFF Example: Using default bounds for Africa');
-				const defaultBounds = [-20, -35, 55, 40]; // Default to Africa
-				west = defaultBounds[0];
-				south = defaultBounds[1];
-				east = defaultBounds[2];
-				north = defaultBounds[3];
-			}
+				// Use the actual bounds from the GeoTIFF or TiTiler
+				console.log('GeoTIFF Example: Using actual bounds for coordinates');
 
-			// Log projection info if available
-			if (metadata?.projectionInfo) {
-				console.log('GeoTIFF Example: Projection info available');
-				const projectedCSType = metadata.projectionInfo.projectedCSType;
-				if (projectedCSType) {
-					console.log(`GeoTIFF Example: Projected CS Type: ${projectedCSType}`);
+				if (isWebMercator && Math.abs(bounds[0]) > 180) {
+					// Convert Web Mercator coordinates to lat/lng
+					console.log('GeoTIFF Example: Converting Web Mercator coordinates to lat/lng');
+
+					const topLeft = mercatorToLatLng(bounds[0], bounds[3]);
+					const topRight = mercatorToLatLng(bounds[2], bounds[3]);
+					const bottomRight = mercatorToLatLng(bounds[2], bounds[1]);
+					const bottomLeft = mercatorToLatLng(bounds[0], bounds[1]);
+
+					console.log('GeoTIFF Example: Converted coordinates:');
+					console.log('  Top-left:', topLeft);
+					console.log('  Top-right:', topRight);
+					console.log('  Bottom-right:', bottomRight);
+					console.log('  Bottom-left:', bottomLeft);
+
+					fixedCoordinates = [
+						topLeft, // top-left [lng, lat]
+						topRight, // top-right
+						bottomRight, // bottom-right
+						bottomLeft // bottom-left
+					];
+				} else {
+					// Use bounds directly if they're already in lat/lng
+					fixedCoordinates = [
+						[bounds[0], bounds[3]], // top-left [lng, lat]
+						[bounds[2], bounds[3]], // top-right
+						[bounds[2], bounds[1]], // bottom-right
+						[bounds[0], bounds[1]] // bottom-left
+					];
 				}
+			} else {
+				// Use world map coordinates with Web Mercator limits
+				console.log('GeoTIFF Example: Using world map coordinates with Web Mercator limits');
+				fixedCoordinates = [
+					[-180, WEB_MERCATOR_MAX_LAT], // top-left [lng, lat]
+					[180, WEB_MERCATOR_MAX_LAT], // top-right
+					[180, -WEB_MERCATOR_MAX_LAT], // bottom-right
+					[-180, -WEB_MERCATOR_MAX_LAT] // bottom-left
+				];
 			}
 
-			// Create coordinates array for the image corners using standard lng,lat order
-			// The order is critical: top-left, top-right, bottom-right, bottom-left
-			const coordinates: [[number, number], [number, number], [number, number], [number, number]] =
-				[
-					[west, north], // top-left [lng, lat] normal order
-					[east, north], // top-right
-					[east, south], // bottom-right
-					[west, south] // bottom-left
-				];
+			console.log('GeoTIFF Example: Using coordinates:', fixedCoordinates);
 
-			console.log('GeoTIFF Example: Adding image source with coordinates:', coordinates);
-
-			// Add source
+			// Add source with fixed coordinates
 			map.addSource(sourceId, {
 				type: 'image',
 				url: dataUrl,
-				coordinates: coordinates
+				coordinates: fixedCoordinates
 			});
 
-			// Add layer
+			// Add layer with opacity setting
 			map.addLayer({
 				id: layerId,
 				type: 'raster',
@@ -337,20 +400,29 @@
 
 			console.log('GeoTIFF Example: Layer added to map');
 
-			// Optionally fit bounds - convert bounds array to LngLatBoundsLike format
-			// LngLatBoundsLike can be [[lng, lat], [lng, lat]] format (southwest and northeast corners)
+			// Fit to appropriate bounds
 			try {
-				console.log('GeoTIFF Example: Fitting to bounds:', [
-					[west, south],
-					[east, north]
-				]);
-				map.fitBounds(
-					[
-						[west, south],
-						[east, north]
-					],
-					{ padding: 50, duration: 500 }
-				);
+				// Use converted bounds if we have them, otherwise use world bounds
+				let fitBounds: [[number, number], [number, number]];
+
+				if (isWebMercator && bounds && bounds.length === 4 && Math.abs(bounds[0]) > 180) {
+					// Convert Web Mercator bounds to lat/lng for fitting
+					const sw = mercatorToLatLng(bounds[0], bounds[1]);
+					const ne = mercatorToLatLng(bounds[2], bounds[3]);
+
+					// Use the converted bounds
+					fitBounds = [sw, ne];
+					console.log('GeoTIFF Example: Fitting to converted bounds:', fitBounds);
+				} else {
+					// Use world map bounds with Web Mercator limits
+					fitBounds = [
+						[-180, -85.051129], // southwest
+						[180, 85.051129] // northeast
+					];
+					console.log('GeoTIFF Example: Fitting to world map bounds:', fitBounds);
+				}
+
+				map.fitBounds(fitBounds, { padding: 20, duration: 500 });
 			} catch (err) {
 				console.error('GeoTIFF Example: Error fitting bounds:', err);
 				// Don't throw here, we still want to show the layer even if we can't fit to bounds
