@@ -23,6 +23,24 @@ jobs:
         working-directory: ./app
         run: npm install --legacy-peer-deps
 
+      - name: Create markdown layout directory
+        run: mkdir -p app/src/lib/markdown-layouts
+
+      - name: Create default markdown layout
+        run: |
+          cat << 'EOF' > app/src/lib/markdown-layouts/default.svelte
+          <script>
+            // Get the frontmatter data
+            export let data;
+          </script>
+
+          <div class="-mt-20 w-full overflow-auto break-words px-3">
+            <article class="prose max-w-none md:prose-lg dark:prose-invert">
+              <slot />
+            </article>
+          </div>
+          EOF
+
       - name: Build
         working-directory: ./app
         env:

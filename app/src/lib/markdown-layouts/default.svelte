@@ -1,5 +1,10 @@
+<script>
+  // Get the frontmatter data
+  export let data;
+</script>
+
 <div class="-mt-20 w-full overflow-auto break-words px-3">
-	<div class="prose sm:prose-lg mx-auto py-20">
+	<article class="prose max-w-none md:prose-lg dark:prose-invert">
 		<slot />
-	</div>
+	</article>
 </div>
