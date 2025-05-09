@@ -1,4 +1,32 @@
-import * as GeoTIFF from 'geotiff';
+// Import geotiff from CDN for static deployments
+// Note: We're adding a dynamic import that will work in both development and production
+import { browser } from '$app/environment';
+
+// Declare a variable to hold the GeoTIFF module
+let GeoTIFF: any;
+
+// Function to dynamically load GeoTIFF module
+async function loadGeoTIFFModule() {
+  if (browser) {
+    if (!GeoTIFF) {
+      try {
+        // Try importing from node_modules first (for development)
+        try {
+          GeoTIFF = await import('geotiff');
+        } catch (e) {
+          // Fallback to CDN if importing from node_modules fails
+          const module = await import('https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js');
+          GeoTIFF = module.default || module;
+        }
+      } catch (error) {
+        console.error('Failed to load GeoTIFF library:', error);
+        throw new Error('GeoTIFF library could not be loaded');
+      }
+    }
+    return GeoTIFF;
+  }
+  return null; // Return null on server-side
+}
 
 /**
  * Interface for GeoTIFF metadata
@@ -46,7 +74,14 @@ export async function loadGeoTIFF(url: string): Promise<{
   metadata: GeoTIFFMetadata;
 }> {
   console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
-  const tiff = await GeoTIFF.fromUrl(url);
+  
+  // Ensure GeoTIFF module is loaded
+  const GeoTIFFModule = await loadGeoTIFFModule();
+  if (!GeoTIFFModule) {
+    throw new Error('GeoTIFF module not available (server-side rendering)');
+  }
+
+  const tiff = await GeoTIFFModule.fromUrl(url);
   const image = await tiff.getImage();
 
   // Extract metadata
