@@ -96,7 +96,7 @@ export function serializeFiltersToUrl(map: maplibregl.Map | null, opacity: numbe
   url.search = searchParams.toString();
 
   // Use Svelte's goto to update the URL without reloading
-  goto(url.toString(), { replaceState: true, keepfocus: true, noscroll: true });
+  goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
 }
 
 /**
@@ -107,6 +107,7 @@ export function parseUrlFilters(): {
   zoom?: number;
   styleId?: string;
   opacity?: number;
+  hasFilters: boolean; // Add flag to indicate if any filter parameters are present
 } {
   const url = get(page).url;
   const params = url.searchParams;
@@ -174,7 +175,15 @@ export function parseUrlFilters(): {
     }
   }
 
-  return mapSettings;
+  // Determine if any filter parameters are present
+  const hasFilters = pathogenParams.length > 0 ||
+    ageGroupParams.length > 0 ||
+    syndromeParams.length > 0;
+
+  return {
+    ...mapSettings,
+    hasFilters
+  };
 }
 
 /**

@@ -21,7 +21,9 @@
 		removeRasterLayer,
 		// Import filter-to-raster mapping functionality
 		initFilterRasterConnection,
-		autoVisibleRasterLayers
+		autoVisibleRasterLayers,
+		// Import loadPointsData for reloading data
+		loadPointsData
 	} from '../store';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
@@ -53,6 +55,9 @@
 	let cogUrlInput = '';
 	let isAddingLayer = false;
 	export let globalOpacity = 80; // Default to 80%, now exposed as a prop
+
+	// Define a constant for the data URL to ensure consistency
+	const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
 	async function handleAddLayerClick() {
 		if (!cogUrlInput || isAddingLayer) return;
@@ -104,6 +109,9 @@
 			$selectedSyndromes = checked ? new Set($syndromes) : new Set();
 		}
 		clearFilterCache();
+
+		// Force reload data when all filters in a category are toggled
+		loadPointsData(POINTS_DATA_URL, true);
 	}
 
 	// Clear all active filters
@@ -112,6 +120,9 @@
 		$selectedAgeGroups = new Set();
 		$selectedSyndromes = new Set();
 		clearFilterCache();
+
+		// Force reload data when filters are cleared
+		loadPointsData(POINTS_DATA_URL, true);
 
 		// Update URL by removing filter parameters
 		if (typeof window !== 'undefined') {
@@ -141,6 +152,9 @@
 		}
 
 		clearFilterCache();
+
+		// Force reload data when filters are changed
+		loadPointsData(POINTS_DATA_URL, true);
 	}
 
 	// Initialize on mount
@@ -261,6 +275,9 @@
 								on:click={() => {
 									$selectedPathogens = toggleSelection($selectedPathogens, pathogen);
 									clearFilterCache(); // Clear cache to update filtered data
+
+									// Force reload data when pathogen selection changes
+									loadPointsData(POINTS_DATA_URL, true);
 								}}
 							>
 								<span

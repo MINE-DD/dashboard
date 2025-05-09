@@ -15,6 +15,7 @@
 		isLoading,
 		dataError,
 		pointsData,
+		filteredPointsData, // Add filteredPointsData import
 		// Import raster stores and functions
 		rasterLayers,
 		fetchAndSetLayerBounds, // Import the new function
@@ -31,7 +32,10 @@
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
 	export let initialZoom: number = 2; // Default zoom level - closer to see the COG details
 	export let initialStyleId: string | null = null; // Optional style ID to use
-	export let pointDataUrl: string = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
+
+	// Define a constant for the data URL to ensure consistency
+	const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
+	export let pointDataUrl: string = POINTS_DATA_URL;
 
 	// Track the global opacity value for raster layers
 	let globalOpacity = 80; // Default to 80%
@@ -76,12 +80,24 @@
 		showPopover = true;
 	}
 
+	// Function to preload data before map initialization
+	async function preloadData() {
+		// Parse URL parameters
+		const urlParams = parseUrlFilters();
+
+		// Load point data with forceReload if URL has filter parameters
+		console.log('Preloading point data with forceReload:', urlParams.hasFilters);
+		await loadPointsData(POINTS_DATA_URL, urlParams.hasFilters);
+
+		return urlParams;
+	}
+
 	// Initialize map and controls
 	onMount(async () => {
-		if (mapContainer && !map) {
-			// Parse URL parameters before initializing map
-			const urlParams = parseUrlFilters();
+		// Preload data before initializing map
+		const urlParams = await preloadData();
 
+		if (mapContainer && !map) {
 			// Override initial values with URL parameters if present
 			if (urlParams.center) initialCenter = urlParams.center;
 			if (urlParams.zoom) initialZoom = urlParams.zoom;
@@ -123,14 +139,17 @@
 				console.log('Map object created:', map);
 
 				// Add controls immediately after map creation attempt
-				map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
-				map.addControl(
-					new maplibregl.ScaleControl({
-						maxWidth: 100,
-						unit: 'metric'
-					}),
-					'bottom-left'
-				);
+				// Add controls if map exists
+				if (map) {
+					map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+					map.addControl(
+						new maplibregl.ScaleControl({
+							maxWidth: 100,
+							unit: 'metric'
+						}),
+						'bottom-left'
+					);
+				}
 
 				// Create a debounced update function for map movements
 				const debouncedUpdateUrl = debounce(() => {
@@ -138,29 +157,58 @@
 				}, 500); // 500ms delay to avoid excessive updates during panning/zooming
 
 				// --- Event Listeners ---
-				map.on('load', () => {
-					// console.log('Map "load" event fired');
-					isStyleLoaded = true;
-					// Load point data only after the initial map load
-					loadPointsData(pointDataUrl);
-					// Reactive block below will handle adding initial layers from store
+				if (map) {
+					map.on('load', () => {
+						// console.log('Map "load" event fired');
+						isStyleLoaded = true;
 
-					// Add map movement listeners to update URL
-					map.on('moveend', debouncedUpdateUrl);
-					map.on('zoomend', debouncedUpdateUrl);
-				});
+						// Check if URL has filter parameters
+						const urlParams = parseUrlFilters();
 
-				map.on('styledata', () => {
-					// console.log('Map "styledata" event fired');
-					isStyleLoaded = true; // Style is now ready
-					// Clear tracked layers as they might be gone after style change
-					currentMapLayers.clear();
-					// Reactive block below will handle re-adding layers from store
-				});
+						// Load point data with forceReload if URL has filter parameters
+						console.log('Loading point data with forceReload:', urlParams.hasFilters);
+						loadPointsData(POINTS_DATA_URL, urlParams.hasFilters);
 
-				map.on('error', (e) => {
-					console.error('MapLibre error:', e);
-				});
+						// Add a delayed check to ensure data is loaded and displayed
+						setTimeout(() => {
+							console.log('Delayed check for data loading');
+							if ($pointsData.features.length > 0 && map) {
+								// Force update the filtered data
+								console.log('Forcing update of filtered data');
+								try {
+									if (map.getSource('points-source')) {
+										console.log('Updating points source with filtered data');
+										(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(
+											$filteredPointsData
+										);
+									}
+								} catch (error) {
+									console.error('Error updating points source:', error);
+								}
+							}
+						}, 2000);
+
+						// Reactive block below will handle adding initial layers from store
+
+						// Add map movement listeners to update URL
+						if (map) {
+							map.on('moveend', debouncedUpdateUrl);
+							map.on('zoomend', debouncedUpdateUrl);
+						}
+					});
+
+					map.on('styledata', () => {
+						// console.log('Map "styledata" event fired');
+						isStyleLoaded = true; // Style is now ready
+						// Clear tracked layers as they might be gone after style change
+						currentMapLayers.clear();
+						// Reactive block below will handle re-adding layers from store
+					});
+
+					map.on('error', (e) => {
+						console.error('MapLibre error:', e);
+					});
+				}
 			} catch (error) {
 				console.error('Error initializing map:', error);
 				map = null; // Ensure map is null if initialization failed
@@ -527,7 +575,9 @@
 			<div class="error-container">
 				<div class="error-icon">⚠️</div>
 				<div class="error-message">Error: {$dataError}</div>
-				<button class="retry-button" on:click={() => loadPointsData(pointDataUrl)}>Retry</button>
+				<button class="retry-button" on:click={() => loadPointsData(POINTS_DATA_URL, true)}>
+					Retry
+				</button>
 			</div>
 		</div>
 	{/if}

@@ -262,6 +262,8 @@
 	// Add points when map is provided and data loads
 	$: if (map && $pointsData.features.length > 0 && !pointsAdded && map.loaded()) {
 		console.log('Map and data available - initial attempt to add points');
+		console.log('Points data features:', $pointsData.features.length);
+		console.log('Filtered points data features:', $filteredPointsData.features.length);
 		addPointsToMap();
 
 		// Also add the style change handler
@@ -271,14 +273,39 @@
 		}
 	}
 
-	// Also try once on mount as a backup
+	// Also try once on mount as a backup with multiple attempts
 	onMount(() => {
 		console.log('Component mounted - backup attempt to add points');
+
+		// First attempt
 		setTimeout(() => {
 			if (map && !pointsAdded && $pointsData.features.length > 0) {
+				console.log('First backup attempt to add points');
+				console.log('Points data features:', $pointsData.features.length);
+				console.log('Filtered points data features:', $filteredPointsData.features.length);
 				addPointsToMap();
 			}
 		}, 800);
+
+		// Second attempt
+		setTimeout(() => {
+			if (map && !pointsAdded && $pointsData.features.length > 0) {
+				console.log('Second backup attempt to add points');
+				console.log('Points data features:', $pointsData.features.length);
+				console.log('Filtered points data features:', $filteredPointsData.features.length);
+				addPointsToMap();
+			}
+		}, 1500);
+
+		// Third attempt
+		setTimeout(() => {
+			if (map && !pointsAdded && $pointsData.features.length > 0) {
+				console.log('Third backup attempt to add points');
+				console.log('Points data features:', $pointsData.features.length);
+				console.log('Filtered points data features:', $filteredPointsData.features.length);
+				addPointsToMap();
+			}
+		}, 3000);
 	});
 
 	// Update the map source when filtered data changes
