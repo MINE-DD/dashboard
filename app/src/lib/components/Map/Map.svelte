@@ -481,13 +481,13 @@
 		<MapLayer {map} on:pointclick={handlePointClick} bind:this={mapLayerComponent} />
 
 		<!-- GeoTIFF.js Example Component -->
-		<GeoTIFFExample
+		<!-- <GeoTIFFExample
 			{map}
 			url="https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif"
 			layerId="geotiff-example"
 			sourceId="geotiff-example-source"
 			opacity={0.8}
-		/>
+		/> -->
 	{/if}
 
 	<!-- Map Sidebar with filters -->
