@@ -15,7 +15,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          # Disable caching to avoid the lock file error
+          # cache: npm
+          # cache-dependency-path: ./app/package-lock.json
 
       - name: Install dependencies
         working-directory: ./app
