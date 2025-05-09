@@ -18,6 +18,7 @@
     "seed:docker": "docker compose exec postgres psql -U postgres -d plan-eo -f /seed-database/seed.sql"
   },
   "devDependencies": {
+    "@sveltejs/adapter-vercel": "^5.7.2",
     "@sveltejs/kit": "^2.13.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@tailwindcss/container-queries": "^0.1.1",

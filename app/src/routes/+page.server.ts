@@ -1,12 +1,12 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+// import { redirect } from '@sveltejs/kit';
+// import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
-  const session = await locals.getSession();
+// export const load: PageServerLoad = async ({ locals }) => {
+//   const session = await locals.getSession();
 
-  if (!session?.user) {
-    return {};
-  }
+//   if (!session?.user) {
+//     return {};
+//   }
 
-  throw redirect(302, '/');
-};
+//   throw redirect(302, '/');
+// };

@@ -1,5 +1,6 @@
 import path from 'path';
-import adapter from 'svelte-adapter-bun';
+// import adapter from 'svelte-adapter-bun';
+import adapter from '@sveltejs/adapter-vercel';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { mdsvex } from "mdsvex";
 import mdsvexConfig from './mdsvex.config.js'
@@ -22,7 +23,9 @@ const config = {
 	kit: {
 		// https://kit.svelte.dev/docs/adapter-static
 		adapter: adapter({
-			dynamic_origin: true,
+				runtime: 'edge',
+				fallback: '200.html', // may differ from host to host
+			// dynamic_origin: true,
 			precompress: {
 				brotli: true,
 				gzip: true,
