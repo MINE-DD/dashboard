@@ -1,6 +1,6 @@
 import path from 'path';
 // import adapter from 'svelte-adapter-bun';
-import adapter from '@sveltejs/adapter-vercel';
+import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { mdsvex } from "mdsvex";
 import mdsvexConfig from './mdsvex.config.js'
@@ -23,15 +23,17 @@ const config = {
 	kit: {
 		// https://kit.svelte.dev/docs/adapter-static
 		adapter: adapter({
-				runtime: 'edge',
-				// fallback: '200.html', // may differ from host to host
-			// dynamic_origin: true,
-			// precompress: {
-			// 	brotli: true,
-			// 	gzip: true,
-			// 	files: ['html', 'js', 'json', 'css', 'svg', 'xml', 'wasm']
-			// }
+			// default options are shown
+			pages: 'build',
+			assets: 'build',
+			fallback: 'index.html',
+			precompress: false,
+			strict: true
+
 		}),
+		paths: {
+			base: process.argv.includes('dev') ? '' : process.env.BASE_PATH
+		},
 
 		alias: {
 			// these are the aliases and paths to them
