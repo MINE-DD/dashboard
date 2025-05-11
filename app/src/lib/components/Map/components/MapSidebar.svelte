@@ -37,7 +37,7 @@
 	import type { FilterToRasterMapping } from '../store/types';
 	// Import URL parameter utilities
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from '../utils/urlParams';
-	let className = undefined; // class is a reserved keyword in JS, with initialization
+	let className: string | undefined = undefined; // class is a reserved keyword in JS, with initialization
 	export { className as class };
 	// Helper functions to check if an option has associated raster layers
 
@@ -217,12 +217,12 @@
 		</button>
 
 		{#if !collapsed}
-			{#if $isLoading}
+			<!-- {#if $isLoading}
 				<div class="text-base-content/70 mt-2 flex items-center gap-2 text-sm">
 					<span class="loading loading-spinner loading-xs"></span>
 					<span>Loading data...</span>
-				</div>
-			{:else if $dataError}
+				</div> -->
+			{#if $dataError}
 				<div class="text-error mt-2 text-sm">Error: {$dataError}</div>
 			{:else if $pathogens?.size > 0}
 				<!-- Simplified condition, adjust if needed -->

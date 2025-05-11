@@ -24,9 +24,13 @@
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
+	import RasterPopup from './components/RasterPopup.svelte';
 	// Import URL parameter utilities
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
 	import GeoTIFFExample from './components/GeoTIFFExample.svelte';
+	// Import raster data processor utilities
+	import { extractLayerInfo } from './utils/rasterDataProcessor';
+	import { processPathogenData } from './utils/csvDataProcessor';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
@@ -49,10 +53,25 @@
 	// Reference to the MapLayer component instance
 	let mapLayerComponent: MapLayer;
 
-	// Popover state
+	// Popover state for points
 	let showPopover = false;
 	let popoverCoordinates: [number, number] | null = null;
 	let popoverProperties: any = null;
+
+	// Popover state for raster layers
+	let showRasterPopup = false;
+	let rasterPopupCoordinates: [number, number] | null = null;
+	let rasterPopupData = {
+		prevalence: 0,
+		lowerBound: 0,
+		upperBound: 0,
+		ageRange: '',
+		study: '',
+		duration: '',
+		source: '',
+		sourceUrl: ''
+	};
+	let activeRasterLayerId: string | null = null;
 
 	// Handle map style changes
 	const setMapStyle = (style: MapStyle) => {
@@ -78,6 +97,182 @@
 		popoverCoordinates = coordinates;
 		popoverProperties = properties;
 		showPopover = true;
+
+		// Hide raster popup if it's showing
+		showRasterPopup = false;
+	}
+
+	// Handle map click events for raster layers
+	async function handleMapClick(e: maplibregl.MapMouseEvent) {
+		// Only process if map exists and a raster layer is visible
+		if (!map) return;
+
+		// Get visible raster layers
+		const visibleRasterLayers: string[] = [];
+		$rasterLayers.forEach((layer, id) => {
+			if (layer.isVisible) {
+				visibleRasterLayers.push(id);
+			}
+		});
+
+		console.log('Visible raster layers:', visibleRasterLayers);
+
+		// If no visible raster layers, do nothing
+		if (visibleRasterLayers.length === 0) return;
+
+		// Get the clicked coordinates
+		const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+		console.log('Clicked coordinates:', coordinates);
+
+		// Use the first visible raster layer (in a more advanced implementation,
+		// we could check which layer is on top or let the user select)
+		const layerId = visibleRasterLayers[0];
+		const layer = $rasterLayers.get(layerId);
+
+		if (!layer) return;
+
+		// Get the layer name
+		const layerName = layer.name;
+		console.log('Selected layer:', layerName);
+
+		// Extract layer info
+		const { pathogen, ageGroup, syndrome } = extractLayerInfo(layerName);
+		console.log('Extracted info:', { pathogen, ageGroup, syndrome });
+
+		// Show loading state
+		isLoading.set(true);
+
+		try {
+			// Process pathogen data for the popup
+			const popupData = await processPathogenData(pathogen, coordinates, ageGroup, syndrome);
+			console.log('Processed pathogen data:', popupData);
+
+			// Create HTML content for the popup
+			const popupContent = `
+				<div class="raster-popup">
+					<div class="popup-header">
+						<h3 class="popup-title">Pathogen Prevalence</h3>
+						<button class="close-button" id="popup-close-button" aria-label="Close popup">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<line x1="18" y1="6" x2="6" y2="18"></line>
+								<line x1="6" y1="6" x2="18" y2="18"></line>
+							</svg>
+						</button>
+					</div>
+
+					<div class="popup-content">
+						<div class="prevalence-section">
+							<div class="prevalence-value">
+								<span class="value">${popupData.prevalence.toFixed(2)}%</span>
+								<span class="confidence-interval">(${popupData.lowerBound.toFixed(2)}, ${popupData.upperBound.toFixed(2)})</span>
+							</div>
+							<div class="prevalence-label">Prevalence</div>
+						</div>
+
+						<div class="details-section">
+							<div class="detail-row">
+								<span class="detail-label">Age Range:</span>
+								<span class="detail-value">${popupData.ageRange}</span>
+							</div>
+							<div class="detail-row">
+								<span class="detail-label">Study:</span>
+								<span class="detail-value">${popupData.study}</span>
+							</div>
+							<div class="detail-row">
+								<span class="detail-label">Duration:</span>
+								<span class="detail-value">${popupData.duration}</span>
+							</div>
+							<div class="detail-row">
+								<span class="detail-label">Source:</span>
+								<span class="detail-value">
+									${popupData.sourceUrl ? `<a href="${popupData.sourceUrl}" target="_blank" rel="noopener noreferrer">${popupData.source}</a>` : popupData.source}
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			`;
+
+			// Create a new popup
+			const popup = new maplibregl.Popup({
+				closeButton: false,
+				closeOnClick: true, // Close when clicking elsewhere on the map
+				maxWidth: '400px',
+				className: 'custom-popup',
+				offset: [0, 0]
+			})
+				.setLngLat(coordinates)
+				.setHTML(popupContent)
+				.addTo(map);
+
+			console.log('Popup created and added to map:', popup);
+
+			// Add event listener for close button click
+			setTimeout(() => {
+				const closeButton = document.getElementById('popup-close-button');
+				if (closeButton) {
+					closeButton.addEventListener('click', () => {
+						popup.remove();
+					});
+				}
+			}, 100);
+
+			// Add event listener for map click to close popup
+			const mapClickHandler = (e: maplibregl.MapMouseEvent) => {
+				// Check if click is outside the popup
+				const popupElement = document.querySelector('.maplibregl-popup');
+				if (popupElement) {
+					const rect = popupElement.getBoundingClientRect();
+					const clickX = e.originalEvent.clientX;
+					const clickY = e.originalEvent.clientY;
+
+					// If click is outside the popup, close it
+					if (
+						clickX < rect.left ||
+						clickX > rect.right ||
+						clickY < rect.top ||
+						clickY > rect.bottom
+					) {
+						popup.remove();
+						if (map) {
+							map.off('click', mapClickHandler);
+						}
+					}
+				}
+			};
+
+			// Add the click handler to the map
+			if (map) {
+				map.on('click', mapClickHandler);
+			}
+
+			// Remove the click handler when the popup is closed
+			popup.on('close', () => {
+				if (map) {
+					map.off('click', mapClickHandler);
+				}
+			});
+
+			// Hide point popover if it's showing
+			showPopover = false;
+		} catch (error) {
+			console.error('Error processing pathogen data:', error);
+			// Show error toast or notification
+			// toastStore.error('Failed to load data for popup');
+		} finally {
+			// Hide loading state
+			isLoading.set(false);
+		}
 	}
 
 	// Function to preload data before map initialization
@@ -149,11 +344,16 @@
 						}),
 						'bottom-left'
 					);
+
+					// Add click handler for raster layers
+					map.on('click', handleMapClick);
 				}
 
 				// Create a debounced update function for map movements
 				const debouncedUpdateUrl = debounce(() => {
-					serializeFiltersToUrl(map, globalOpacity);
+					if (map) {
+						serializeFiltersToUrl(map, globalOpacity);
+					}
 				}, 500); // 500ms delay to avoid excessive updates during panning/zooming
 
 				// --- Event Listeners ---
@@ -380,7 +580,12 @@
 								layer.bounds[2] === 180 &&
 								layer.bounds[3] === 90;
 							if (layer.bounds && !isGlobalBounds) {
-								currentMap?.fitBounds(layer.bounds, { padding: 50, duration: 500 });
+								// Convert bounds to LngLatBoundsLike format
+								const boundsForFit: maplibregl.LngLatBoundsLike = [
+									[layer.bounds[0], layer.bounds[1]],
+									[layer.bounds[2], layer.bounds[3]]
+								];
+								currentMap?.fitBounds(boundsForFit, { padding: 50, duration: 500 });
 							}
 						}
 					} catch (error) {
@@ -467,7 +672,9 @@
 	$: if (map && isStyleLoaded && $selectedMapStyle) {
 		// Debounce style changes to avoid excessive URL updates
 		setTimeout(() => {
-			serializeFiltersToUrl(map, globalOpacity);
+			if (map) {
+				serializeFiltersToUrl(map, globalOpacity);
+			}
 		}, 100);
 	}
 
@@ -475,7 +682,9 @@
 	$: if (map && isStyleLoaded) {
 		// Use a small timeout to batch filter changes that might happen together
 		setTimeout(() => {
-			serializeFiltersToUrl(map, globalOpacity);
+			if (map) {
+				serializeFiltersToUrl(map, globalOpacity);
+			}
 		}, 100);
 	}
 
@@ -546,7 +755,9 @@
 			bind:globalOpacity
 			on:opacitychange={(e) => {
 				// Update URL when opacity changes
-				serializeFiltersToUrl(map, e.detail.opacity);
+				if (map) {
+					serializeFiltersToUrl(map, e.detail.opacity);
+				}
 			}}
 		/>
 	</div>
@@ -562,11 +773,29 @@
 		/>
 	{/if}
 
+	<!-- Raster Popup for details -->
+	{#if map && showRasterPopup && rasterPopupCoordinates}
+		<RasterPopup
+			{map}
+			coordinates={rasterPopupCoordinates}
+			visible={showRasterPopup}
+			prevalence={rasterPopupData.prevalence}
+			lowerBound={rasterPopupData.lowerBound}
+			upperBound={rasterPopupData.upperBound}
+			ageRange={rasterPopupData.ageRange}
+			study={rasterPopupData.study}
+			duration={rasterPopupData.duration}
+			source={rasterPopupData.source}
+			sourceUrl={rasterPopupData.sourceUrl}
+			on:close={() => (showRasterPopup = false)}
+		/>
+	{/if}
+
 	<!-- Loading indicator -->
 	{#if $isLoading}
-		<div class="loading-overlay">
+		<div class="loading-indicator">
 			<div class="loading-spinner"></div>
-			<div class="loading-text">Loading Map Data...</div>
+			<div class="loading-text">Loading...</div>
 		</div>
 	{/if}
 
@@ -601,33 +830,33 @@
 	}
 
 	/* Loading indicator */
-	.loading-overlay {
+	.loading-indicator {
 		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background-color: rgba(255, 255, 255, 0.7);
+		top: 16px;
+		right: 16px;
 		display: flex;
-		flex-direction: column;
-		justify-content: center;
 		align-items: center;
-		z-index: 1000; /* Ensure it's above map but below sidebar/popover if needed */
+		background-color: rgba(255, 255, 255, 0.9);
+		border-radius: 8px;
+		padding: 8px 16px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		z-index: 1000;
 	}
 
 	.loading-spinner {
-		width: 40px;
-		height: 40px;
-		border: 4px solid #f3f3f3;
-		border-top: 4px solid hsl(var(--p));
+		width: 20px;
+		height: 20px;
+		border: 2px solid #f3f3f3;
+		border-top: 2px solid hsl(var(--p));
 		border-radius: 50%;
 		animation: spin 1s linear infinite;
-		margin-bottom: 10px;
+		margin-right: 8px;
 	}
 
 	.loading-text {
-		font-size: 16px;
+		font-size: 14px;
 		color: #333;
+		font-weight: 500;
 	}
 
 	/* Error display */
@@ -672,6 +901,141 @@
 
 	.retry-button:hover {
 		background-color: hsl(var(--p) / 0.8); /* Slightly darker on hover */
+	}
+
+	/* Custom styles for the raster popup */
+	:global(.custom-popup .raster-popup) {
+		font-family:
+			'Inter',
+			-apple-system,
+			BlinkMacSystemFont,
+			'Segoe UI',
+			Roboto,
+			sans-serif;
+		color: #333;
+		padding: 0;
+		width: 100%;
+		max-width: 350px;
+	}
+
+	:global(.custom-popup .popup-header) {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 12px 16px;
+		background-color: hsl(var(--p));
+		color: white;
+		border-radius: 8px 8px 0 0;
+	}
+
+	:global(.custom-popup .popup-title) {
+		margin: 0;
+		font-size: 16px;
+		font-weight: 600;
+	}
+
+	:global(.custom-popup .close-button) {
+		background: none;
+		border: none;
+		color: white;
+		cursor: pointer;
+		padding: 4px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		transition: background-color 0.2s;
+	}
+
+	:global(.custom-popup .close-button:hover) {
+		background-color: rgba(255, 255, 255, 0.2);
+	}
+
+	:global(.custom-popup .popup-content) {
+		padding: 16px;
+		background-color: white;
+		border-radius: 0 0 8px 8px;
+	}
+
+	:global(.custom-popup .prevalence-section) {
+		text-align: center;
+		margin-bottom: 16px;
+		padding-bottom: 16px;
+		border-bottom: 1px solid #eee;
+	}
+
+	:global(.custom-popup .prevalence-value) {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		margin-bottom: 4px;
+	}
+
+	:global(.custom-popup .value) {
+		font-size: 28px;
+		font-weight: 700;
+		color: hsl(var(--p));
+	}
+
+	:global(.custom-popup .confidence-interval) {
+		font-size: 14px;
+		color: #666;
+		margin-top: 4px;
+	}
+
+	:global(.custom-popup .prevalence-label) {
+		font-size: 14px;
+		color: #666;
+		font-weight: 500;
+	}
+
+	:global(.custom-popup .details-section) {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	:global(.custom-popup .detail-row) {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	:global(.custom-popup .detail-label) {
+		font-size: 12px;
+		font-weight: 600;
+		color: #666;
+	}
+
+	:global(.custom-popup .detail-value) {
+		font-size: 14px;
+		color: #333;
+	}
+
+	:global(.custom-popup .detail-value a) {
+		color: hsl(var(--p));
+		text-decoration: none;
+	}
+
+	:global(.custom-popup .detail-value a:hover) {
+		text-decoration: underline;
+	}
+
+	/* Override MapLibre popup styles */
+	:global(.maplibregl-popup-content) {
+		padding: 0 !important;
+		border-radius: 8px !important;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+		overflow: hidden !important;
+	}
+
+	:global(.maplibregl-popup-close-button) {
+		display: none !important;
+	}
+
+	:global(.maplibregl-popup-tip) {
+		border-top-color: white !important;
+		border-bottom-color: white !important;
 	}
 
 	@keyframes spin {

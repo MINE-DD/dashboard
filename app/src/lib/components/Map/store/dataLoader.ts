@@ -16,13 +16,13 @@ import type { PointDataRow, PointFeatureCollection } from './types';
 // Helper function to load CSV data with caching
 let dataCache: PointFeatureCollection | null = null;
 
-export async function loadPointsData(url: string): Promise<void> {
+export async function loadPointsData(url: string, forceReload: boolean = false): Promise<void> {
   isLoading.set(true);
   dataError.set(null);
 
   try {
-    // Use cached data if available
-    if (dataCache) {
+    // Use cached data if available and not forcing reload
+    if (dataCache && !forceReload) {
       pointsData.set(dataCache);
       isLoading.set(false);
       return;

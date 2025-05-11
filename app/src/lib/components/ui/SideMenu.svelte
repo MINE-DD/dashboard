@@ -5,7 +5,7 @@
 	import { onMount } from 'svelte';
 	import MapSidebar from '$components/Map/components/MapSidebar.svelte';
 
-	let containerElement: HTMLElement = $state();
+	let containerElement: HTMLElement | undefined = $state();
 	let startX: number;
 	let currentX: number;
 	let isDragging = false;
@@ -16,6 +16,8 @@
 	let menuPosition = $derived($isMenuOpen ? 0 : -menuWidth);
 
 	const updatePosition = (x: number) => {
+		if (!containerElement) return;
+
 		const position = Math.max(-menuWidth, Math.min(0, x));
 		const progress = Math.min((position + menuWidth) / menuWidth, 0.5); // Cap at 0.5 (50% opacity)
 		containerElement.style.setProperty('--menu-position', `${position}px`);
@@ -23,6 +25,8 @@
 	};
 
 	const handleTouchStart = (event: TouchEvent) => {
+		if (!containerElement) return;
+
 		startX = event.touches[0].clientX;
 		currentX = menuPosition;
 		isDragging = false;
@@ -48,6 +52,8 @@
 	};
 
 	const handleTouchEnd = () => {
+		if (!containerElement) return;
+
 		containerElement.style.setProperty('--transition-duration', '0.2s');
 
 		if (isDragging) {
