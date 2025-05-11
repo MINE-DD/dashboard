@@ -91,6 +91,7 @@
 	<div
 		class="pointer-events-none fixed inset-0 z-40 bg-black sm:hidden"
 		style="opacity: var(--overlay-opacity);"
+		onclick={() => closeMenu}
 	></div>
 
 	<nav
