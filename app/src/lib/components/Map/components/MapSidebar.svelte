@@ -37,16 +37,9 @@
 	import type { FilterToRasterMapping } from '../store/types';
 	// Import URL parameter utilities
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from '../utils/urlParams';
-
+	let className = undefined; // class is a reserved keyword in JS, with initialization
+	export { className as class };
 	// Helper functions to check if an option has associated raster layers
-	function hasRasterLayers(type: 'pathogen' | 'ageGroup' | 'syndrome', value: string): boolean {
-		return filterToRasterMappings.some((mapping: FilterToRasterMapping) => {
-			if (type === 'pathogen') return mapping.pathogen === value;
-			if (type === 'ageGroup') return mapping.ageGroup === value;
-			if (type === 'syndrome') return mapping.syndrome === value;
-			return false;
-		});
-	}
 
 	// Initialize the filter-to-raster connection
 	let filterRasterUnsubscribe: () => void;
@@ -56,6 +49,14 @@
 	let isAddingLayer = false;
 	export let globalOpacity = 80; // Default to 80%, now exposed as a prop
 
+	function hasRasterLayers(type: 'pathogen' | 'ageGroup' | 'syndrome', value: string): boolean {
+		return filterToRasterMappings.some((mapping: FilterToRasterMapping) => {
+			if (type === 'pathogen') return mapping.pathogen === value;
+			if (type === 'ageGroup') return mapping.ageGroup === value;
+			if (type === 'syndrome') return mapping.syndrome === value;
+			return false;
+		});
+	}
 	// Define a constant for the data URL to ensure consistency
 	const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
@@ -180,12 +181,13 @@
 </script>
 
 <div
-	class="grid max-h-[calc(100%-20px)] overflow-clip rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 shadow-lg backdrop-blur-md backdrop-filter transition-all duration-300"
+	class={'grid max-h-[calc(100%-20px)] overflow-clip rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 backdrop-blur-md backdrop-filter transition-all duration-300 sm:shadow-lg ' +
+		className}
 >
 	<!-- Sidebar header with toggle button -->
 	<div class="z-10 border-b border-white/30 bg-gradient-to-r from-white/40 to-white/20 p-4">
 		<button
-			class="flex w-full items-center justify-between"
+			class="flex hidden w-full items-center justify-between sm:block"
 			on:click={() => (collapsed = !collapsed)}
 		>
 			<h2 class="text-base-content m-0 text-xl font-semibold">Data Explorer</h2>
@@ -225,7 +227,7 @@
 			{:else if $pathogens?.size > 0}
 				<!-- Simplified condition, adjust if needed -->
 				<div class="mt-3">
-					<div class="flex items-center justify-between">
+					<div class="flex flex-col items-center justify-between sm:flex-row">
 						<div class="flex items-baseline">
 							<span class="text-primary text-lg font-bold">{visiblePoints}</span>
 							{#if hasActiveFilters}
@@ -237,7 +239,7 @@
 							{/if}
 						</div>
 						{#if hasActiveFilters}
-							<button class="btn" on:click={clearAllFilters}>Clear Filters</button>
+							<button class="btn btn-sm" on:click={clearAllFilters}>Clear Filters</button>
 						{/if}
 					</div>
 				</div>
@@ -248,7 +250,7 @@
 	{#if !collapsed}
 		<!-- Content -->
 		<div
-			class="flex h-full max-h-[calc(100vh-250px)] w-80 flex-col space-y-4 overflow-y-auto p-4 pt-3"
+			class="flex h-full max-h-[calc(100vh-250px)] w-full flex-col space-y-4 overflow-y-auto p-1 pt-3 sm:max-h-[calc(100vh-250px)] sm:w-80 sm:p-4"
 		>
 			<!-- Filter Sections -->
 			<div class="form-control w-full">
@@ -264,7 +266,7 @@
 					</label>
 
 					<!-- Pathogen Options -->
-					<div class="grid grid-cols-2 gap-2 overflow-y-auto rounded-xl p-1">
+					<div class="gird-cols-1 grid gap-2 overflow-y-auto rounded-xl p-1 sm:grid-cols-2">
 						{#each Array.from($pathogens || []).sort() as pathogen}
 							<div
 								class={`hover:bg-primary/10 flex cursor-pointer items-center rounded-md p-2 transition-all duration-200 ${
