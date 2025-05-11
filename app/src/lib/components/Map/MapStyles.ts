@@ -15,7 +15,7 @@ export enum MapStyleCategory {
 
 // Helper function to append the API key to MapTiler URLs
 function getMapTilerURL(baseURL: string): string {
-  const apiKey = import.meta.env.VITE_MAPTILER_KEY || '';
+  const apiKey = import.meta.env.VITE_MAPTILER_KEY || 'vJWNfIkxpqqguYqYGv4V';
   if (apiKey) {
     return `${baseURL}?key=${apiKey}`;
   }
