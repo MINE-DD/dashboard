@@ -542,6 +542,7 @@
 	<div class="absolute left-6 top-16 z-10">
 		<!-- Added z-index -->
 		<MapSidebar
+			class="hidden sm:block"
 			bind:globalOpacity
 			on:opacitychange={(e) => {
 				// Update URL when opacity changes

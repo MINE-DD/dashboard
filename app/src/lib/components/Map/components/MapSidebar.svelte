@@ -187,7 +187,7 @@
 	<!-- Sidebar header with toggle button -->
 	<div class="z-10 border-b border-white/30 bg-gradient-to-r from-white/40 to-white/20 p-4">
 		<button
-			class="flex hidden w-full items-center justify-between sm:block"
+			class=" hidden w-full items-center justify-between sm:flex"
 			on:click={() => (collapsed = !collapsed)}
 		>
 			<h2 class="text-base-content m-0 text-xl font-semibold">Data Explorer</h2>

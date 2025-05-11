@@ -11,7 +11,7 @@
 	let isDragging = false;
 	let menuWidth = 256; // Width of the menu in pixels
 	let dragThreshold = 5; // Minimum drag distance to start moving the menu
-	let edgeThreshold = 100; // Area from the left edge to start dragging when menu is closed
+	let edgeThreshold = 10; // Area from the left edge to start dragging when menu is closed
 
 	let menuPosition = $derived($isMenuOpen ? 0 : -menuWidth);
 
