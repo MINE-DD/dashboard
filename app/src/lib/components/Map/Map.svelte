@@ -96,6 +96,17 @@
 	// Handle map click event
 	function handleMapClick(event: CustomEvent) {
 		if (map) {
+			// Check if the click was on a point feature
+			const features = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y], {
+				layers: ['points-layer']
+			});
+
+			// If the click was on a point feature, don't show the raster popup
+			if (features.length > 0) {
+				// Click was on a point, so we'll let the point click handler handle it
+				return;
+			}
+
 			// Get visible raster layers
 			const visibleRasterLayers: string[] = [];
 			$rasterLayers.forEach((layer, id) => {
@@ -104,7 +115,7 @@
 				}
 			});
 
-			// Handle raster layer click
+			// Handle raster layer click only if not on a point
 			if (visibleRasterLayers.length > 0) {
 				handleRasterLayerClick(event.detail, map, visibleRasterLayers, $rasterLayers);
 
