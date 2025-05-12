@@ -164,9 +164,9 @@ export async function processPathogenData(
     // This ensures we always have data to display
     const data = siteData[0];
 
-    console.log('Found data for site:', data);
-    console.log('Age range from layer:', ageRange);
-    console.log('Syndrome from layer:', syndrome);
+    // console.log('Found data for site:', data);
+    // console.log('Age range from layer:', ageRange);
+    // console.log('Syndrome from layer:', syndrome);
 
     // Get source information
     const source = sourceInfo.find(s => s.SOURCE_ID === data.SOURCE_ID);
@@ -175,9 +175,9 @@ export async function processPathogenData(
     const prevalenceField = `${sheetName}_PREV`;
     const standardErrorField = `${sheetName}_SE`;
 
-    console.log('Data fields:', Object.keys(data));
-    console.log('Looking for prevalence field:', prevalenceField);
-    console.log('Looking for standard error field:', standardErrorField);
+    // console.log('Data fields:', Object.keys(data));
+    // console.log('Looking for prevalence field:', prevalenceField);
+    // console.log('Looking for standard error field:', standardErrorField);
 
     // Use default values if fields are not found
     const prevalence = (data[prevalenceField] !== undefined ? data[prevalenceField] : 0.1096) * 100; // Convert to percentage

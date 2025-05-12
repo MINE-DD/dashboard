@@ -68,7 +68,7 @@
 
 			const now = Date.now();
 			if (now - lastLogTime > logInterval) {
-				console.log('Ensured points layer is on top of all other layers');
+				// console.log('Ensured points layer is on top of all other layers');
 				lastLogTime = now;
 			}
 		}
@@ -237,7 +237,7 @@
 			// Remove the source data handler as we will trigger from Map.svelte
 			// map.on('sourcedata', handleSourceData);
 
-			console.log(`Successfully added ${$pointsData.features.length} points to map`);
+			// console.log(`Successfully added ${$pointsData.features.length} points to map`);
 			layerAdded = true;
 		} catch (error) {
 			console.error('Error adding points to map:', error);
@@ -275,14 +275,14 @@
 
 	// Also try once on mount as a backup with multiple attempts
 	onMount(() => {
-		console.log('Component mounted - backup attempt to add points');
+		// console.log('Component mounted - backup attempt to add points');
 
 		// First attempt
 		setTimeout(() => {
 			if (map && !pointsAdded && $pointsData.features.length > 0) {
-				console.log('First backup attempt to add points');
-				console.log('Points data features:', $pointsData.features.length);
-				console.log('Filtered points data features:', $filteredPointsData.features.length);
+				// console.log('First backup attempt to add points');
+				// console.log('Points data features:', $pointsData.features.length);
+				// console.log('Filtered points data features:', $filteredPointsData.features.length);
 				addPointsToMap();
 			}
 		}, 800);
@@ -290,9 +290,9 @@
 		// Second attempt
 		setTimeout(() => {
 			if (map && !pointsAdded && $pointsData.features.length > 0) {
-				console.log('Second backup attempt to add points');
-				console.log('Points data features:', $pointsData.features.length);
-				console.log('Filtered points data features:', $filteredPointsData.features.length);
+				// console.log('Second backup attempt to add points');
+				// console.log('Points data features:', $pointsData.features.length);
+				// console.log('Filtered points data features:', $filteredPointsData.features.length);
 				addPointsToMap();
 			}
 		}, 1500);
@@ -300,9 +300,9 @@
 		// Third attempt
 		setTimeout(() => {
 			if (map && !pointsAdded && $pointsData.features.length > 0) {
-				console.log('Third backup attempt to add points');
-				console.log('Points data features:', $pointsData.features.length);
-				console.log('Filtered points data features:', $filteredPointsData.features.length);
+				// console.log('Third backup attempt to add points');
+				// console.log('Points data features:', $pointsData.features.length);
+				// console.log('Filtered points data features:', $filteredPointsData.features.length);
 				addPointsToMap();
 			}
 		}, 3000);
@@ -320,10 +320,10 @@
 			}
 
 			if (sourceExists) {
-				console.log(
-					'Updating map with filtered data, points:',
-					$filteredPointsData.features.length
-				);
+				// console.log(
+				// 	'Updating map with filtered data, points:',
+				// 	$filteredPointsData.features.length
+				// );
 				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
 			} else if ($pointsData.features.length > 0 && !pointsAdded) {
 				// If source doesn't exist yet but we have data, try to add points

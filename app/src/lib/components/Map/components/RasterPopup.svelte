@@ -403,7 +403,7 @@
 
 	/* Override MapLibre popup styles */
 	:global(.maplibregl-popup-content) {
-		padding: 0 !important;
+		/* padding: 0 !important; */
 		border-radius: 8px !important;
 		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
 		overflow: hidden !important;

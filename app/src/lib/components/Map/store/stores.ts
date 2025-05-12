@@ -177,7 +177,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
     return;
   }
 
-  console.log(`Raster: Processing GeoTIFF for layer ${layerId}`);
+  // console.log(`Raster: Processing GeoTIFF for layer ${layerId}`);
 
   // Mark as loading
   rasterLayers.update((currentLayers) => {
@@ -206,7 +206,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
       }
       return currentLayers;
     });
-    console.log(`Raster: Successfully processed GeoTIFF for ${layerId}`);
+    // console.log(`Raster: Successfully processed GeoTIFF for ${layerId}`);
 
   } catch (err: any) {
     console.error(`Error processing GeoTIFF for layer ${layerId}:`, err);
@@ -231,7 +231,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
  * @param isVisible The new visibility state.
  */
 export function updateRasterLayerVisibility(id: string, isVisible: boolean): void {
-  console.log(`Store: Updating visibility for ${id} to ${isVisible}`); // Add log
+  // console.log(`Store: Updating visibility for ${id} to ${isVisible}`); // Add log
   rasterLayers.update((layers) => {
     const layer = layers.get(id);
     if (layer) {

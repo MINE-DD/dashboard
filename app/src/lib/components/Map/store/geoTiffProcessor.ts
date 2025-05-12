@@ -53,7 +53,7 @@ export async function loadGeoTIFF(url: string): Promise<{
   image: any;
   metadata: GeoTIFFMetadata;
 }> {
-  console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
+  // console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
   
   // Check if we're in the browser and GeoTIFF is available globally
   if (!browser) {
@@ -147,15 +147,15 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     Math.abs(bounds[2]) > 180;
 
   if (isWebMercator) {
-    console.log('GeoTIFF Processor: Detected Web Mercator coordinates, converting to WGS84');
+    // console.log('GeoTIFF Processor: Detected Web Mercator coordinates, converting to WGS84');
 
     // Convert Web Mercator bounds to lat/lng
     const sw = mercatorToLatLng(bounds[0], bounds[1]);
     const ne = mercatorToLatLng(bounds[2], bounds[3]);
 
-    console.log('GeoTIFF Processor: Converted Web Mercator bounds:');
-    console.log(`  Original: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
-    console.log(`  Converted: [${sw[0]}, ${sw[1]}, ${ne[0]}, ${ne[1]}]`);
+    // console.log('GeoTIFF Processor: Converted Web Mercator bounds:');
+    // console.log(`  Original: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
+    // console.log(`  Converted: [${sw[0]}, ${sw[1]}, ${ne[0]}, ${ne[1]}]`);
 
     return [sw[0], sw[1], ne[0], ne[1]];
   }
@@ -168,7 +168,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     Math.abs(bounds[3] - 10018754.17) < 100;
 
   if (isWebMercatorGlobalBounds) {
-    console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84 bounds with latitude limits');
+    // console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84 bounds with latitude limits');
     return [-180, -85, 180, 85]; // Use global bounds with latitude limits
   }
 
@@ -180,7 +180,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     bounds[1] < -90 || bounds[1] > 90 || // south
     bounds[3] < -90 || bounds[3] > 90     // north
   ) {
-    console.warn('GeoTIFF Processor: Invalid or out-of-range bounds, using global bounds:', bounds);
+    // console.warn('GeoTIFF Processor: Invalid or out-of-range bounds, using global bounds:', bounds);
     return [-180, -85, 180, 85]; // Use global bounds with latitude limits
   }
 
@@ -192,7 +192,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     Math.abs(bounds[3] - 90) < 10;
 
   if (isNearGlobalBounds) {
-    console.log('GeoTIFF Processor: Bounds are close to global, using slightly smaller bounds');
+    // console.log('GeoTIFF Processor: Bounds are close to global, using slightly smaller bounds');
     return [-179.9, -89.9, 179.9, 89.9]; // Use slightly smaller bounds to avoid issues
   }
 
@@ -201,15 +201,15 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
 
   // Limit extreme latitudes to avoid projection issues
   if (north > 85) {
-    console.log(`GeoTIFF Processor: Limiting north latitude from ${north} to 85`);
+    // console.log(`GeoTIFF Processor: Limiting north latitude from ${north} to 85`);
     north = 85;
   }
   if (south < -85) {
-    console.log(`GeoTIFF Processor: Limiting south latitude from ${south} to -85`);
+    // console.log(`GeoTIFF Processor: Limiting south latitude from ${south} to -85`);
     south = -85;
   }
 
-  console.log('GeoTIFF Processor: Using bounds:', [west, south, east, north]);
+  // console.log('GeoTIFF Processor: Using bounds:', [west, south, east, north]);
   return [west, south, east, north];
 }
 
@@ -255,7 +255,7 @@ export async function processGeoTIFF(
   const width = image.getWidth();
   const height = image.getHeight();
 
-  console.log('GeoTIFF Processor: Reading raster data...');
+  // console.log('GeoTIFF Processor: Reading raster data...');
   const data = await image.readRasters();
 
   // Create a canvas to render the data
@@ -283,7 +283,7 @@ export async function processGeoTIFF(
     }
   }
 
-  console.log(`GeoTIFF Processor: Data range: ${minValue} to ${maxValue}`);
+  // console.log(`GeoTIFF Processor: Data range: ${minValue} to ${maxValue}`);
 
   // Use provided rescale values or default to the detected range
   const rescale = options.rescale || [minValue, maxValue];
@@ -316,7 +316,7 @@ export async function processGeoTIFF(
 
   // Convert canvas to data URL
   const dataUrl = canvas.toDataURL('image/png');
-  console.log('GeoTIFF Processor: Created data URL');
+  // console.log('GeoTIFF Processor: Created data URL');
 
   return dataUrl;
 }
@@ -342,10 +342,10 @@ export async function loadAndProcessGeoTIFF(
       const geoKeys = image.getGeoKeys();
       if (geoKeys && geoKeys.ProjectedCSTypeGeoKey) {
         projectionInfo = `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`;
-        console.log(`GeoTIFF Processor: Detected projection ${projectionInfo}`);
+        // console.log(`GeoTIFF Processor: Detected projection ${projectionInfo}`);
       } else if (geoKeys && geoKeys.GeographicTypeGeoKey) {
         projectionInfo = `EPSG:${geoKeys.GeographicTypeGeoKey}`;
-        console.log(`GeoTIFF Processor: Detected geographic CRS ${projectionInfo}`);
+        // console.log(`GeoTIFF Processor: Detected geographic CRS ${projectionInfo}`);
       }
 
       // Store projection info in metadata
@@ -356,7 +356,7 @@ export async function loadAndProcessGeoTIFF(
 
     // Initialize bounds with a default value to avoid null issues
     let bounds = (metadata.bounds as number[]) || [-20, -35, 55, 40]; // Default to Africa if null
-    console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
+    // console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
 
     // Validate and adjust bounds, passing projection info
     bounds = validateBounds(bounds, projectionInfo || undefined);

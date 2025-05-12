@@ -46,7 +46,7 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
     };
 
     // Parse the CSV data using standard parsing
-    console.log("Parsing CSV file...");
+    // console.log("Parsing CSV file...");
     const result: ParseResult<PointDataRow> = Papa.parse(csvText, parseConfig);
 
     // Log any parsing warnings but continue processing
@@ -60,7 +60,7 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
     }
 
     if (result.data && result.data.length > 0) {
-      console.log(`Successfully loaded ${result.data.length} data points`);
+      // console.log(`Successfully loaded ${result.data.length} data points`);
 
       // Convert to GeoJSON (this also builds indices)
       const geoData = convertCsvToGeoJson(result.data as PointDataRow[]);
@@ -120,7 +120,7 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       const colorMap = generateColors(pathogenSet);
       pathogenColors.set(colorMap);
 
-      console.log(`Data loaded with ${pathogenSet.size} pathogens, ${ageGroupSet.size} age groups, and ${syndromeSet.size} syndromes`);
+      // console.log(`Data loaded with ${pathogenSet.size} pathogens, ${ageGroupSet.size} age groups, and ${syndromeSet.size} syndromes`);
     } else {
       dataError.set('No data found in CSV file');
     }

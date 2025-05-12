@@ -115,14 +115,14 @@
 			}
 		});
 
-		console.log('Visible raster layers:', visibleRasterLayers);
+		// console.log('Visible raster layers:', visibleRasterLayers);
 
 		// If no visible raster layers, do nothing
 		if (visibleRasterLayers.length === 0) return;
 
 		// Get the clicked coordinates
 		const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-		console.log('Clicked coordinates:', coordinates);
+		// console.log('Clicked coordinates:', coordinates);
 
 		// Use the first visible raster layer (in a more advanced implementation,
 		// we could check which layer is on top or let the user select)
@@ -133,11 +133,11 @@
 
 		// Get the layer name
 		const layerName = layer.name;
-		console.log('Selected layer:', layerName);
+		// console.log('Selected layer:', layerName);
 
 		// Extract layer info
 		const { pathogen, ageGroup, syndrome } = extractLayerInfo(layerName);
-		console.log('Extracted info:', { pathogen, ageGroup, syndrome });
+		// console.log('Extracted info:', { pathogen, ageGroup, syndrome });
 
 		// Show loading state
 		isLoading.set(true);
@@ -145,7 +145,7 @@
 		try {
 			// Process pathogen data for the popup
 			const popupData = await processPathogenData(pathogen, coordinates, ageGroup, syndrome);
-			console.log('Processed pathogen data:', popupData);
+			// console.log('Processed pathogen data:', popupData);
 
 			// Create HTML content for the popup
 			const popupContent = `
@@ -215,7 +215,7 @@
 				.setHTML(popupContent)
 				.addTo(map);
 
-			console.log('Popup created and added to map:', popup);
+			// console.log('Popup created and added to map:', popup);
 
 			// Add event listener for close button click
 			setTimeout(() => {
@@ -281,7 +281,7 @@
 		const urlParams = parseUrlFilters();
 
 		// Load point data with forceReload if URL has filter parameters
-		console.log('Preloading point data with forceReload:', urlParams.hasFilters);
+		// console.log('Preloading point data with forceReload:', urlParams.hasFilters);
 		await loadPointsData(POINTS_DATA_URL, urlParams.hasFilters);
 
 		return urlParams;
@@ -318,7 +318,7 @@
 				}
 			}
 
-			console.log('Creating map with style:', initialStyle.name);
+			// console.log('Creating map with style:', initialStyle.name);
 
 			try {
 				// Create map with the appropriate style
@@ -331,7 +331,7 @@
 				});
 
 				// Log the map object for debugging
-				console.log('Map object created:', map);
+				// console.log('Map object created:', map);
 
 				// Add controls immediately after map creation attempt
 				// Add controls if map exists
@@ -366,18 +366,18 @@
 						const urlParams = parseUrlFilters();
 
 						// Load point data with forceReload if URL has filter parameters
-						console.log('Loading point data with forceReload:', urlParams.hasFilters);
+						// console.log('Loading point data with forceReload:', urlParams.hasFilters);
 						loadPointsData(POINTS_DATA_URL, urlParams.hasFilters);
 
 						// Add a delayed check to ensure data is loaded and displayed
 						setTimeout(() => {
-							console.log('Delayed check for data loading');
+							// console.log('Delayed check for data loading');
 							if ($pointsData.features.length > 0 && map) {
 								// Force update the filtered data
-								console.log('Forcing update of filtered data');
+								// console.log('Forcing update of filtered data');
 								try {
 									if (map.getSource('points-source')) {
-										console.log('Updating points source with filtered data');
+										// console.log('Updating points source with filtered data');
 										(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(
 											$filteredPointsData
 										);
@@ -431,7 +431,7 @@
 	) {
 		if (!currentMap || !styleLoaded) return; // Exit if map or style not ready
 
-		console.log('Map: Running syncMapLayers for add/remove/visibility...');
+		// console.log('Map: Running syncMapLayers for add/remove/visibility...');
 
 		const layersOnMap = new Set(currentMapLayers); // Copy current map layers
 
@@ -462,17 +462,17 @@
 				layersOnMap.delete(layerId); // Mark as processed
 			} else if (layerShouldBeVisible && !layerIsCurrentlyOnMap) {
 				// Layer should be visible, but isn't on map -> Add it OR fetch bounds
-				console.log(`Map: Layer ${layerId} should be visible. Evaluating.`);
+				// console.log(`Map: Layer ${layerId} should be visible. Evaluating.`);
 
 				// --- Check if bounds need fetching ---
 				if (!layer.bounds && !layer.isLoading && !layer.error) {
-					console.log(`Map: Layer ${layerId} needs bounds. Triggering fetch.`);
+					// console.log(`Map: Layer ${layerId} needs bounds. Triggering fetch.`);
 					fetchAndSetLayerBounds(layerId); // Call the fetch function
 					// Don't try to add the layer yet, wait for bounds to be set by the store update
 				}
 				// --- Check if ready to add (bounds exist, not loading, no error) ---
 				else if (!layer.isLoading && !layer.error && layer.bounds) {
-					console.log(`Map: Layer ${layerId} is ready. Adding source and layer.`);
+					// console.log(`Map: Layer ${layerId} is ready. Adding source and layer.`);
 					try {
 						// Add source if it doesn't exist (bounds check already done)
 						if (!currentMap?.getSource(sourceId)) {
@@ -494,11 +494,11 @@
 							let north = layer.bounds[3];
 
 							// Log the bounds for debugging
-							console.log(`Raster: Using bounds for ${layerId}:`, { west, south, east, north });
+							// console.log(`Raster: Using bounds for ${layerId}:`, { west, south, east, north });
 
 							// Check if the layer has projection information
 							const projectionInfo = layer.metadata?.projection;
-							console.log(`Raster: Layer ${layerId} projection:`, projectionInfo);
+							// console.log(`Raster: Layer ${layerId} projection:`, projectionInfo);
 
 							// Create coordinates array for the image corners using standard lng,lat order
 							// The order is critical: top-left, top-right, bottom-right, bottom-left
@@ -541,7 +541,7 @@
 							};
 
 							currentMap?.addSource(sourceId, sourceDef);
-							console.log(`Raster: Successfully added image source ${sourceId}`);
+							// console.log(`Raster: Successfully added image source ${sourceId}`);
 						}
 						// else { // Source might already exist if added previously but layer was removed
 						//	console.log(`Raster: Source ${sourceId} already exists.`);
@@ -560,7 +560,7 @@
 									visibility: 'visible' // Add as visible
 								}
 							});
-							console.log(`Raster: Added layer ${layerId}`);
+							// console.log(`Raster: Added layer ${layerId}`);
 							currentMapLayers.add(layerId); // Track the added layer
 
 							// Ensure points are on top after adding a raster layer
@@ -1023,7 +1023,7 @@
 
 	/* Override MapLibre popup styles */
 	:global(.maplibregl-popup-content) {
-		padding: 0 !important;
+		/* padding: 0 !important; */
 		border-radius: 8px !important;
 		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
 		overflow: hidden !important;
