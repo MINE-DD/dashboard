@@ -5,6 +5,9 @@
 	// import Analytics from '$components/ui/Analytics.svelte';
 	import SideMenu from '$components/ui/SideMenu.svelte';
 	import GlobalToast from '$components/ui/GlobalToast.svelte';
+	import PasswordModal from '$components/ui/PasswordModal.svelte';
+	import { isAuthenticated } from '$lib/stores/auth.store';
+	import { browser } from '$app/environment';
 	// import { env } from '$env/dynamic/public';
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -12,6 +15,10 @@
 
 	let { children }: Props = $props();
 	// import FooterMain from '$components/ui/footerMain.svelte';
+	
+	function handleAuthenticated() {
+		isAuthenticated.set(true);
+	}
 </script>
 
 <!-- <Analytics /> -->
@@ -24,10 +31,21 @@
 <div
 	class="relative grid h-dvh w-dvw grid-rows-[auto_auto_1fr] overflow-clip sm:grid-rows-[auto_1fr]"
 >
-	<Header />
-	<SideMenu />
-	{#if children}{@render children()}{:else}
-		<!-- Content here -->
+	{#if browser && !$isAuthenticated}
+		<PasswordModal on:authenticated={handleAuthenticated} />
+		<div class="filter blur-md">
+			<Header />
+			<SideMenu />
+			{#if children}{@render children()}{:else}
+				<!-- Content here -->
+			{/if}
+		</div>
+	{:else}
+		<Header />
+		<SideMenu />
+		{#if children}{@render children()}{:else}
+			<!-- Content here -->
+		{/if}
 	{/if}
 	<!-- <FooterMain /> -->
 	<!-- {#if env.PUBLIC_LOCALHOST}
