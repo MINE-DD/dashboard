@@ -86,14 +86,6 @@
 
         <div class="popup-section">
           <div class="info-row">
-            <div class="info-label">Cases:</div>
-            <div class="info-value">${props.cases} / ${props.samples}</div>
-          </div>
-          <div class="info-row">
-            <div class="info-label">Standard Error:</div>
-            <div class="info-value">±${(props.standardError * 100).toFixed(2)}%</div>
-          </div>
-          <div class="info-row">
             <div class="info-label">Study:</div>
             <div class="info-value">${props.study}</div>
           </div>

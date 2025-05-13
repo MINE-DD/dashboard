@@ -14,7 +14,7 @@
 		updateAllRasterLayersOpacity
 	} from './store';
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
-	import { handleRasterLayerClick } from './utils/MapEventHandlers';
+	import { processPathogenData } from './utils/csvDataProcessor';
 
 	// Import modularized components
 	import MapCore from './components/MapCore.svelte';
@@ -23,7 +23,6 @@
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
-	import RasterPopup from './components/RasterPopup.svelte';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
@@ -45,24 +44,10 @@
 	let mapLayerComponent: MapLayer;
 	let rasterLayerManager: RasterLayerManager;
 
-	// Popover state for points
+	// Popover state
 	let showPopover = false;
 	let popoverCoordinates: [number, number] | null = null;
 	let popoverProperties: any = null;
-
-	// Popover state for raster layers
-	let showRasterPopup = false;
-	let rasterPopupCoordinates: [number, number] | null = null;
-	let rasterPopupData = {
-		prevalence: 0,
-		lowerBound: 0,
-		upperBound: 0,
-		ageRange: '',
-		study: '',
-		duration: '',
-		source: '',
-		sourceUrl: ''
-	};
 
 	// Function to preload data before map initialization
 	async function preloadData() {
@@ -94,46 +79,111 @@
 	}
 
 	// Handle map click event
-	function handleMapClick(event: CustomEvent) {
-		if (map) {
-			// Check if the click was on a point feature
-			const features = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y], {
-				layers: ['points-layer']
-			});
+	async function handleMapClick(event: CustomEvent) {
+		if (!map) return;
 
-			// If the click was on a point feature, don't show the raster popup
-			if (features.length > 0) {
-				// Click was on a point, so we'll let the point click handler handle it
-				return;
-			}
+		// Reset popup state to ensure we can show a new popup
+		showPopover = false;
+		popoverCoordinates = null;
+		popoverProperties = null;
 
-			// Get visible raster layers
+		// Check if the click was on a point feature
+		const features = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y], {
+			layers: ['points-layer']
+		});
+
+		// If the click was on a point feature, let the point click handler handle it
+		if (features.length > 0) {
+			return;
+		}
+
+		// For non-point clicks, get the coordinates
+		const coordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
+
+		// Show loading state
+		isLoading.set(true);
+
+		try {
+			// Get visible raster layers to determine pathogen
+			let pathogen = 'Shigella'; // Default pathogen
+			let ageGroup = '0-11 months'; // Default age group
+
+			// Try to get pathogen from visible raster layers
 			const visibleRasterLayers: string[] = [];
 			$rasterLayers.forEach((layer, id) => {
 				if (layer.isVisible) {
 					visibleRasterLayers.push(id);
+					// Extract pathogen and age group from the first visible layer
+					if (visibleRasterLayers.length === 1) {
+						const parts = layer.name.split('_');
+						if (parts.length > 0) {
+							// Try to extract pathogen from layer name
+							switch (parts[0]) {
+								case 'SHIG':
+									pathogen = 'Shigella';
+									break;
+								case 'ROTA':
+									pathogen = 'Rotavirus';
+									break;
+								case 'NORO':
+									pathogen = 'Norovirus';
+									break;
+								case 'CAMP':
+									pathogen = 'Campylobacter';
+									break;
+								// Add more mappings as needed
+							}
+						}
+					}
 				}
 			});
 
-			// Handle raster layer click only if not on a point
-			if (visibleRasterLayers.length > 0) {
-				handleRasterLayerClick(event.detail, map, visibleRasterLayers, $rasterLayers);
+			// Process data for the clicked location
+			const data = await processPathogenData(pathogen, coordinates, ageGroup, '');
 
-				// Hide point popover if it's showing
-				showPopover = false;
-			}
+			// Format coordinates for display
+			const formattedLng = coordinates[0].toFixed(4);
+			const formattedLat = coordinates[1].toFixed(4);
+
+			// Convert the data to a format compatible with MapPopover
+			popoverProperties = {
+				pathogen: pathogen,
+				prevalenceValue: data.prevalence / 100, // Convert percentage to decimal
+				ageGroup: data.ageRange,
+				syndrome: '', // No syndrome for non-point clicks as per user feedback
+				location: `Coordinates: ${formattedLng}, ${formattedLat}`, // Show actual coordinates
+				cases: '-', // Not available for non-point clicks
+				samples: '-', // Not available for non-point clicks
+				standardError: (data.upperBound - data.lowerBound) / (2 * 196) / 100, // Approximate SE from CI
+				study: data.study,
+				duration: data.duration,
+				source: data.source,
+				hyperlink: data.sourceUrl
+			};
+
+			// Show the popover
+			popoverCoordinates = coordinates;
+			showPopover = true;
+		} catch (error) {
+			console.error('Error processing data for popover:', error);
+		} finally {
+			// Hide loading state
+			isLoading.set(false);
 		}
 	}
 
 	// Handle point click events from MapLayer
 	function handlePointClick(event: CustomEvent) {
+		// Reset popup state to ensure we can show a new popup
+		showPopover = false;
+		popoverCoordinates = null;
+		popoverProperties = null;
+
+		// Set new popup data
 		const { coordinates, properties } = event.detail;
 		popoverCoordinates = coordinates;
 		popoverProperties = properties;
 		showPopover = true;
-
-		// Hide raster popup if it's showing
-		showRasterPopup = false;
 	}
 
 	// Handle opacity change
@@ -229,23 +279,7 @@
 		/>
 	{/if}
 
-	<!-- Raster Popup for details -->
-	{#if map && showRasterPopup && rasterPopupCoordinates}
-		<RasterPopup
-			{map}
-			coordinates={rasterPopupCoordinates}
-			visible={showRasterPopup}
-			prevalence={rasterPopupData.prevalence}
-			lowerBound={rasterPopupData.lowerBound}
-			upperBound={rasterPopupData.upperBound}
-			ageRange={rasterPopupData.ageRange}
-			study={rasterPopupData.study}
-			duration={rasterPopupData.duration}
-			source={rasterPopupData.source}
-			sourceUrl={rasterPopupData.sourceUrl}
-			on:close={() => (showRasterPopup = false)}
-		/>
-	{/if}
+	<!-- Raster Popup has been removed as per requirements -->
 
 	<!-- Loading indicator -->
 	{#if $isLoading}
