@@ -64,20 +64,35 @@
       <div class="popup-content">
         <h3 class="popup-title">
           <span class="pathogen-name">${props.pathogen}</span>
-          <span class="prevalence-badge" style="background-color: ${prevalenceColor}">
+          <!-- <span class="prevalence-badge" style="background-color: ${prevalenceColor}">
             ${prevalenceDisplay}
-          </span>
+          </span> -->
         </h3>
 
         <div class="popup-section">
-          <div class="info-row">
+
+				<div class="info-row">
+            <div class="info-label">Prevalence:</div>
+            <div class="info-value">
+						<span class="prevalence-badge" style="background-color: ${prevalenceColor}">
+             ${prevalenceDisplay}
+          </span></div>
+          </div>
+				<div class="info-row">
             <div class="info-label">Age Group:</div>
             <div class="info-value">${props.ageGroup}</div>
-          </div>
-          <div class="info-row">
-            <div class="info-label">Syndrome:</div>
-            <div class="info-value">${props.syndrome}</div>
-          </div>
+						</div>
+
+						${
+							props.syndrome
+								? `
+						<div class="info-row">
+						<div class="info-label">Syndrome:</div>
+						<div class="info-value">${props.syndrome}</div>
+						</div>
+						`
+								: ''
+						}
           <div class="info-row">
             <div class="info-label">Location:</div>
             <div class="info-value">${props.location}</div>
