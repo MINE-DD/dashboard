@@ -49,9 +49,24 @@
 	let isAddingLayer = false;
 	export let globalOpacity = 80; // Default to 80%, now exposed as a prop
 
+	let pathogensWithRasterLayers = new Set<string>();
+
+	// Initialize a set of pathogens that have raster layers
+	function initPathogensWithRasterLayers() {
+		pathogensWithRasterLayers.clear();
+		filterToRasterMappings.forEach((mapping) => {
+			if (mapping.pathogen) {
+				pathogensWithRasterLayers.add(mapping.pathogen);
+			}
+		});
+	}
+
 	function hasRasterLayers(type: 'pathogen' | 'ageGroup' | 'syndrome', value: string): boolean {
+		if (type === 'pathogen') {
+			return pathogensWithRasterLayers.has(value);
+		}
+
 		return filterToRasterMappings.some((mapping: FilterToRasterMapping) => {
-			if (type === 'pathogen') return mapping.pathogen === value;
 			if (type === 'ageGroup') return mapping.ageGroup === value;
 			if (type === 'syndrome') return mapping.syndrome === value;
 			return false;
@@ -167,6 +182,9 @@
 		// Initialize the filter-to-raster connection
 		filterRasterUnsubscribe = initFilterRasterConnection();
 
+		// Initialize the set of pathogens with raster layers
+		initPathogensWithRasterLayers();
+
 		// Parse URL parameters to set initial opacity
 		const urlParams = parseUrlFilters();
 		if (urlParams.opacity !== undefined) {
@@ -259,7 +277,7 @@
 			<!-- Filter Sections -->
 			<div class="form-control w-full">
 				<div class="text-base-content/70 mb-2 text-xs italic">
-					Options marked with <span class="text-primary font-medium">*</span>
+					Options marked with <span class="text-primary">*</span>
 					have associated raster layers.
 				</div>
 				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
@@ -276,7 +294,7 @@
 						<option value="" selected={$selectedPathogens.size === 0}>Select Pathogen</option>
 						{#each Array.from($pathogens || []).sort() as pathogen}
 							<option value={pathogen} selected={$selectedPathogens?.has(pathogen)}>
-								{pathogen}{hasRasterLayers('pathogen', pathogen as string) ? ' *' : ''}
+								{pathogen}{pathogensWithRasterLayers.has(pathogen) ? ' *' : ''}
 							</option>
 						{/each}
 					</select>

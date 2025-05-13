@@ -77,15 +77,15 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
         // Check if this is actually CSV data (has expected fields) and not CSS/HTML/other content
         if (row && typeof row === 'object') {
           // Check if fields exist and look like valid data (not CSS/HTML)
-          if (row.Pathogen && typeof row.Pathogen === 'string' && !row.Pathogen.includes('.')) {
+          if (row.Pathogen && typeof row.Pathogen === 'string') {
             pathogenSet.add(row.Pathogen);
           }
 
-          if (row.Age_group && typeof row.Age_group === 'string' && !row.Age_group.includes(':')) {
+          if (row.Age_group && typeof row.Age_group === 'string') {
             ageGroupSet.add(row.Age_group);
           }
 
-          if (row.Syndrome && typeof row.Syndrome === 'string' && !row.Syndrome.includes('.')) {
+          if (row.Syndrome && typeof row.Syndrome === 'string') {
             syndromeSet.add(row.Syndrome);
           }
         }
@@ -100,7 +100,7 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       // Ensure Shigella is always available as a pathogen option
       // since we have raster layers for it
       pathogenSet.add('Shigella spp.');
-      // console.log('Added Shigella spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
+      console.log('Added Shigella spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
 
       // Don't add duplicate age groups, we'll handle this in the UI
       // console.log('Current age groups from data:', Array.from(ageGroupSet));
@@ -120,7 +120,8 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       const colorMap = generateColors(pathogenSet);
       pathogenColors.set(colorMap);
 
-      // console.log(`Data loaded with ${pathogenSet.size} pathogens, ${ageGroupSet.size} age groups, and ${syndromeSet.size} syndromes`);
+      console.log(`Data loaded with ${pathogenSet.size} pathogens, ${ageGroupSet.size} age groups, and ${syndromeSet.size} syndromes`);
+      console.log('All pathogens:', Array.from(pathogenSet));
     } else {
       dataError.set('No data found in CSV file');
     }
