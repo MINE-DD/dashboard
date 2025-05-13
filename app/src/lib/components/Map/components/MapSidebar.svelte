@@ -138,11 +138,15 @@
 	}
 
 	// Handle select change
-	function handleSelectChange(event: Event, category: 'ageGroups' | 'syndromes') {
+	function handleSelectChange(event: Event, category: 'pathogens' | 'ageGroups' | 'syndromes') {
 		const select = event.target as HTMLSelectElement;
 		const selectedValue = select.value;
 
-		if (category === 'ageGroups') {
+		if (category === 'pathogens') {
+			const newSet = new Set<string>();
+			if (selectedValue) newSet.add(selectedValue);
+			$selectedPathogens = newSet;
+		} else if (category === 'ageGroups') {
 			const newSet = new Set<string>();
 			if (selectedValue) newSet.add(selectedValue);
 			$selectedAgeGroups = newSet;
@@ -259,61 +263,43 @@
 					have associated raster layers.
 				</div>
 				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
-					<label class="label px-0 py-1">
+					<label for="pathogen-select" class="label px-0 py-1">
 						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
 							Pathogens
 						</span>
 					</label>
-
-					<!-- Pathogen Options -->
-					<div class="gird-cols-1 grid gap-2 overflow-y-auto rounded-xl p-1 sm:grid-cols-2">
+					<select
+						id="pathogen-select"
+						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
+						on:change={(e: Event) => handleSelectChange(e, 'pathogens')}
+					>
+						<option value="" selected={$selectedPathogens.size === 0}>Select Pathogen</option>
 						{#each Array.from($pathogens || []).sort() as pathogen}
-							<div
-								class={`hover:bg-primary/10 flex cursor-pointer items-center rounded-md p-2 transition-all duration-200 ${
-									$selectedPathogens?.has(pathogen)
-										? 'bg-primary/20 font-medium opacity-100 shadow-sm'
-										: 'bg-white/60 opacity-90'
-								}`}
-								on:click={() => {
-									$selectedPathogens = toggleSelection($selectedPathogens, pathogen);
-									clearFilterCache(); // Clear cache to update filtered data
-
-									// Force reload data when pathogen selection changes
-									loadPointsData(POINTS_DATA_URL, true);
-								}}
-							>
-								<span
-									class="mr-2 inline-block h-4 w-4 shrink-0 rounded-full border border-white/50 shadow-sm"
-									style="background-color: {$pathogenColors?.get(pathogen) || '#ccc'}"
-								></span>
-								<span class="truncate text-sm">
-									{pathogen}
-									{#if hasRasterLayers('pathogen', pathogen)}
-										<span class="text-primary font-medium">*</span>
-									{/if}
-								</span>
-							</div>
+							<option value={pathogen} selected={$selectedPathogens?.has(pathogen)}>
+								{pathogen}{hasRasterLayers('pathogen', pathogen as string) ? ' *' : ''}
+							</option>
 						{/each}
-					</div>
+					</select>
 				</div>
 			</div>
 
 			<!-- Age Groups -->
 			<div class="form-control w-full">
 				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
-					<label class="label px-0 py-1">
+					<label for="agegroup-select" class="label px-0 py-1">
 						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
 							Age Groups
 						</span>
 					</label>
 					<select
-						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full border-white/50 bg-white/80 focus:ring"
-						on:change={(e) => handleSelectChange(e, 'ageGroups')}
+						id="agegroup-select"
+						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
+						on:change={(e: Event) => handleSelectChange(e, 'ageGroups')}
 					>
 						<option value="" selected={$selectedAgeGroups.size === 0}>Select Age Group</option>
 						{#each Array.from($ageGroups || []).sort() as ageGroup}
 							<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
-								{ageGroup}{hasRasterLayers('ageGroup', ageGroup) ? ' *' : ''}
+								{ageGroup}{hasRasterLayers('ageGroup', ageGroup as string) ? ' *' : ''}
 							</option>
 						{/each}
 					</select>
@@ -323,19 +309,20 @@
 			<!-- Syndromes -->
 			<div class="form-control w-full">
 				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
-					<label class="label px-0 py-1">
+					<label for="syndrome-select" class="label px-0 py-1">
 						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
 							Syndromes
 						</span>
 					</label>
 					<select
-						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full border-white/50 bg-white/80 focus:ring"
-						on:change={(e) => handleSelectChange(e, 'syndromes')}
+						id="syndrome-select"
+						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
+						on:change={(e: Event) => handleSelectChange(e, 'syndromes')}
 					>
 						<option value="" selected={$selectedSyndromes.size === 0}>Select Syndrome</option>
 						{#each Array.from($syndromes || []).sort() as syndrome}
 							<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
-								{syndrome}{hasRasterLayers('syndrome', syndrome) ? ' *' : ''}
+								{syndrome}{hasRasterLayers('syndrome', syndrome as string) ? ' *' : ''}
 							</option>
 						{/each}
 					</select>
