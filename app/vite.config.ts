@@ -7,7 +7,7 @@ import VitePluginRestart from 'vite-plugin-restart';
 export default defineConfig({
 	server: {
 		host: '0.0.0.0',
-		port: 5173,
+		port: 4000,
 		fs: {
 			// Allow serving files from one level up to the project root
 			allow: ['..']

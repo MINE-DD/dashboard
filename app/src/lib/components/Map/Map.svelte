@@ -97,7 +97,39 @@
 			return;
 		}
 
-		// For non-point clicks, get the coordinates
+		// Check if the click is on land or water by querying all rendered features at the click point
+		// Most map styles have a 'water' layer or something similar
+		const allFeatures = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y]);
+
+		// Check if any of the features at the click point are water features
+		const isWater = allFeatures.some((feature) => {
+			// Check for common water-related layer IDs and types
+			const layerId = feature.layer.id.toLowerCase();
+			const sourceLayer = feature.sourceLayer?.toLowerCase() || '';
+
+			return (
+				layerId.includes('water') ||
+				layerId.includes('ocean') ||
+				layerId.includes('sea') ||
+				layerId.includes('lake') ||
+				layerId.includes('river') ||
+				sourceLayer.includes('water') ||
+				sourceLayer.includes('ocean') ||
+				sourceLayer.includes('sea') ||
+				sourceLayer.includes('lake') ||
+				sourceLayer.includes('river')
+			);
+		});
+
+		// If the click is on water, don't show a popup
+		if (isWater) {
+			// Optional: could add a visual indication that water clicks are disabled
+			// console.log('Click on water detected - no popup displayed');
+			isLoading.set(false);
+			return;
+		}
+
+		// For non-point, non-water clicks, get the coordinates
 		const coordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
 
 		// Show loading state
