@@ -14,7 +14,7 @@ export const ageGroups = writable<Set<string>>(new Set());
 export const syndromes = writable<Set<string>>(new Set());
 
 // Selected filters stores
-export const selectedPathogens = writable<Set<string>>(new Set());
+export const selectedPathogens = writable<Set<string>>(new Set(['Campylobacter spp.']));
 export const selectedAgeGroups = writable<Set<string>>(new Set());
 export const selectedSyndromes = writable<Set<string>>(new Set());
 

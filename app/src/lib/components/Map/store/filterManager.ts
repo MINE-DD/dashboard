@@ -31,6 +31,17 @@ export const filteredIndices = derived(
     const noAgeGroupFilter = $selectedAgeGroups.size === 0;
     const noSyndromeFilter = $selectedSyndromes.size === 0;
 
+    // Debug information about current filters and indices
+    console.log('Filter state:', {
+      pathogens: Array.from($selectedPathogens),
+      ageGroups: Array.from($selectedAgeGroups),
+      syndromes: Array.from($selectedSyndromes),
+      noPathogenFilter,
+      noAgeGroupFilter,
+      noSyndromeFilter,
+      pathogenIndexKeys: Array.from($pathogenIndex.keys())
+    });
+
     if (noPathogenFilter && noAgeGroupFilter && noSyndromeFilter) {
       return null; // Null means "all features"
     }
@@ -38,6 +49,7 @@ export const filteredIndices = derived(
     // Check cache first
     const cacheKey = getFilterCacheKey($selectedPathogens, $selectedAgeGroups, $selectedSyndromes);
     if (filterCache.has(cacheKey)) {
+      console.log('Using cached filter results for:', Array.from($selectedPathogens));
       return filterCache.get(cacheKey)!;
     }
 
@@ -48,13 +60,46 @@ export const filteredIndices = derived(
     if (!noPathogenFilter) {
       matchingIndices = new Set<number>();
       for (const pathogen of $selectedPathogens) {
-        const indices = $pathogenIndex.get(pathogen);
+        // Special case for Campylobacter spp. - use Campylobacter indices if needed
+        let indices: Set<number> | undefined;
+
+        // Enhanced handling for Campylobacter spp.
+        if (pathogen === 'Campylobacter spp.') {
+          // Try different variations of Campylobacter
+          if ($pathogenIndex.has('Campylobacter spp.')) {
+            indices = $pathogenIndex.get('Campylobacter spp.');
+            console.log('Found exact match for Campylobacter spp.');
+          } else if ($pathogenIndex.has('Campylobacter')) {
+            indices = $pathogenIndex.get('Campylobacter');
+            console.log('Using Campylobacter indices for Campylobacter spp.');
+          } else {
+            // Try to find any key that contains Campylobacter
+            const campyKey = Array.from($pathogenIndex.keys()).find(k =>
+              k.toLowerCase().includes('campylobacter'));
+
+            if (campyKey) {
+              indices = $pathogenIndex.get(campyKey);
+              console.log(`Using ${campyKey} indices for Campylobacter spp.`);
+            } else {
+              console.warn('No Campylobacter-related indices found in pathogen index');
+            }
+          }
+        } else {
+          indices = $pathogenIndex.get(pathogen);
+        }
+
         if (indices) {
+          const beforeCount = matchingIndices.size;
           for (const idx of indices) {
             matchingIndices.add(idx);
           }
+          console.log(`Added ${matchingIndices.size - beforeCount} indices for pathogen: ${pathogen}`);
+        } else {
+          console.warn(`No indices found for pathogen: ${pathogen}`);
         }
       }
+
+      console.log(`Total matching indices after pathogen filter: ${matchingIndices.size}`);
     }
 
     // Apply age group filter

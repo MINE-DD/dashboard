@@ -5,8 +5,12 @@ import {
   pathogens,
   ageGroups,
   syndromes,
-  pathogenColors
+  pathogenColors,
+  selectedPathogens,
+  selectedAgeGroups,
+  selectedSyndromes
 } from './stores';
+import { get } from 'svelte/store';
 import { convertCsvToGeoJson } from './geoJsonConverter';
 import { generateColors } from './colorManager';
 import Papa from 'papaparse';
@@ -21,12 +25,22 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
   dataError.set(null);
 
   try {
+    // Log the current state of filters before loading data
+    console.log('Loading data with filters:', {
+      pathogens: Array.from(get(selectedPathogens)),
+      ageGroups: Array.from(get(selectedAgeGroups)),
+      syndromes: Array.from(get(selectedSyndromes))
+    });
+
     // Use cached data if available and not forcing reload
     if (dataCache && !forceReload) {
+      console.log('Using cached data');
       pointsData.set(dataCache);
       isLoading.set(false);
       return;
     }
+
+    console.log('Fetching fresh data from:', url);
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -91,16 +105,33 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
         }
       });
 
+      console.log('Extracted unique values from data:', {
+        pathogens: Array.from(pathogenSet),
+        ageGroups: Array.from(ageGroupSet),
+        syndromes: Array.from(syndromeSet)
+      });
+
       // If we have no valid data, the CSV parsing is probably not working correctly
       if (pathogenSet.size === 0 && ageGroupSet.size === 0 && syndromeSet.size === 0) {
         console.error('No valid data found in parsed CSV. Parser may have misinterpreted the file format.');
         throw new Error('Failed to parse valid data from CSV file');
       }
 
-      // Ensure Shigella is always available as a pathogen option
-      // since we have raster layers for it
+      // Ensure Shigella and Campylobacter are always available as pathogen options
+      // since we have raster layers for them
       pathogenSet.add('Shigella spp.');
-      console.log('Added Shigella spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
+      pathogenSet.add('Campylobacter spp.');
+
+      // Check if Campylobacter (without spp.) exists in the data
+      const hasCampylobacter = Array.from(pathogenSet).some(p =>
+        p.toLowerCase().includes('campylobacter') && p !== 'Campylobacter spp.');
+
+      console.log('Campylobacter check:', {
+        hasCampylobacter,
+        campylobacterVariants: Array.from(pathogenSet).filter(p => p.toLowerCase().includes('campylobacter'))
+      });
+
+      console.log('Added Shigella spp. and Campylobacter spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
 
       // Don't add duplicate age groups, we'll handle this in the UI
       // console.log('Current age groups from data:', Array.from(ageGroupSet));
@@ -119,6 +150,24 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       // Generate colors for pathogens
       const colorMap = generateColors(pathogenSet);
       pathogenColors.set(colorMap);
+
+      // Preserve the current selected pathogen if it exists in the data
+      const currentSelectedPathogens = get(selectedPathogens);
+      if (currentSelectedPathogens.size > 0) {
+        console.log('Current selected pathogens:', Array.from(currentSelectedPathogens));
+
+        // If Campylobacter spp. is selected but not in the data, try to find a match
+        if (currentSelectedPathogens.has('Campylobacter spp.') && !hasCampylobacter) {
+          // Find any Campylobacter variant in the data
+          const campyVariant = Array.from(pathogenSet).find(p =>
+            p.toLowerCase().includes('campylobacter') && p !== 'Campylobacter spp.');
+
+          if (campyVariant) {
+            console.log(`Found Campylobacter variant in data: ${campyVariant}`);
+            // No need to update selectedPathogens, we'll handle this in filterManager.ts
+          }
+        }
+      }
 
       console.log(`Data loaded with ${pathogenSet.size} pathogens, ${ageGroupSet.size} age groups, and ${syndromeSet.size} syndromes`);
       console.log('All pathogens:', Array.from(pathogenSet));

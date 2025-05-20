@@ -59,6 +59,8 @@ export function convertCsvToGeoJson(csvData: PointDataRow[]): PointFeatureCollec
       };
     });
 
+  // Special case handling for Campylobacter spp. is now in filterManager.ts
+
   // Update indices stores
   pathogenIndex.set(pathogenIdx);
   ageGroupIndex.set(ageGroupIdx);

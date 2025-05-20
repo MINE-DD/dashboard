@@ -4,6 +4,7 @@
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { getStyleById } from './MapStyles';
 	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
+	import { get } from 'svelte/store';
 	import {
 		loadPointsData,
 		isLoading,
@@ -11,7 +12,9 @@
 		pointsData,
 		filteredPointsData,
 		rasterLayers,
-		updateAllRasterLayersOpacity
+		updateAllRasterLayersOpacity,
+		selectedPathogens,
+		clearFilterCache
 	} from './store';
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
 	import { processPathogenData } from './utils/csvDataProcessor';
@@ -54,8 +57,23 @@
 		// Parse URL parameters
 		const urlParams = parseUrlFilters();
 
-		// Load point data with forceReload if URL has filter parameters
-		await loadPointsData(POINTS_DATA_URL, urlParams.hasFilters);
+		// Get the current state of selectedPathogens
+		const $selectedPathogens = get(selectedPathogens);
+
+		// Clear filter cache before loading data to ensure fresh filtering
+		clearFilterCache();
+
+		console.log('Preloading data with default pathogen:', Array.from($selectedPathogens));
+
+		// Always force reload on initial load to ensure data is fresh
+		await loadPointsData(POINTS_DATA_URL, true);
+
+		// Log the loaded data size
+		const $pointsData = get(pointsData);
+		const $filteredPointsData = get(filteredPointsData);
+		console.log(
+			`Loaded ${$pointsData.features.length} total points, ${$filteredPointsData.features.length} filtered points`
+		);
 
 		return urlParams;
 	}
@@ -64,6 +82,25 @@
 	function handleMapReady(event: CustomEvent<{ map: MaplibreMap }>) {
 		map = event.detail.map;
 		isStyleLoaded = true;
+
+		// Force a single reload of the data to ensure filters are applied
+		// This is simpler and more reliable than multiple reloads
+		setTimeout(() => {
+			console.log('Map: Forcing data reload after map is ready');
+
+			// Clear filter cache again to ensure fresh filtering
+			clearFilterCache();
+
+			// Force reload with a longer timeout to ensure data is fully loaded
+			loadPointsData(POINTS_DATA_URL, true).then(() => {
+				// Log the loaded data size after reload
+				const $pointsData = get(pointsData);
+				const $filteredPointsData = get(filteredPointsData);
+				console.log(
+					`After map ready: ${$pointsData.features.length} total points, ${$filteredPointsData.features.length} filtered points`
+				);
+			});
+		}, 800); // Increased timeout for better reliability
 
 		// Add country boundaries GeoJSON source and layer
 		if (map && !map.getSource('country-boundaries')) {
