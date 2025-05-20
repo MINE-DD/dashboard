@@ -26,6 +26,7 @@
 	import MapLayer from './components/MapLayer.svelte';
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
+	import MapLegend from './components/MapLegend.svelte';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
@@ -375,6 +376,11 @@
 			visible={showPopover}
 			on:close={() => (showPopover = false)}
 		/>
+	{/if}
+
+	<!-- Map Legend for design types -->
+	{#if map && isStyleLoaded && $filteredPointsData.features.length > 0}
+		<MapLegend visible={true} position="bottom-right" />
 	{/if}
 
 	<!-- Raster Popup has been removed as per requirements -->

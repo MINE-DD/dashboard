@@ -155,7 +155,32 @@
 		}, 800); // More time to ensure style is properly loaded
 	}
 
-	// Generate the paint color expression for pathogens
+	// Generate the paint color expression for design types
+	function generateDesignColorExpression() {
+		// Create a MapLibre match expression for the design types
+		const matchExpression: any[] = ['match', ['get', 'design']];
+
+		// Add design type colors
+		matchExpression.push('Surveillance');
+		matchExpression.push('#FFA500'); // Orange
+
+		matchExpression.push('Intervention Trial');
+		matchExpression.push('#008000'); // Green
+
+		matchExpression.push('Case control');
+		matchExpression.push('#FF0000'); // Red
+
+		matchExpression.push('Cohort');
+		matchExpression.push('#0000FF'); // Blue
+
+		// Add colors for positive/negative (if applicable)
+		// These might be in a different property, adjust as needed
+		matchExpression.push('#808080'); // Default color (dark gray)
+
+		return matchExpression;
+	}
+
+	// Legacy function kept for reference
 	function generatePathogenColorExpression() {
 		// Create a MapLibre match expression for the pathogens
 		const matchExpression: any[] = ['match', ['get', 'pathogen']];
@@ -207,8 +232,8 @@
 					source: 'points-source',
 					paint: {
 						'circle-radius': 10, // Keeping the bigger dots (10px radius)
-						// Use a match expression to color by pathogen
-						'circle-color': generatePathogenColorExpression() as any,
+						// Use a match expression to color by design type
+						'circle-color': generateDesignColorExpression() as any,
 						'circle-opacity': 0.8,
 						'circle-stroke-width': 1,
 						'circle-stroke-color': '#ffffff'
@@ -246,14 +271,10 @@
 		}
 	}
 
-	// Reactively update the circle colors when pathogen colors change
-	$: if (map && map.getLayer('points-layer') && $pathogenColors.size > 0 && pointsAdded) {
+	// Reactively update the circle colors when needed
+	$: if (map && map.getLayer('points-layer') && pointsAdded) {
 		try {
-			map.setPaintProperty(
-				'points-layer',
-				'circle-color',
-				generatePathogenColorExpression() as any
-			);
+			map.setPaintProperty('points-layer', 'circle-color', generateDesignColorExpression() as any);
 		} catch (error) {
 			console.error('Error updating circle colors:', error);
 		}
