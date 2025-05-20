@@ -10,10 +10,10 @@
 	];
 
 	const designColors = [
-		{ label: 'Surveillance', color: '#FFA500' }, // Orange
-		{ label: 'Intervention Trial', color: '#008000' }, // Green
-		{ label: 'Case control', color: '#FF0000' }, // Red
-		{ label: 'Cohort', color: '#0000FF' } // Blue
+		{ label: 'Surveillance', color: '#FFE5B4' }, // Pastel Orange (matches map dot)
+		{ label: 'Intervention Trial', color: '#B7EFC5' }, // Pastel Green (matches map dot)
+		{ label: 'Case control', color: '#FFB3C6' }, // Pastel Red (matches map dot)
+		{ label: 'Cohort', color: '#9197FF' } // Pastel Blue (matches map dot)
 	];
 
 	// Calculate position classes

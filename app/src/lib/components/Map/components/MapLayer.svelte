@@ -163,16 +163,16 @@
 
 		// Add design type colors
 		matchExpression.push('Surveillance');
-		matchExpression.push('#FFA500'); // Orange
+		matchExpression.push('#FFE5B4'); // Pastel Orange
 
 		matchExpression.push('Intervention Trial');
-		matchExpression.push('#008000'); // Green
+		matchExpression.push('#B7EFC5'); // Pastel Green
 
 		matchExpression.push('Case control');
-		matchExpression.push('#FF0000'); // Red
+		matchExpression.push('#FFB3C6'); // Pastel Red
 
 		matchExpression.push('Cohort');
-		matchExpression.push('#0000FF'); // Blue
+		matchExpression.push('#9197FF'); // Pastel Blue
 
 		// Add colors for positive/negative (if applicable)
 		// These might be in a different property, adjust as needed
