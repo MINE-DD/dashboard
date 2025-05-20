@@ -80,7 +80,7 @@
 					visibility: 'none' // Initially hidden
 				},
 				paint: {
-					'line-color': '#80808050', // Blue color for boundaries
+					'line-color': '#80808090', // Blue color for boundaries
 					'line-width': 2
 				}
 			});
