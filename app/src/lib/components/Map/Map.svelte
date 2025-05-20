@@ -14,6 +14,8 @@
 		rasterLayers,
 		updateAllRasterLayersOpacity,
 		selectedPathogens,
+		selectedAgeGroups,
+		selectedSyndromes,
 		clearFilterCache
 	} from './store';
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
@@ -58,13 +60,26 @@
 		// Parse URL parameters
 		const urlParams = parseUrlFilters();
 
-		// Get the current state of selectedPathogens
+		// Get the current state of filters
 		const $selectedPathogens = get(selectedPathogens);
+		const $selectedAgeGroups = get(selectedAgeGroups);
+		const $selectedSyndromes = get(selectedSyndromes);
+
+		// Log the current filter state
+		// console.log('Current filter state before preloading:', {
+		// 	pathogens: Array.from($selectedPathogens || []),
+		// 	ageGroups: Array.from($selectedAgeGroups || []),
+		// 	syndromes: Array.from($selectedSyndromes || [])
+		// });
 
 		// Clear filter cache before loading data to ensure fresh filtering
 		clearFilterCache();
 
-		console.log('Preloading data with default pathogen:', Array.from($selectedPathogens));
+		// console.log('Preloading data with filters:', {
+		// 	pathogens: Array.from($selectedPathogens || []),
+		// 	ageGroups: Array.from($selectedAgeGroups || []),
+		// 	syndromes: Array.from($selectedSyndromes || [])
+		// });
 
 		// Always force reload on initial load to ensure data is fresh
 		await loadPointsData(POINTS_DATA_URL, true);
@@ -72,9 +87,9 @@
 		// Log the loaded data size
 		const $pointsData = get(pointsData);
 		const $filteredPointsData = get(filteredPointsData);
-		console.log(
-			`Loaded ${$pointsData.features.length} total points, ${$filteredPointsData.features.length} filtered points`
-		);
+		// console.log(
+		// 	`Loaded ${$pointsData.features.length} total points, ${$filteredPointsData.features.length} filtered points`
+		// );
 
 		return urlParams;
 	}
@@ -87,7 +102,19 @@
 		// Force a single reload of the data to ensure filters are applied
 		// This is simpler and more reliable than multiple reloads
 		setTimeout(() => {
-			console.log('Map: Forcing data reload after map is ready');
+			// console.log('Map: Forcing data reload after map is ready');
+
+			// Get the current filter state
+			const $selectedPathogens = get(selectedPathogens);
+			const $selectedAgeGroups = get(selectedAgeGroups);
+			const $selectedSyndromes = get(selectedSyndromes);
+
+			// Log the current filter state
+			// console.log('Current filter state before reload:', {
+			// 	pathogens: Array.from($selectedPathogens || []),
+			// 	ageGroups: Array.from($selectedAgeGroups || []),
+			// 	syndromes: Array.from($selectedSyndromes || [])
+			// });
 
 			// Clear filter cache again to ensure fresh filtering
 			clearFilterCache();
@@ -97,9 +124,20 @@
 				// Log the loaded data size after reload
 				const $pointsData = get(pointsData);
 				const $filteredPointsData = get(filteredPointsData);
-				console.log(
-					`After map ready: ${$pointsData.features.length} total points, ${$filteredPointsData.features.length} filtered points`
-				);
+				// console.log(
+				// 	`After map ready: ${$pointsData.features.length} total points, ${$filteredPointsData.features.length} filtered points`
+				// );
+
+				// Log the filter state after reload
+				const currentPathogens = Array.from(get(selectedPathogens) || []);
+				const currentAgeGroups = Array.from(get(selectedAgeGroups) || []);
+				const currentSyndromes = Array.from(get(selectedSyndromes) || []);
+
+				// console.log('Filter state after reload:', {
+				// 	pathogens: currentPathogens,
+				// 	ageGroups: currentAgeGroups,
+				// 	syndromes: currentSyndromes
+				// });
 			});
 		}, 800); // Increased timeout for better reliability
 

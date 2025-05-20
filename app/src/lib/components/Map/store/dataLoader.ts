@@ -26,11 +26,11 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
 
   try {
     // Log the current state of filters before loading data
-    console.log('Loading data with filters:', {
-      pathogens: Array.from(get(selectedPathogens)),
-      ageGroups: Array.from(get(selectedAgeGroups)),
-      syndromes: Array.from(get(selectedSyndromes))
-    });
+    // console.log('Loading data with filters:', {
+    //   pathogens: Array.from(get(selectedPathogens)),
+    //   ageGroups: Array.from(get(selectedAgeGroups)),
+    //   syndromes: Array.from(get(selectedSyndromes))
+    // });
 
     // Use cached data if available and not forcing reload
     if (dataCache && !forceReload) {
@@ -40,7 +40,7 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       return;
     }
 
-    console.log('Fetching fresh data from:', url);
+    // console.log('Fetching fresh data from:', url);
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -105,11 +105,11 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
         }
       });
 
-      console.log('Extracted unique values from data:', {
-        pathogens: Array.from(pathogenSet),
-        ageGroups: Array.from(ageGroupSet),
-        syndromes: Array.from(syndromeSet)
-      });
+      // console.log('Extracted unique values from data:', {
+      //   pathogens: Array.from(pathogenSet),
+      //   ageGroups: Array.from(ageGroupSet),
+      //   syndromes: Array.from(syndromeSet)
+      // });
 
       // If we have no valid data, the CSV parsing is probably not working correctly
       if (pathogenSet.size === 0 && ageGroupSet.size === 0 && syndromeSet.size === 0) {
@@ -126,12 +126,12 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       const hasCampylobacter = Array.from(pathogenSet).some(p =>
         p.toLowerCase().includes('campylobacter') && p !== 'Campylobacter spp.');
 
-      console.log('Campylobacter check:', {
-        hasCampylobacter,
-        campylobacterVariants: Array.from(pathogenSet).filter(p => p.toLowerCase().includes('campylobacter'))
-      });
+      // console.log('Campylobacter check:', {
+      //   hasCampylobacter,
+      //   campylobacterVariants: Array.from(pathogenSet).filter(p => p.toLowerCase().includes('campylobacter'))
+      // });
 
-      console.log('Added Shigella spp. and Campylobacter spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
+      // console.log('Added Shigella spp. and Campylobacter spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
 
       // Don't add duplicate age groups, we'll handle this in the UI
       // console.log('Current age groups from data:', Array.from(ageGroupSet));
@@ -154,7 +154,7 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       // Preserve the current selected pathogen if it exists in the data
       const currentSelectedPathogens = get(selectedPathogens);
       if (currentSelectedPathogens.size > 0) {
-        console.log('Current selected pathogens:', Array.from(currentSelectedPathogens));
+        // console.log('Current selected pathogens:', Array.from(currentSelectedPathogens));
 
         // If Campylobacter spp. is selected but not in the data, try to find a match
         if (currentSelectedPathogens.has('Campylobacter spp.') && !hasCampylobacter) {
@@ -169,8 +169,8 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
         }
       }
 
-      console.log(`Data loaded with ${pathogenSet.size} pathogens, ${ageGroupSet.size} age groups, and ${syndromeSet.size} syndromes`);
-      console.log('All pathogens:', Array.from(pathogenSet));
+      // console.log(`Data loaded with ${pathogenSet.size} pathogens, ${ageGroupSet.size} age groups, and ${syndromeSet.size} syndromes`);
+      // console.log('All pathogens:', Array.from(pathogenSet));
     } else {
       dataError.set('No data found in CSV file');
     }

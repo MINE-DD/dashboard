@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { get } from 'svelte/store';
 	import maplibregl, { type Map } from 'maplibre-gl';
 	import {
 		pointsData,
@@ -282,14 +283,14 @@
 
 	// Add points when map is provided and data loads
 	$: if (map && $pointsData.features.length > 0 && !pointsAdded && map.loaded()) {
-		console.log('Map and data available - initial attempt to add points');
-		console.log('Points data features:', $pointsData.features.length);
-		console.log('Filtered points data features:', $filteredPointsData.features.length);
+		// console.log('Map and data available - initial attempt to add points');
+		// console.log('Points data features:', $pointsData.features.length);
+		// console.log('Filtered points data features:', $filteredPointsData.features.length);
 		addPointsToMap();
 
 		// Also add the style change handler
 		if (map) {
-			console.log('Setting up style change handler');
+			// console.log('Setting up style change handler');
 			map.on('styledata', handleStyleChange);
 		}
 	}
@@ -341,13 +342,33 @@
 			}
 
 			if (sourceExists) {
-				// console.log(
-				// 	'Updating map with filtered data, points:',
-				// 	$filteredPointsData.features.length
-				// );
+				console.log(
+					'Updating map with filtered data, points:',
+					$filteredPointsData.features.length,
+					'of',
+					$pointsData.features.length,
+					'total'
+				);
+
+				// Get the current filter state for debugging
+				const currentPathogens = Array.from(get(selectedPathogens));
+				const currentAgeGroups = Array.from(get(selectedAgeGroups));
+				const currentSyndromes = Array.from(get(selectedSyndromes));
+
+				console.log('Current filter state during map update:', {
+					pathogens: currentPathogens,
+					ageGroups: currentAgeGroups,
+					syndromes: currentSyndromes
+				});
+
+				// Update the map source with the filtered data
 				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
+
+				// Ensure points are on top
+				ensurePointsOnTop();
 			} else if ($pointsData.features.length > 0 && !pointsAdded) {
 				// If source doesn't exist yet but we have data, try to add points
+				console.log('Source does not exist yet, adding points to map');
 				addPointsToMap();
 			}
 		} catch (error) {

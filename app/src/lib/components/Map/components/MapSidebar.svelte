@@ -153,10 +153,19 @@
 	}
 
 	// Handle select change
-	function handleSelectChange(event: Event, category: 'pathogens' | 'ageGroups' | 'syndromes') {
+	async function handleSelectChange(
+		event: Event,
+		category: 'pathogens' | 'ageGroups' | 'syndromes'
+	) {
 		const select = event.target as HTMLSelectElement;
 		const selectedValue = select.value;
 
+		console.log(`Filter changed: ${category} = ${selectedValue}`);
+
+		// First clear the filter cache to ensure fresh filtering
+		clearFilterCache();
+
+		// Then update only the selected filter category, keeping other filters intact
 		if (category === 'pathogens') {
 			const newSet = new Set<string>();
 			if (selectedValue) newSet.add(selectedValue);
@@ -171,10 +180,20 @@
 			$selectedSyndromes = newSet;
 		}
 
-		clearFilterCache();
+		// Log the current state of filters
+		console.log('Current filters after change:', {
+			pathogens: Array.from($selectedPathogens),
+			ageGroups: Array.from($selectedAgeGroups),
+			syndromes: Array.from($selectedSyndromes)
+		});
 
 		// Force reload data when filters are changed
-		loadPointsData(POINTS_DATA_URL, true);
+		await loadPointsData(POINTS_DATA_URL, true);
+
+		// Log the filtered data after reload
+		console.log(
+			`After filter change: ${$filteredPointsData.features.length} points visible out of ${$pointsData.features.length} total`
+		);
 	}
 
 	// Initialize on mount
