@@ -63,7 +63,18 @@
 		return `
       <div class="popup-content">
         <h3 class="popup-title">
-          <span class="pathogen-name">${props.pathogen}</span>
+          <span class="pathogen-name">
+
+					${
+						props.syndrome
+							? `
+							${props.location}
+							`
+							: `${props.pathogen}`
+					}
+
+
+					</span>
           <!-- <span class="prevalence-badge" style="background-color: ${prevalenceColor}">
             ${prevalenceDisplay}
           </span> -->
