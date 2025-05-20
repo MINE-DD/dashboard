@@ -21,10 +21,16 @@
 	// Track layers currently on the map
 	let currentMapLayers = new Set<string>();
 
-	// Function to bring points to front after adding raster layers
+	// Function to bring points and country boundaries to front after adding raster layers
 	export function bringPointsToFront() {
-		if (map && map.getLayer('points-layer')) {
-			map.moveLayer('points-layer');
+		if (map) {
+			if (map.getLayer('points-layer')) {
+				map.moveLayer('points-layer');
+			}
+			// Also move the country boundaries layer to the top
+			if (map.getLayer('country-boundaries-layer')) {
+				map.moveLayer('country-boundaries-layer');
+			}
 		}
 	}
 
@@ -36,6 +42,20 @@
 	// Update opacity when raster layers change
 	$: if (map && isStyleLoaded) {
 		updateOpacity(map, isStyleLoaded, $rasterLayers);
+	}
+
+	// Toggle country boundaries layer visibility based on visible raster layers
+	$: if (map && isStyleLoaded && map.getLayer('country-boundaries-layer')) {
+		const visibleRasterLayerCount = Array.from($rasterLayers.values()).filter(
+			(layer) => layer.isVisible
+		).length;
+		const countryBoundariesVisibility = visibleRasterLayerCount > 0 ? 'visible' : 'none';
+		if (
+			map.getLayoutProperty('country-boundaries-layer', 'visibility') !==
+			countryBoundariesVisibility
+		) {
+			map.setLayoutProperty('country-boundaries-layer', 'visibility', countryBoundariesVisibility);
+		}
 	}
 
 	// Update URL when opacity changes

@@ -64,6 +64,35 @@
 	function handleMapReady(event: CustomEvent<{ map: MaplibreMap }>) {
 		map = event.detail.map;
 		isStyleLoaded = true;
+
+		// Add country boundaries GeoJSON source and layer
+		if (map && !map.getSource('country-boundaries')) {
+			map.addSource('country-boundaries', {
+				type: 'geojson',
+				data: '/ne_110m_admin_0_boundary_lines_land.geojson'
+			});
+
+			map.addLayer({
+				id: 'country-boundaries-layer',
+				type: 'line',
+				source: 'country-boundaries',
+				layout: {
+					visibility: 'none' // Initially hidden
+				},
+				paint: {
+					'line-color': '#80808050', // Blue color for boundaries
+					'line-width': 2
+				}
+			});
+
+			// Move the country boundaries layer to the top after other initial layers are likely added
+			// Using a timeout to allow other components (like MapLayer, RasterLayerManager) to add their layers
+			setTimeout(() => {
+				if (map && map.getLayer('country-boundaries-layer')) {
+					map.moveLayer('country-boundaries-layer');
+				}
+			}, 500); // Adjust timeout as needed
+		}
 	}
 
 	// Handle style change event
