@@ -29,6 +29,7 @@
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
 	import MapLegend from './components/MapLegend.svelte';
+	import VisualizationTypeSelector from './components/VisualizationTypeSelector.svelte';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
@@ -403,6 +404,13 @@
 	<!-- Map Sidebar with filters -->
 	<div class="absolute left-6 top-16 z-10">
 		<MapSidebar class="hidden sm:block" bind:globalOpacity on:opacitychange={handleOpacityChange} />
+	</div>
+
+	<!-- Visualization Type Selector -->
+	<div class="absolute right-6 top-20 z-10">
+		<div class="rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter">
+			<VisualizationTypeSelector />
+		</div>
 	</div>
 
 	<!-- Point Popover for details -->

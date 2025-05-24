@@ -16,6 +16,8 @@ export {
   isLoading,
   dataError,
   pathogenColors,
+  visualizationType,
+  type VisualizationType,
   // New Raster Layer Store and Helpers
   rasterLayers,
   addRasterLayerFromUrl,

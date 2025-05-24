@@ -3,6 +3,10 @@ import type { FeatureIndex, PointFeatureCollection, RasterLayer } from './types'
 import { toastStore } from '$lib/stores/toast.store';
 import { loadAndProcessGeoTIFF, validateBounds } from './geoTiffProcessor';
 
+// Visualization type for map points
+export type VisualizationType = 'dots' | 'pie-charts' | 'lite-dots';
+export const visualizationType = writable<VisualizationType>('pie-charts');
+
 // Indices for fast filtering
 export const pathogenIndex = writable<FeatureIndex>(new Map());
 export const ageGroupIndex = writable<FeatureIndex>(new Map());
