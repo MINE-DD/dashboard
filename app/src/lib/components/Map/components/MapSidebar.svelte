@@ -388,7 +388,7 @@
 						</svg>
 						Active Raster Layers ({$autoVisibleRasterLayers.size})
 					</h3>
-					<div class="mb-3 max-h-[150px] overflow-y-auto rounded-md bg-white/70 p-2">
+					<!-- <div class="mb-3 max-h-[150px] overflow-y-auto rounded-md bg-white/70 p-2">
 						{#each Array.from($autoVisibleRasterLayers) as layerId}
 							{#if $rasterLayers.has(layerId)}
 								{@const layer = $rasterLayers.get(layerId)}
@@ -404,7 +404,7 @@
 								{/if}
 							{/if}
 						{/each}
-					</div>
+					</div> -->
 
 					<!-- Global Opacity Control -->
 					<div class="form-control">

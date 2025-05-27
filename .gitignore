@@ -9,3 +9,5 @@ node_modules/
 
 .clinerules
 /data
+chat-backend/__pycache__/
+
