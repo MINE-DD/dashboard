@@ -1,11 +1,37 @@
 import { writable, get } from 'svelte/store';
+import { browser } from '$app/environment';
 import type { FeatureIndex, PointFeatureCollection, RasterLayer } from './types';
 import { toastStore } from '$lib/stores/toast.store';
 import { loadAndProcessGeoTIFF, validateBounds } from './geoTiffProcessor';
 
 // Visualization type for map points
-export type VisualizationType = 'dots' | 'pie-charts' | 'lite-dots';
-export const visualizationType = writable<VisualizationType>('pie-charts');
+export type VisualizationType = 'dots' | 'pie-charts';
+
+// Create a persistent visualization type store
+function createVisualizationTypeStore() {
+  const STORAGE_KEY = 'visualizationType';
+  const defaultType: VisualizationType = 'pie-charts';
+
+  // Load initial value from localStorage if available
+  const initialValue = browser ?
+    (localStorage.getItem(STORAGE_KEY) as VisualizationType) || defaultType :
+    defaultType;
+
+  const { subscribe, set, update } = writable<VisualizationType>(initialValue);
+
+  return {
+    subscribe,
+    set: (value: VisualizationType) => {
+      if (browser) {
+        localStorage.setItem(STORAGE_KEY, value);
+      }
+      set(value);
+    },
+    update
+  };
+}
+
+export const visualizationType = createVisualizationTypeStore();
 
 // Indices for fast filtering
 export const pathogenIndex = writable<FeatureIndex>(new Map());
