@@ -48,16 +48,52 @@ The application is built using the following technologies:
 
 ## Development Setup
 
-Having docker installed is required for the development setup.
+### Prerequisites
+
+- **Docker Desktop** must be installed and running on your system
+  - Download from [https://www.docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop)
+  - Ensure Docker is running before proceeding
+
+### Quick Start
+
 ```bash
 # Clone the repository
 git clone https://github.com/escience/mine-dd.git
 cd mine-dd/dashboard
 
-# Start the development server
+# Start all services (frontend + chat backend)
 docker compose up -d
 ```
-Visit [http://localhost:5173](http://localhost:5173) to view the application.
+
+**🚀 Open your browser and visit [http://localhost:4000](http://localhost:4000)**
+
+### Services Overview
+
+The development environment includes:
+
+- **Frontend Dashboard**: Available at [http://localhost:4000](http://localhost:4000)
+- **AI Chat Backend**: Available at [http://localhost:4040](http://localhost:4040)
+  - API documentation: [http://localhost:4040/docs](http://localhost:4040/docs)
+
+### Useful Commands
+
+```bash
+# View service logs
+docker compose logs -f
+
+# View logs for specific service
+docker compose logs -f frontend
+docker compose logs -f chat-backend
+
+# Stop all services
+docker compose down
+
+# Rebuild and restart services
+docker compose up -d --build
+
+# Stop and remove all containers, networks, and volumes
+docker compose down -v
+```
 
 ## Processing Raster Maps
 

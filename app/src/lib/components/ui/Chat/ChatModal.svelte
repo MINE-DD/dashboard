@@ -4,40 +4,76 @@
 	import MaterialSymbolsSend from '~icons/material-symbols/send';
 	import MaterialSymbolsSmartToy from '~icons/material-symbols/smart-toy';
 	import MaterialSymbolsPerson from '~icons/material-symbols/person';
+	import { browser } from '$app/environment';
 
 	const dispatch = createEventDispatcher();
 
+	// Chat API configuration
+	const CHAT_API_URL = browser ? 'http://localhost:4040' : 'http://chat-backend:4040';
+
+	// Generate a session ID for this chat instance
+	const sessionId = crypto.randomUUID();
+
 	let messageInput = $state('');
-	let messages = $state([
-		{
-			id: 1,
-			type: 'bot',
-			content: "Hello! I'm your AI assistant. How can I help you today?",
-			timestamp: new Date()
-		}
-	]);
+	let messages = $state([]);
 	let isTyping = $state(false);
 	let chatContainer: HTMLElement;
+	let isLoading = $state(true);
+
+	// Load initial messages when component mounts
+	$effect(() => {
+		if (browser) {
+			loadMessages();
+		}
+	});
 
 	function closeModal() {
 		dispatch('close');
 	}
 
-	function sendMessage() {
+	async function loadMessages() {
+		try {
+			const response = await fetch(`${CHAT_API_URL}/chat/${sessionId}/messages`);
+			if (response.ok) {
+				const apiMessages = await response.json();
+				messages = apiMessages.map((msg: any) => ({
+					id: msg.id,
+					type: msg.type,
+					content: msg.content,
+					timestamp: new Date(msg.timestamp)
+				}));
+			}
+		} catch (error) {
+			console.error('Failed to load messages:', error);
+			// Fallback to default message if API is not available
+			messages = [
+				{
+					id: 'fallback-1',
+					type: 'bot',
+					content: "Hello! I'm your AI assistant. How can I help you today?",
+					timestamp: new Date()
+				}
+			];
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function sendMessage() {
 		if (!messageInput.trim()) return;
 
-		// Add user message
+		const userMessageContent = messageInput.trim();
+		messageInput = '';
+
+		// Add user message immediately to UI
 		const userMessage = {
-			id: Date.now(),
+			id: `user-${Date.now()}`,
 			type: 'user',
-			content: messageInput.trim(),
+			content: userMessageContent,
 			timestamp: new Date()
 		};
 
 		messages = [...messages, userMessage];
-		messageInput = '';
-
-		// Simulate typing indicator
 		isTyping = true;
 
 		// Scroll to bottom
@@ -47,26 +83,52 @@
 			}
 		}, 10);
 
-		// Simulate bot response (replace with actual API call later)
-		setTimeout(() => {
-			const botMessage = {
-				id: Date.now() + 1,
+		try {
+			// Send message to API
+			const response = await fetch(`${CHAT_API_URL}/chat/${sessionId}/message`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					content: userMessageContent,
+					timestamp: new Date().toISOString()
+				})
+			});
+
+			if (response.ok) {
+				const botResponse = await response.json();
+				const botMessage = {
+					id: botResponse.id,
+					type: botResponse.type,
+					content: botResponse.content,
+					timestamp: new Date(botResponse.timestamp)
+				};
+
+				messages = [...messages, botMessage];
+			} else {
+				throw new Error('Failed to send message');
+			}
+		} catch (error) {
+			console.error('Failed to send message:', error);
+			// Fallback response if API fails
+			const fallbackMessage = {
+				id: `fallback-${Date.now()}`,
 				type: 'bot',
 				content:
-					"Thanks for your message! This is a placeholder response. In the future, I'll be able to help you with questions about the data and analysis.",
+					"I'm sorry, I'm having trouble connecting to the server right now. Please try again later.",
 				timestamp: new Date()
 			};
-
-			messages = [...messages, botMessage];
+			messages = [...messages, fallbackMessage];
+		} finally {
 			isTyping = false;
-
 			// Scroll to bottom again
 			setTimeout(() => {
 				if (chatContainer) {
 					chatContainer.scrollTop = chatContainer.scrollHeight;
 				}
 			}, 10);
-		}, 1500);
+		}
 	}
 
 	function handleKeyPress(event: KeyboardEvent) {
