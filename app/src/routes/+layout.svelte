@@ -6,6 +6,7 @@
 	import SideMenu from '$components/ui/SideMenu.svelte';
 	import GlobalToast from '$components/ui/GlobalToast.svelte';
 	import PasswordModal from '$components/ui/PasswordModal.svelte';
+	import ChatButton from '$components/ui/Chat/ChatButton.svelte';
 	import { isAuthenticated } from '$lib/stores/auth.store';
 	import { browser } from '$app/environment';
 	// import { env } from '$env/dynamic/public';
@@ -15,7 +16,7 @@
 
 	let { children }: Props = $props();
 	// import FooterMain from '$components/ui/footerMain.svelte';
-	
+
 	function handleAuthenticated() {
 		isAuthenticated.set(true);
 	}
@@ -33,7 +34,7 @@
 >
 	{#if browser && !$isAuthenticated}
 		<PasswordModal on:authenticated={handleAuthenticated} />
-		<div class="filter blur-md">
+		<div class="blur-md filter">
 			<Header />
 			<SideMenu />
 			{#if children}{@render children()}{:else}
@@ -46,6 +47,7 @@
 		{#if children}{@render children()}{:else}
 			<!-- Content here -->
 		{/if}
+		<ChatButton />
 	{/if}
 	<!-- <FooterMain /> -->
 	<!-- {#if env.PUBLIC_LOCALHOST}
