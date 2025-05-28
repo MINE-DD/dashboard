@@ -15,7 +15,7 @@
 
 	// Local popup instance
 	let popup: maplibregl.Popup | null = null;
-	let overlayElement: HTMLElement | null = null;
+	let overlayElement: any = null; // Store the click handler function
 
 	// Create or update popup when data changes
 	$: if (map && coordinates && properties && visible) {
@@ -56,26 +56,32 @@
 	function createOverlay() {
 		if (!map) return;
 
-		// Create a transparent overlay that covers the entire map
-		overlayElement = document.createElement('div');
-		overlayElement.style.position = 'absolute';
-		overlayElement.style.top = '0';
-		overlayElement.style.left = '0';
-		overlayElement.style.width = '100%';
-		overlayElement.style.height = '100%';
-		overlayElement.style.backgroundColor = 'transparent';
-		overlayElement.style.zIndex = '999'; // Below popup but above map
-		overlayElement.style.cursor = 'default';
+		// Add document-level click listener to detect clicks outside popup
+		const handleDocumentClick = (e: MouseEvent) => {
+			// Check if the click target is inside the popup content
+			const popupContent = document.querySelector('.maplibregl-popup-content');
+			const popupContainer = document.querySelector('.maplibregl-popup');
 
-		// Add click handler to close popup
-		overlayElement.addEventListener('click', (e) => {
-			e.stopPropagation();
+			if (
+				popupContent &&
+				(popupContent.contains(e.target as Node) ||
+					(popupContainer && popupContainer.contains(e.target as Node)))
+			) {
+				// Click is inside popup, don't close it
+				return;
+			}
+
+			// Click is outside popup, close it
 			closePopup();
-		});
+		};
 
-		// Add overlay to map container
-		const mapContainer = map.getContainer();
-		mapContainer.appendChild(overlayElement);
+		// Add the click listener to document with a slight delay to avoid immediate closure
+		setTimeout(() => {
+			document.addEventListener('click', handleDocumentClick);
+		}, 100);
+
+		// Store the handler function so we can remove it later
+		overlayElement = { handleDocumentClick } as any;
 	}
 
 	function closePopup() {
@@ -89,8 +95,8 @@
 			popup.remove();
 			popup = null;
 		}
-		if (overlayElement) {
-			overlayElement.remove();
+		if (overlayElement && (overlayElement as any).handleDocumentClick) {
+			document.removeEventListener('click', (overlayElement as any).handleDocumentClick);
 			overlayElement = null;
 		}
 	}
