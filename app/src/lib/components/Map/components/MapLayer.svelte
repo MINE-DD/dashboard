@@ -20,6 +20,7 @@
 		cleanupPieChartImages,
 		generatePieChartSymbols,
 		generatePieChartIconExpression,
+		getAggregatedPointsData,
 		getDesignColors,
 		getDefaultColor
 	} from '../utils/pieChartUtils';
@@ -220,11 +221,17 @@
 				sourceExists = false;
 			}
 
+			// Get aggregated data for pie charts or use filtered data for dots
+			const dataToUse =
+				$visualizationType === 'pie-charts'
+					? getAggregatedPointsData($filteredPointsData)
+					: $filteredPointsData;
+
 			// Create the GeoJSON source with our data if it doesn't exist
 			if (!sourceExists) {
 				map.addSource('points-source', {
 					type: 'geojson',
-					data: $filteredPointsData
+					data: dataToUse
 				});
 
 				// Check visualization type and add appropriate layer
@@ -266,7 +273,7 @@
 				ensurePointsOnTop();
 			} else {
 				// Update the source data if it already exists
-				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
+				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(dataToUse);
 			}
 
 			// Mark that we've successfully added or updated points
@@ -355,7 +362,11 @@
 		try {
 			const layer = map.getLayer('points-layer');
 			if (layer && layer.type === 'circle') {
-				map.setPaintProperty('points-layer', 'circle-color', generateDesignColorExpression() as any);
+				map.setPaintProperty(
+					'points-layer',
+					'circle-color',
+					generateDesignColorExpression() as any
+				);
 			}
 		} catch (error) {
 			console.error('Error updating circle colors:', error);
@@ -448,8 +459,14 @@
 					syndromes: currentSyndromes
 				});
 
-				// Update the map source with the filtered data
-				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
+				// Get aggregated data for pie charts or use filtered data for dots
+				const dataToUse =
+					$visualizationType === 'pie-charts'
+						? getAggregatedPointsData($filteredPointsData)
+						: $filteredPointsData;
+
+				// Update the map source with the appropriate data
+				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(dataToUse);
 
 				// Ensure points are on top
 				ensurePointsOnTop();
