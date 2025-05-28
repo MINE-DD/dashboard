@@ -15,28 +15,28 @@
 
 	// Local popup instance
 	let popup: maplibregl.Popup | null = null;
-	let popupElement: HTMLElement;
+	let overlayElement: HTMLElement | null = null;
 
 	// Create or update popup when data changes
 	$: if (map && coordinates && properties && visible) {
 		showPopup();
 	} else if (popup) {
-		popup.remove();
-		popup = null;
+		cleanup();
 	}
 
 	function showPopup() {
 		// Remove existing popup if any
-		if (popup) {
-			popup.remove();
-		}
+		cleanup();
 
 		if (!map || !coordinates || !properties) return;
+
+		// Create overlay element
+		createOverlay();
 
 		// Create new popup with enhanced styling
 		popup = new maplibregl.Popup({
 			closeButton: true,
-			closeOnClick: true,
+			closeOnClick: false, // We'll handle clicks with our overlay
 			maxWidth: '360px',
 			className: 'study-point-popup',
 			offset: 12
@@ -45,11 +45,54 @@
 			.setHTML(createPopupContent(properties))
 			.addTo(map);
 
-		// Handle popup close event
+		// Handle popup close event (only when closed by close button)
 		popup.on('close', () => {
+			cleanup();
 			visible = false;
 			dispatch('close');
 		});
+	}
+
+	function createOverlay() {
+		if (!map) return;
+
+		// Create a transparent overlay that covers the entire map
+		overlayElement = document.createElement('div');
+		overlayElement.style.position = 'absolute';
+		overlayElement.style.top = '0';
+		overlayElement.style.left = '0';
+		overlayElement.style.width = '100%';
+		overlayElement.style.height = '100%';
+		overlayElement.style.backgroundColor = 'transparent';
+		overlayElement.style.zIndex = '999'; // Below popup but above map
+		overlayElement.style.cursor = 'default';
+
+		// Add click handler to close popup
+		overlayElement.addEventListener('click', (e) => {
+			e.stopPropagation();
+			closePopup();
+		});
+
+		// Add overlay to map container
+		const mapContainer = map.getContainer();
+		mapContainer.appendChild(overlayElement);
+	}
+
+	function closePopup() {
+		cleanup();
+		visible = false;
+		dispatch('close');
+	}
+
+	function cleanup() {
+		if (popup) {
+			popup.remove();
+			popup = null;
+		}
+		if (overlayElement) {
+			overlayElement.remove();
+			overlayElement = null;
+		}
 	}
 
 	function createPopupContent(props: PointProperties): string {

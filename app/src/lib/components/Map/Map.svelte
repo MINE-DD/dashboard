@@ -420,7 +420,9 @@
 			coordinates={popoverCoordinates}
 			properties={popoverProperties}
 			visible={showPopover}
-			on:close={() => (showPopover = false)}
+			on:close={() => {
+				showPopover = false;
+			}}
 		/>
 	{/if}
 
