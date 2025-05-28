@@ -56,6 +56,7 @@ export const pointsData = writable<PointFeatureCollection>({
 
 // Loading and error states
 export const isLoading = writable<boolean>(false);
+export const loadingMessage = writable<string>('Loading...');
 export const dataError = writable<string | null>(null);
 // Color mapping for pathogens
 export const pathogenColors = writable<Map<string, string>>(new Map());

@@ -201,55 +201,75 @@ export function cleanupPieChartImages(map: MaplibreMap): void {
  */
 export async function generatePieChartSymbols(
   map: MaplibreMap,
-  filteredPointsData: FeatureCollection<Point>
+  filteredPointsData: FeatureCollection<Point>,
+  setLoading?: (loading: boolean) => void,
+  setLoadingMessage?: (message: string) => void
 ): Promise<void> {
   if (!map) return;
 
-  // Clean up existing pie chart images
-  cleanupPieChartImages(map);
+  // Set loading state and message when pie chart generation starts
+  if (setLoading) {
+    setLoading(true);
+  }
+  if (setLoadingMessage) {
+    setLoadingMessage('Generating pie charts...');
+  }
 
-  // Aggregate points by location to avoid overlapping pie charts
-  const aggregatedData = aggregatePointsByLocation(filteredPointsData);
+  try {
+    // Clean up existing pie chart images
+    cleanupPieChartImages(map);
 
-  // Generate pie chart images for each unique combination of prevalence, samples, and design
-  const uniqueCombinations = new Map<
-    string,
-    { prevalenceValue: number; samples: number; design: string }
-  >();
+    // Aggregate points by location to avoid overlapping pie charts
+    const aggregatedData = aggregatePointsByLocation(filteredPointsData);
 
-  aggregatedData.features.forEach((feature) => {
-    const { prevalenceValue, samples, design } = feature.properties!;
-    const key = `${prevalenceValue}-${samples}-${design}`;
-    if (!uniqueCombinations.has(key)) {
-      uniqueCombinations.set(key, { prevalenceValue, samples, design });
-    }
-  });
+    // Generate pie chart images for each unique combination of prevalence, samples, and design
+    const uniqueCombinations = new Map<
+      string,
+      { prevalenceValue: number; samples: number; design: string }
+    >();
 
-  // Add pie chart images to map
-  const imagePromises: Promise<void>[] = [];
-  uniqueCombinations.forEach(({ prevalenceValue, samples, design }, key) => {
-    const imageUrl = createPieChartImage(prevalenceValue, samples, design);
-    const imageId = `pie-chart-${key}`;
-
-    const promise = new Promise<void>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        try {
-          map.addImage(imageId, img);
-          resolve();
-        } catch (error) {
-          console.error('Error adding pie chart image to map:', error);
-          reject(error);
-        }
-      };
-      img.onerror = reject;
-      img.src = imageUrl;
+    aggregatedData.features.forEach((feature) => {
+      const { prevalenceValue, samples, design } = feature.properties!;
+      const key = `${prevalenceValue}-${samples}-${design}`;
+      if (!uniqueCombinations.has(key)) {
+        uniqueCombinations.set(key, { prevalenceValue, samples, design });
+      }
     });
 
-    imagePromises.push(promise);
-  });
+    // Add pie chart images to map
+    const imagePromises: Promise<void>[] = [];
+    uniqueCombinations.forEach(({ prevalenceValue, samples, design }, key) => {
+      const imageUrl = createPieChartImage(prevalenceValue, samples, design);
+      const imageId = `pie-chart-${key}`;
 
-  await Promise.all(imagePromises);
+      const promise = new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            map.addImage(imageId, img);
+            resolve();
+          } catch (error) {
+            console.error('Error adding pie chart image to map:', error);
+            reject(error);
+          }
+        };
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+
+      imagePromises.push(promise);
+    });
+
+    await Promise.all(imagePromises);
+  } finally {
+    // Clear loading state when pie chart generation completes (success or failure)
+    if (setLoading) {
+      setLoading(false);
+    }
+    if (setLoadingMessage) {
+      setLoadingMessage('Loading...');
+    }
+  }
 }
 
 /**

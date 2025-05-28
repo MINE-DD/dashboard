@@ -8,6 +8,7 @@
 	import {
 		loadPointsData,
 		isLoading,
+		loadingMessage,
 		dataError,
 		pointsData,
 		filteredPointsData,
@@ -408,7 +409,9 @@
 
 	<!-- Visualization Type Selector -->
 	<div class="absolute right-6 top-20 z-10">
-		<div class="rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter">
+		<div
+			class="rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter"
+		>
 			<VisualizationTypeSelector />
 		</div>
 	</div>
@@ -435,9 +438,8 @@
 
 	<!-- Loading indicator -->
 	{#if $isLoading}
-		<div class="loading-indicator">
-			<div class="loading-spinner"></div>
-			<div class="loading-text">Loading...</div>
+		<div class="alert fixed bottom-6 left-4 z-[1000] w-auto shadow-lg">
+			<span class="text-sm font-medium">{$loadingMessage || 'Loading...'}</span>
 		</div>
 	{/if}
 
@@ -456,36 +458,6 @@
 </div>
 
 <style>
-	/* Loading indicator */
-	.loading-indicator {
-		position: absolute;
-		top: 16px;
-		right: 16px;
-		display: flex;
-		align-items: center;
-		background-color: rgba(255, 255, 255, 0.9);
-		border-radius: 8px;
-		padding: 8px 16px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-		z-index: 1000;
-	}
-
-	.loading-spinner {
-		width: 20px;
-		height: 20px;
-		border: 2px solid #f3f3f3;
-		border-top: 2px solid hsl(var(--p));
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-right: 8px;
-	}
-
-	.loading-text {
-		font-size: 14px;
-		color: #333;
-		font-weight: 500;
-	}
-
 	/* Error display */
 	.error-overlay {
 		position: absolute;
@@ -528,14 +500,5 @@
 
 	.retry-button:hover {
 		background-color: hsl(var(--p) / 0.8); /* Slightly darker on hover */
-	}
-
-	@keyframes spin {
-		0% {
-			transform: rotate(0deg);
-		}
-		100% {
-			transform: rotate(360deg);
-		}
 	}
 </style>

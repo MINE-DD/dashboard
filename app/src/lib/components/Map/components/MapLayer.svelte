@@ -12,6 +12,7 @@
 		getMaplibreFilterExpression,
 		clearFilterCache,
 		isLoading,
+		loadingMessage,
 		dataError,
 		visualizationType
 	} from '../store';
@@ -237,7 +238,10 @@
 				// Check visualization type and add appropriate layer
 				if ($visualizationType === 'pie-charts') {
 					// Generate pie chart symbols first
-					await generatePieChartSymbols(map, $filteredPointsData);
+					await generatePieChartSymbols(map, $filteredPointsData, (loading) => {
+						isLoading.set(loading);
+						loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
+					});
 
 					// Add symbol layer for pie charts
 					map.addLayer({
@@ -315,7 +319,10 @@
 			// Add new layer based on visualization type
 			if ($visualizationType === 'pie-charts') {
 				// Generate pie chart symbols first
-				await generatePieChartSymbols(map, $filteredPointsData);
+				await generatePieChartSymbols(map, $filteredPointsData, (loading) => {
+					isLoading.set(loading);
+					loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
+				});
 
 				// Add symbol layer for pie charts
 				map.addLayer({
