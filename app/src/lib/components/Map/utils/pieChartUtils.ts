@@ -5,7 +5,7 @@ import type { FeatureCollection, Feature, Point } from 'geojson';
 const DESIGN_COLORS: { [key: string]: string } = {
   'Surveillance': '#FFE5B4',         // Pastel Orange
   'Intervention Trial': '#B7EFC5',   // Pastel Green
-  'Case control': '#FFB3C6',         // Pastel Red
+  'Case-Control': '#FFB3C6',         // Pastel Red
   'Cohort': '#9197FF'                // Pastel Blue
 };
 
