@@ -1,7 +1,6 @@
 <script lang="ts">
 	// Props
 	export let visible = true;
-	export let position = 'bottom-left';
 
 	// Define the color mappings for the legend
 	// const positiveNegativeColors = [
@@ -15,19 +14,11 @@
 		{ label: 'Case control', color: '#FFB3C6' }, // Pastel Red (matches map dot)
 		{ label: 'Cohort', color: '#9197FF' } // Pastel Blue (matches map dot)
 	];
-
-	// Generate position classes based on the position prop
-	$: positionClasses = {
-		'bottom-left': 'bottom-10 left-3',
-		'bottom-right': 'bottom-10 right-3',
-		'top-left': 'top-10 left-3',
-		'top-right': 'top-10 right-3'
-	}[position] || 'bottom-10 left-3';
 </script>
 
 {#if visible}
 	<div
-		class={`z-1 absolute ${positionClasses} rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter`}
+		class={`z-1 absolute bottom-10 left-3 rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter`}
 	>
 		<!-- Positive/Negative section -->
 		<!-- <div class="mb-3">

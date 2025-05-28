@@ -46,6 +46,9 @@
 	// Track if we've already added points to avoid duplicates
 	let pointsAdded = false;
 
+	// Track if we're currently switching visualization types to prevent double generation
+	let switchingVisualizationType = false;
+
 	// Define event handlers
 	function handlePointClick(e: any) {
 		if (e.features && e.features.length > 0) {
@@ -307,6 +310,9 @@
 	async function switchVisualizationType() {
 		if (!map || !pointsAdded) return;
 
+		// Set flag to prevent updateMapWithFilteredData from interfering
+		switchingVisualizationType = true;
+
 		try {
 			// Remove existing layer
 			if (map.getLayer('points-layer')) {
@@ -361,6 +367,9 @@
 			ensurePointsOnTop();
 		} catch (error) {
 			console.error('Error switching visualization type:', error);
+		} finally {
+			// Clear the flag after switching is complete
+			switchingVisualizationType = false;
 		}
 	}
 
@@ -437,6 +446,14 @@
 
 	// Update the map source when filtered data changes
 	$: if (map && map.loaded()) {
+		updateMapWithFilteredData();
+	}
+
+	// Function to update map with filtered data
+	async function updateMapWithFilteredData() {
+		// Don't update if we're currently switching visualization types
+		if (switchingVisualizationType) return;
+
 		try {
 			// First check if source exists
 			let sourceExists = false;
@@ -466,14 +483,35 @@
 					syndromes: currentSyndromes
 				});
 
-				// Get aggregated data for pie charts or use filtered data for dots
-				const dataToUse =
-					$visualizationType === 'pie-charts'
-						? getAggregatedPointsData($filteredPointsData)
-						: $filteredPointsData;
+				// For pie charts, we need to regenerate the symbols when data changes
+				if ($visualizationType === 'pie-charts') {
+					// Clean up existing pie chart images first
+					cleanupPieChartImages(map);
 
-				// Update the map source with the appropriate data
-				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(dataToUse);
+					// Get aggregated data for pie charts
+					const dataToUse = getAggregatedPointsData($filteredPointsData);
+
+					// Update the map source with the aggregated data
+					(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(dataToUse);
+
+					// Regenerate pie chart symbols for the new filtered data
+					await generatePieChartSymbols(map, $filteredPointsData, (loading) => {
+						isLoading.set(loading);
+						loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
+					});
+
+					// Update the layer's icon expression if it exists
+					if (map.getLayer('points-layer')) {
+						map.setLayoutProperty(
+							'points-layer',
+							'icon-image',
+							generatePieChartIconExpression($filteredPointsData) as any
+						);
+					}
+				} else {
+					// For dots, just update the source data
+					(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
+				}
 
 				// Ensure points are on top
 				ensurePointsOnTop();
