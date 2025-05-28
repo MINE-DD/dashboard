@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import { get } from 'svelte/store';
-	import maplibregl, { type Map } from 'maplibre-gl';
+	import maplibregl, { type Map as MaplibreMap } from 'maplibre-gl';
 	import {
 		pointsData,
 		filteredPointsData,
@@ -12,11 +12,20 @@
 		getMaplibreFilterExpression,
 		clearFilterCache,
 		isLoading,
-		dataError
+		dataError,
+		visualizationType
 	} from '../store';
+	import {
+		createPieChartImage,
+		cleanupPieChartImages,
+		generatePieChartSymbols,
+		generatePieChartIconExpression,
+		getDesignColors,
+		getDefaultColor
+	} from '../utils/pieChartUtils';
 
 	// Props
-	export let map: Map | null = null;
+	export let map: MaplibreMap | null = null;
 	export let layerId = 'study-points';
 	export let sourceId = 'points-source';
 	export let clusterPointsAtZoomLevels = false; // Enable/disable clustering
@@ -160,23 +169,16 @@
 	function generateDesignColorExpression() {
 		// Create a MapLibre match expression for the design types
 		const matchExpression: any[] = ['match', ['get', 'design']];
+		const designColors = getDesignColors();
 
 		// Add design type colors
-		matchExpression.push('Surveillance');
-		matchExpression.push('#FFE5B4'); // Pastel Orange
+		Object.entries(designColors).forEach(([design, color]) => {
+			matchExpression.push(design);
+			matchExpression.push(color);
+		});
 
-		matchExpression.push('Intervention Trial');
-		matchExpression.push('#B7EFC5'); // Pastel Green
-
-		matchExpression.push('Case control');
-		matchExpression.push('#FFB3C6'); // Pastel Red
-
-		matchExpression.push('Cohort');
-		matchExpression.push('#9197FF'); // Pastel Blue
-
-		// Add colors for positive/negative (if applicable)
-		// These might be in a different property, adjust as needed
-		matchExpression.push('#808080'); // Default color (dark gray)
+		// Default color
+		matchExpression.push(getDefaultColor());
 
 		return matchExpression;
 	}
@@ -200,7 +202,7 @@
 	}
 
 	// Add points when component mounts or when map becomes available
-	function addPointsToMap() {
+	async function addPointsToMap() {
 		// Only add points if map exists, is loaded, and we have data
 		if (!map || !map.loaded() || !$pointsData.features.length) return;
 
@@ -225,21 +227,39 @@
 					data: $filteredPointsData
 				});
 
-				// Add a circle layer for the points with colors based on pathogen type
-				// Ensure it's added on top of all other layers by using a high z-index
-				map.addLayer({
-					id: 'points-layer',
-					type: 'circle',
-					source: 'points-source',
-					paint: {
-						'circle-radius': 10, // Keeping the bigger dots (10px radius)
-						// Use a match expression to color by design type
-						'circle-color': generateDesignColorExpression() as any,
-						'circle-opacity': 0.8,
-						'circle-stroke-width': 1,
-						'circle-stroke-color': '#ffffff'
-					}
-				});
+				// Check visualization type and add appropriate layer
+				if ($visualizationType === 'pie-charts') {
+					// Generate pie chart symbols first
+					await generatePieChartSymbols(map, $filteredPointsData);
+
+					// Add symbol layer for pie charts
+					map.addLayer({
+						id: 'points-layer',
+						type: 'symbol',
+						source: 'points-source',
+						layout: {
+							'icon-image': generatePieChartIconExpression($filteredPointsData) as any,
+							'icon-size': 1,
+							'icon-allow-overlap': true,
+							'icon-ignore-placement': true
+						}
+					});
+				} else {
+					// Add circle layer for dots (default)
+					map.addLayer({
+						id: 'points-layer',
+						type: 'circle',
+						source: 'points-source',
+						paint: {
+							'circle-radius': 10, // Keeping the bigger dots (10px radius)
+							// Use a match expression to color by design type
+							'circle-color': generateDesignColorExpression() as any,
+							'circle-opacity': 0.8,
+							'circle-stroke-width': 1,
+							'circle-stroke-color': '#ffffff'
+						}
+					});
+				}
 
 				// Move the points layer to the top of all layers
 				// This ensures it's always on top of raster layers
@@ -272,13 +292,80 @@
 		}
 	}
 
-	// Reactively update the circle colors when needed
-	$: if (map && map.getLayer('points-layer') && pointsAdded) {
+	// Function to switch visualization types
+	async function switchVisualizationType() {
+		if (!map || !pointsAdded) return;
+
 		try {
-			map.setPaintProperty('points-layer', 'circle-color', generateDesignColorExpression() as any);
+			// Remove existing layer
+			if (map.getLayer('points-layer')) {
+				map.removeLayer('points-layer');
+			}
+
+			// Remove pie chart images if they exist
+			cleanupPieChartImages(map);
+
+			// Add new layer based on visualization type
+			if ($visualizationType === 'pie-charts') {
+				// Generate pie chart symbols first
+				await generatePieChartSymbols(map, $filteredPointsData);
+
+				// Add symbol layer for pie charts
+				map.addLayer({
+					id: 'points-layer',
+					type: 'symbol',
+					source: 'points-source',
+					layout: {
+						'icon-image': generatePieChartIconExpression($filteredPointsData) as any,
+						'icon-size': 1,
+						'icon-allow-overlap': true,
+						'icon-ignore-placement': true
+					}
+				});
+			} else {
+				// Add circle layer for dots
+				map.addLayer({
+					id: 'points-layer',
+					type: 'circle',
+					source: 'points-source',
+					paint: {
+						'circle-radius': 10,
+						'circle-color': generateDesignColorExpression() as any,
+						'circle-opacity': 0.8,
+						'circle-stroke-width': 1,
+						'circle-stroke-color': '#ffffff'
+					}
+				});
+			}
+
+			// Re-setup event handlers
+			map.on('click', 'points-layer', handlePointClick);
+			map.on('mouseenter', 'points-layer', handleMouseEnter);
+			map.on('mouseleave', 'points-layer', handleMouseLeave);
+
+			// Ensure points are on top
+			ensurePointsOnTop();
+		} catch (error) {
+			console.error('Error switching visualization type:', error);
+		}
+	}
+
+	// Reactively update the circle colors when needed (only for circle layers)
+	$: if (map && map.getLayer('points-layer') && pointsAdded && $visualizationType === 'dots') {
+		try {
+			const layer = map.getLayer('points-layer');
+			if (layer && layer.type === 'circle') {
+				map.setPaintProperty('points-layer', 'circle-color', generateDesignColorExpression() as any);
+			}
 		} catch (error) {
 			console.error('Error updating circle colors:', error);
 		}
+	}
+
+	// Reactively switch visualization type when the store changes
+	$: if (map && pointsAdded && $visualizationType) {
+		console.log('Visualization type changed to:', $visualizationType);
+		switchVisualizationType();
 	}
 
 	// Add points when map is provided and data loads
