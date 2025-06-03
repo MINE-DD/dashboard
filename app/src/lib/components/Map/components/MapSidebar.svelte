@@ -80,18 +80,7 @@
 	const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
 	// Visualization type options
-	const visualizationOptions = [
-		{
-			value: 'dots' as VisualizationType,
-			label: 'Standard Dots',
-			description: 'Standard colored circles'
-		},
-		{
-			value: 'pie-charts' as VisualizationType,
-			label: 'Pie Charts',
-			description: 'Pie charts showing prevalence data'
-		}
-	];
+	import { visualizationOptions } from '../store/visualizationOptions';
 
 	function handleVisualizationTypeChange(event: Event) {
 		const target = event.target as HTMLSelectElement;

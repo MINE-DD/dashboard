@@ -1,20 +1,6 @@
 <script lang="ts">
 	import { visualizationType, type VisualizationType } from '../store';
-
-	// No need for selectedType prop since we're using the store directly
-
-	const visualizationOptions = [
-		{
-			value: 'dots' as VisualizationType,
-			label: 'Standard Dots',
-			description: 'Standard colored circles'
-		},
-		{
-			value: 'pie-charts' as VisualizationType,
-			label: 'Pie Charts',
-			description: 'Pie charts showing prevalence data'
-		}
-	];
+	import { visualizationOptions } from '../store/visualizationOptions';
 
 	function handleChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
