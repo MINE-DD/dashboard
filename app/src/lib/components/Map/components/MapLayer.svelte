@@ -62,11 +62,19 @@
 			return;
 		}
 
-		// Update the visualization based on the new type
-		if (newType === 'dots') {
-			await switchToDots();
-		} else if (newType === 'pie-charts') {
-			await switchToPieCharts();
+		// Set switching flag to prevent interference
+		switchingVisualizationType = true;
+
+		try {
+			// Update the visualization based on the new type
+			if (newType === 'dots') {
+				await switchToDots();
+			} else if (newType === 'pie-charts') {
+				await switchToPieCharts();
+			}
+		} finally {
+			// Always reset the switching flag
+			switchingVisualizationType = false;
 		}
 	}
 
@@ -85,32 +93,35 @@
 			// Remove existing pie chart layers if they exist
 			removePieChartLayers(map);
 
+			// Remove pie chart event handlers
+			removePieChartEventHandlers();
+
 			// Clean up pie chart images
 			cleanupPieChartImages(map);
 
-			// Add circle layer for dots
+			// Add circle layer for dots (use same properties as addPointsToMap for consistency)
 			map.addLayer({
 				id: 'points-layer',
 				type: 'circle',
 				source: 'points-source',
 				paint: {
-					'circle-radius': 5,
+					'circle-radius': 10, // Use same radius as addPointsToMap
 					'circle-color': generateDesignColorExpression() as any,
-					'circle-opacity': 0.9,
+					'circle-opacity': 0.8, // Use same opacity as addPointsToMap
 					'circle-stroke-width': 1,
-					'circle-stroke-color': '##ccc'
+					'circle-stroke-color': '#ffffff' // Use same stroke color as addPointsToMap
 				}
 			});
 
-			// Re-setup event handlers
-			map.on('click', 'points-layer', handlePointClick);
-			map.on('mouseenter', 'points-layer', handleMouseEnter);
-			map.on('mouseleave', 'points-layer', handleMouseLeave);
-
-			// Update the data source
+			// Update the data source to use filtered data (not pie chart data)
 			if (map.getSource('points-source')) {
 				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
 			}
+
+			// Re-setup event handlers for dots
+			map.on('click', 'points-layer', handlePointClick);
+			map.on('mouseenter', 'points-layer', handleMouseEnter);
+			map.on('mouseleave', 'points-layer', handleMouseLeave);
 
 			// Ensure points are on top
 			ensurePointsOnTop();
