@@ -41,6 +41,151 @@
 		ensurePointsOnTop();
 	}
 
+	// Manual visualization switching function
+	export async function switchVisualizationType(newType: string) {
+		console.log(`Switching visualization to: ${newType}`);
+
+		if (!map || !map.loaded()) {
+			console.warn('Map not ready for visualization switch');
+			return;
+		}
+
+		// Check if source exists
+		const sourceExists = !!map.getSource('points-source');
+		console.log('Points source exists:', sourceExists);
+
+		if (!sourceExists) {
+			console.warn('Points source does not exist, cannot switch visualization');
+			return;
+		}
+
+		// Update the visualization based on the new type
+		if (newType === 'dots') {
+			await switchToDots();
+		} else if (newType === 'pie-charts') {
+			await switchToPieCharts();
+		}
+	}
+
+	// Switch to dots visualization
+	async function switchToDots() {
+		console.log('Switching to dots visualization...');
+
+		if (!map) return;
+
+		try {
+			// Remove existing points layer if it exists
+			if (map.getLayer('points-layer')) {
+				map.removeLayer('points-layer');
+			}
+
+			// Clean up pie chart images
+			cleanupPieChartImages(map);
+
+			// Add circle layer for dots
+			map.addLayer({
+				id: 'points-layer',
+				type: 'circle',
+				source: 'points-source',
+				paint: {
+					'circle-radius': 10,
+					'circle-color': generateDesignColorExpression() as any,
+					'circle-opacity': 0.8,
+					'circle-stroke-width': 1,
+					'circle-stroke-color': '#ffffff'
+				}
+			});
+
+			// Re-setup event handlers
+			map.on('click', 'points-layer', handlePointClick);
+			map.on('mouseenter', 'points-layer', handleMouseEnter);
+			map.on('mouseleave', 'points-layer', handleMouseLeave);
+
+			// Update the data source
+			if (map.getSource('points-source')) {
+				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
+			}
+
+			// Ensure points are on top
+			ensurePointsOnTop();
+
+			console.log('Successfully switched to dots visualization');
+		} catch (error) {
+			console.error('Error switching to dots:', error);
+		}
+	}
+
+	// Switch to pie charts visualization
+	async function switchToPieCharts() {
+		console.log('Switching to pie charts visualization...');
+		console.log('Filtered data features count:', $filteredPointsData.features.length);
+
+		if (!map) return;
+
+		try {
+			// Remove existing points layer if it exists
+			if (map.getLayer('points-layer')) {
+				console.log('Removing existing points layer');
+				map.removeLayer('points-layer');
+			}
+
+			// Clean up old pie chart images
+			console.log('Cleaning up pie chart images');
+			cleanupPieChartImages(map);
+
+			// Check if we have data to work with
+			if ($filteredPointsData.features.length === 0) {
+				console.warn('No filtered data available for pie charts');
+				return;
+			}
+			// Get aggregated data for pie charts
+			const aggregatedData = getAggregatedPointsData($filteredPointsData) as any;
+			console.log('Aggregated data features count:', aggregatedData.features.length);
+
+			// Generate pie chart symbols first
+			console.log('Generating pie chart symbols...');
+			await generatePieChartSymbols(map, $filteredPointsData, (loading) => {
+				isLoading.set(loading);
+				loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
+			});
+
+			console.log('Pie chart symbols generated, adding layer...');
+
+			// Update the data source with aggregated data for pie charts
+			if (map.getSource('points-source')) {
+				console.log('Updating source with aggregated data');
+				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(aggregatedData);
+			}
+
+			// Add symbol layer for pie charts
+			map.addLayer({
+				id: 'points-layer',
+				type: 'symbol',
+				source: 'points-source',
+				layout: {
+					'icon-image': generatePieChartIconExpression($filteredPointsData) as any,
+					'icon-size': 1,
+					'icon-allow-overlap': true,
+					'icon-ignore-placement': true
+				}
+			});
+
+			console.log('Pie chart layer added');
+
+			// Re-setup event handlers
+			map.on('click', 'points-layer', handlePointClick);
+			map.on('mouseenter', 'points-layer', handleMouseEnter);
+			map.on('mouseleave', 'points-layer', handleMouseLeave);
+
+			// Ensure points are on top
+			ensurePointsOnTop();
+
+			console.log('Successfully switched to pie charts visualization');
+		} catch (error) {
+			console.error('Error switching to pie charts:', error);
+		}
+	}
+
 	// ===== MAIN RENDERING APPROACH =====
 
 	// Track if we've already added points to avoid duplicates
@@ -224,15 +369,21 @@
 			} catch (e) {
 				sourceExists = false;
 			}
-
-			// Get aggregated data for pie charts or use filtered data for dots
-			const dataToUse =
-				$visualizationType === 'pie-charts'
-					? getAggregatedPointsData($filteredPointsData)
-					: $filteredPointsData;
+			// Get data from the filtered points store
+			let dataToUse = $filteredPointsData;
 
 			// Create the GeoJSON source with our data if it doesn't exist
 			if (!sourceExists) {
+				// For pie charts, use aggregated data
+				if ($visualizationType === 'pie-charts') {
+					dataToUse = getAggregatedPointsData($filteredPointsData) as any;
+					console.log(
+						'Using aggregated data for pie charts:',
+						dataToUse.features.length,
+						'features'
+					);
+				}
+
 				map.addSource('points-source', {
 					type: 'geojson',
 					data: dataToUse
@@ -306,73 +457,6 @@
 		}
 	}
 
-	// Function to switch visualization types
-	async function switchVisualizationType() {
-		if (!map || !pointsAdded) return;
-
-		// Set flag to prevent updateMapWithFilteredData from interfering
-		switchingVisualizationType = true;
-
-		try {
-			// Remove existing layer
-			if (map.getLayer('points-layer')) {
-				map.removeLayer('points-layer');
-			}
-
-			// Remove pie chart images if they exist
-			cleanupPieChartImages(map);
-
-			// Add new layer based on visualization type
-			if ($visualizationType === 'pie-charts') {
-				// Generate pie chart symbols first
-				await generatePieChartSymbols(map, $filteredPointsData, (loading) => {
-					isLoading.set(loading);
-					loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
-				});
-
-				// Add symbol layer for pie charts
-				map.addLayer({
-					id: 'points-layer',
-					type: 'symbol',
-					source: 'points-source',
-					layout: {
-						'icon-image': generatePieChartIconExpression($filteredPointsData) as any,
-						'icon-size': 1,
-						'icon-allow-overlap': true,
-						'icon-ignore-placement': true
-					}
-				});
-			} else {
-				// Add circle layer for dots
-				map.addLayer({
-					id: 'points-layer',
-					type: 'circle',
-					source: 'points-source',
-					paint: {
-						'circle-radius': 10,
-						'circle-color': generateDesignColorExpression() as any,
-						'circle-opacity': 0.8,
-						'circle-stroke-width': 1,
-						'circle-stroke-color': '#ffffff'
-					}
-				});
-			}
-
-			// Re-setup event handlers
-			map.on('click', 'points-layer', handlePointClick);
-			map.on('mouseenter', 'points-layer', handleMouseEnter);
-			map.on('mouseleave', 'points-layer', handleMouseLeave);
-
-			// Ensure points are on top
-			ensurePointsOnTop();
-		} catch (error) {
-			console.error('Error switching visualization type:', error);
-		} finally {
-			// Clear the flag after switching is complete
-			switchingVisualizationType = false;
-		}
-	}
-
 	// Reactively update the circle colors when needed (only for circle layers)
 	$: if (map && map.getLayer('points-layer') && pointsAdded && $visualizationType === 'dots') {
 		try {
@@ -387,12 +471,6 @@
 		} catch (error) {
 			console.error('Error updating circle colors:', error);
 		}
-	}
-
-	// Reactively switch visualization type when the store changes
-	$: if (map && pointsAdded && $visualizationType) {
-		console.log('Visualization type changed to:', $visualizationType);
-		switchVisualizationType();
 	}
 
 	// Add points when map is provided and data loads
@@ -444,15 +522,10 @@
 		}, 3000);
 	});
 
-	// Update the map source when filtered data changes
-	$: if (map && map.loaded()) {
-		updateMapWithFilteredData();
-	}
-
 	// Function to update map with filtered data
 	async function updateMapWithFilteredData() {
-		// Don't update if we're currently switching visualization types
-		if (switchingVisualizationType) return;
+		// Don't update if we're currently switching visualization types or if map is not available
+		if (switchingVisualizationType || !map || !map.loaded()) return;
 
 		try {
 			// First check if source exists
@@ -481,18 +554,25 @@
 					pathogens: currentPathogens,
 					ageGroups: currentAgeGroups,
 					syndromes: currentSyndromes
-				});
+				}); // Use the new visualization data store to get the appropriate data
+				let dataToUpdate = $filteredPointsData;
+
+				// For pie charts, use aggregated data
+				if ($visualizationType === 'pie-charts') {
+					dataToUpdate = getAggregatedPointsData($filteredPointsData) as any;
+					console.log(
+						'Using aggregated data for pie chart update:',
+						dataToUpdate.features.length,
+						'features'
+					);
+				}
+
+				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(dataToUpdate);
 
 				// For pie charts, we need to regenerate the symbols when data changes
 				if ($visualizationType === 'pie-charts') {
 					// Clean up existing pie chart images first
 					cleanupPieChartImages(map);
-
-					// Get aggregated data for pie charts
-					const dataToUse = getAggregatedPointsData($filteredPointsData);
-
-					// Update the map source with the aggregated data
-					(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(dataToUse);
 
 					// Regenerate pie chart symbols for the new filtered data
 					await generatePieChartSymbols(map, $filteredPointsData, (loading) => {
@@ -508,9 +588,6 @@
 							generatePieChartIconExpression($filteredPointsData) as any
 						);
 					}
-				} else {
-					// For dots, just update the source data
-					(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
 				}
 
 				// Ensure points are on top

@@ -23,7 +23,11 @@
 		initFilterRasterConnection,
 		autoVisibleRasterLayers,
 		// Import loadPointsData for reloading data
-		loadPointsData
+		loadPointsData,
+		// Import visualization type store
+		visualizationType,
+		switchVisualization,
+		type VisualizationType
 	} from '../store';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
@@ -74,6 +78,31 @@
 	}
 	// Define a constant for the data URL to ensure consistency
 	const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
+
+	// Visualization type options
+	const visualizationOptions = [
+		{
+			value: 'dots' as VisualizationType,
+			label: 'Standard Dots',
+			description: 'Standard colored circles'
+		},
+		{
+			value: 'pie-charts' as VisualizationType,
+			label: 'Pie Charts',
+			description: 'Pie charts showing prevalence data'
+		}
+	];
+
+	function handleVisualizationTypeChange(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		const newType = target.value as VisualizationType;
+
+		// Use the manual trigger function
+		const trigger = switchVisualization(newType);
+
+		// Dispatch an event that MapLayer can listen to
+		dispatch('visualizationchange', trigger);
+	}
 
 	async function handleAddLayerClick() {
 		if (!cogUrlInput || isAddingLayer) return;
@@ -231,7 +260,7 @@
 			class=" hidden w-full items-center justify-between sm:flex"
 			on:click={() => (collapsed = !collapsed)}
 		>
-			<h2 class="text-base-content m-0 text-xl font-semibold">Data Explorer</h2>
+			<h2 class="text-base-content text-md m-0 mr-20 font-semibold">Data Explorer</h2>
 			<span
 				class="btn btn-sm btn-ghost btn-square"
 				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -293,6 +322,35 @@
 		<div
 			class="flex h-full max-h-[calc(100vh-250px)] w-full flex-col space-y-4 overflow-y-auto p-1 pt-3 sm:max-h-[calc(100vh-250px)] sm:w-80 sm:p-4"
 		>
+			<!-- Visualization Type Selector -->
+			<div class="form-control w-full">
+				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
+					<label for="visualization-type" class="label px-0 py-1">
+						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
+							Visualization Type
+						</span>
+					</label>
+					<select
+						id="visualization-type"
+						bind:value={$visualizationType}
+						on:change={handleVisualizationTypeChange}
+						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
+					>
+						{#each visualizationOptions as option}
+							<option value={option.value}>
+								{option.label}
+							</option>
+						{/each}
+					</select>
+					<!-- Show description for selected option -->
+					{#each visualizationOptions as option}
+						{#if option.value === $visualizationType}
+							<p class="text-base-content/70 mt-1 text-xs italic">{option.description}</p>
+						{/if}
+					{/each}
+				</div>
+			</div>
+
 			<!-- Filter Sections -->
 			<div class="form-control w-full">
 				<div class="text-base-content/70 mb-2 text-xs italic">

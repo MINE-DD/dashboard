@@ -18,6 +18,7 @@ export {
   dataError,
   pathogenColors,
   visualizationType,
+  switchVisualization,
   type VisualizationType,
   // New Raster Layer Store and Helpers
   rasterLayers,

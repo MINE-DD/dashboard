@@ -30,7 +30,6 @@
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
 	import MapLegend from './components/MapLegend.svelte';
-	import VisualizationTypeSelector from './components/VisualizationTypeSelector.svelte';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
@@ -335,6 +334,21 @@
 		}
 	}
 
+	// Handle visualization type change
+	async function handleVisualizationChange(
+		event: CustomEvent<{ visualizationType: string; timestamp: number }>
+	) {
+		const { visualizationType: newType } = event.detail;
+		console.log(`Map received visualization change event: ${newType}`);
+
+		// Call the manual switching function on the MapLayer component
+		if (mapLayerComponent && map && map.loaded()) {
+			await mapLayerComponent.switchVisualizationType(newType);
+		} else {
+			console.warn('Map or MapLayer not ready for visualization switch');
+		}
+	}
+
 	// Initialize map and data
 	onMount(async () => {
 		// Preload data before initializing map
@@ -404,16 +418,12 @@
 
 	<!-- Map Sidebar with filters -->
 	<div class="absolute left-6 top-16 z-10">
-		<MapSidebar class="hidden sm:block" bind:globalOpacity on:opacitychange={handleOpacityChange} />
-	</div>
-
-	<!-- Visualization Type Selector -->
-	<div class="absolute right-6 top-20 z-10">
-		<div
-			class="rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter"
-		>
-			<VisualizationTypeSelector />
-		</div>
+		<MapSidebar
+			class="hidden sm:block"
+			bind:globalOpacity
+			on:opacitychange={handleOpacityChange}
+			on:visualizationchange={handleVisualizationChange}
+		/>
 	</div>
 
 	<!-- Point Popover for details -->
@@ -431,7 +441,7 @@
 
 	<!-- Map Legend for design types -->
 	{#if map && isStyleLoaded && $filteredPointsData.features.length > 0}
-		<MapLegend visible={true} position="bottom-right" />
+		<MapLegend visible={true} />
 	{/if}
 
 	<!-- Raster Popup has been removed as per requirements -->

@@ -1,4 +1,4 @@
-import { writable, get } from 'svelte/store';
+import { writable, get, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { FeatureIndex, PointFeatureCollection, RasterLayer } from './types';
 import { toastStore } from '$lib/stores/toast.store';
@@ -53,6 +53,22 @@ export const pointsData = writable<PointFeatureCollection>({
   type: 'FeatureCollection',
   features: []
 });
+
+// Filtered data store
+export const filteredPointsData = writable<PointFeatureCollection>({
+  type: 'FeatureCollection',
+  features: []
+});
+
+// Manual visualization switching function - called explicitly when visualization type changes
+export function switchVisualization(newType: VisualizationType) {
+  // Update the visualization type store
+  visualizationType.set(newType);
+
+  // Return a signal that visualization switching is needed
+  // This will be used by MapLayer to trigger the actual switching
+  return { visualizationType: newType, timestamp: Date.now() };
+}
 
 // Loading and error states
 export const isLoading = writable<boolean>(false);
