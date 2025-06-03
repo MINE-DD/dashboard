@@ -341,11 +341,45 @@
 		const { visualizationType: newType } = event.detail;
 		console.log(`Map received visualization change event: ${newType}`);
 
-		// Call the manual switching function on the MapLayer component
-		if (mapLayerComponent && map && map.loaded()) {
-			await mapLayerComponent.switchVisualizationType(newType);
-		} else {
-			console.warn('Map or MapLayer not ready for visualization switch');
+		// Function to attempt the visualization switch
+		const attemptSwitch = async () => {
+			if (mapLayerComponent && map && map.loaded()) {
+				try {
+					await mapLayerComponent.switchVisualizationType(newType);
+					return true; // Success
+				} catch (error) {
+					console.error('Error during visualization switch:', error);
+					return false;
+				}
+			}
+			return false; // Not ready
+		};
+
+		// Try immediate switch first
+		const success = await attemptSwitch();
+
+		if (!success) {
+			console.warn('Map or MapLayer not ready for visualization switch, retrying...');
+
+			// Retry with exponential backoff
+			const maxRetries = 5;
+			const baseDelay = 100;
+
+			for (let attempt = 1; attempt <= maxRetries; attempt++) {
+				const delay = baseDelay * Math.pow(2, attempt - 1); // 100ms, 200ms, 400ms, 800ms, 1600ms
+
+				await new Promise((resolve) => setTimeout(resolve, delay));
+
+				console.log(`Retry attempt ${attempt}/${maxRetries} for visualization switch`);
+				const retrySuccess = await attemptSwitch();
+
+				if (retrySuccess) {
+					console.log(`Visualization switch succeeded on attempt ${attempt}`);
+					return;
+				}
+			}
+
+			console.error(`Failed to switch visualization after ${maxRetries} attempts`);
 		}
 	}
 
