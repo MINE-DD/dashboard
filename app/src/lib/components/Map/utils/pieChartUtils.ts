@@ -219,8 +219,8 @@ export async function generatePieChartSymbols(
     // Clean up existing pie chart images
     cleanupPieChartImages(map);
 
-    // Aggregate points by location to avoid overlapping pie charts
-    const aggregatedData = aggregatePointsByLocation(filteredPointsData);
+    // Use all points separately (no aggregation)
+    const separateData = getSeparatePieChartData(filteredPointsData);
 
     // Generate pie chart images for each unique combination of prevalence, samples, and design
     const uniqueCombinations = new Map<
@@ -228,7 +228,7 @@ export async function generatePieChartSymbols(
       { prevalenceValue: number; samples: number; design: string }
     >();
 
-    aggregatedData.features.forEach((feature) => {
+    separateData.features.forEach((feature) => {
       const { prevalenceValue, samples, design } = feature.properties!;
       const key = `${prevalenceValue}-${samples}-${design}`;
       if (!uniqueCombinations.has(key)) {
@@ -278,13 +278,13 @@ export async function generatePieChartSymbols(
 export function generatePieChartIconExpression(
   filteredPointsData: FeatureCollection<Point>
 ): any[] {
-  // Aggregate points by location first
-  const aggregatedData = aggregatePointsByLocation(filteredPointsData);
+  // Use separate data (no aggregation)
+  const separateData = getSeparatePieChartData(filteredPointsData);
 
   const expression: any[] = ['case'];
 
-  // For each aggregated feature, create a case that maps to the appropriate pie chart image
-  aggregatedData.features.forEach((feature) => {
+  // For each separate feature, create a case that maps to the appropriate pie chart image
+  separateData.features.forEach((feature) => {
     const { prevalenceValue, samples, design } = feature.properties!;
     const key = `${prevalenceValue}-${samples}-${design}`;
     const imageId = `pie-chart-${key}`;
@@ -300,7 +300,26 @@ export function generatePieChartIconExpression(
 }
 
 /**
- * Get aggregated data for use in map layers
+ * Get data for pie charts without aggregation (shows all pie charts separately)
+ */
+export function getSeparatePieChartData(filteredPointsData: FeatureCollection<Point>): FeatureCollection<Point> {
+  // Add an id to each feature if it doesn't have one, ensuring unique IDs
+  const featuresWithIds = filteredPointsData.features.map((feature, index) => ({
+    ...feature,
+    properties: {
+      ...feature.properties,
+      id: feature.properties?.id || `pie-chart-${index}-${Date.now()}`
+    }
+  }));
+
+  return {
+    type: 'FeatureCollection',
+    features: featuresWithIds
+  };
+}
+
+/**
+ * Get aggregated data for use in map layers (legacy function, kept for compatibility)
  */
 export function getAggregatedPointsData(filteredPointsData: FeatureCollection<Point>): FeatureCollection<Point> {
   return aggregatePointsByLocation(filteredPointsData);
@@ -318,4 +337,73 @@ export function getDesignColors(): { [key: string]: string } {
  */
 export function getDefaultColor(): string {
   return DEFAULT_COLOR;
+}
+
+/**
+ * Create multiple pie chart layers ordered by size (larger to smaller, with smaller on top)
+ */
+export function createPieChartLayers(map: MaplibreMap, filteredPointsData: FeatureCollection<Point>): void {
+  if (!map) return;
+
+  // Get separate data
+  const separateData = getSeparatePieChartData(filteredPointsData);
+
+  // Determine size ranges based on sample counts
+  const sampleCounts = separateData.features.map(f => f.properties?.samples || 0);
+  const maxSamples = Math.max(...sampleCounts);
+  const minSamples = Math.min(...sampleCounts);
+
+  // Create 3 size categories: large, medium, small
+  const largeCutoff = minSamples + (maxSamples - minSamples) * 0.67;
+  const mediumCutoff = minSamples + (maxSamples - minSamples) * 0.33;
+
+  // Define layer configurations (larger layers first, smaller on top)
+  const layerConfigs = [
+    {
+      id: 'pie-charts-large',
+      filter: ['>=', ['get', 'samples'], largeCutoff],
+      zIndex: 1
+    },
+    {
+      id: 'pie-charts-medium',
+      filter: ['all', ['>=', ['get', 'samples'], mediumCutoff], ['<', ['get', 'samples'], largeCutoff]],
+      zIndex: 2
+    },
+    {
+      id: 'pie-charts-small',
+      filter: ['<', ['get', 'samples'], mediumCutoff],
+      zIndex: 3
+    }
+  ];
+
+  // Create layers in order (large to small, so small appears on top)
+  layerConfigs.forEach(config => {
+    map.addLayer({
+      id: config.id,
+      type: 'symbol',
+      source: 'points-source',
+      filter: config.filter,
+      layout: {
+        'icon-image': generatePieChartIconExpression(filteredPointsData) as any,
+        'icon-size': 1,
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true
+      }
+    });
+  });
+}
+
+/**
+ * Remove all pie chart layers
+ */
+export function removePieChartLayers(map: MaplibreMap): void {
+  if (!map) return;
+
+  const layerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+
+  layerIds.forEach(layerId => {
+    if (map.getLayer(layerId)) {
+      map.removeLayer(layerId);
+    }
+  });
 }

@@ -22,6 +22,9 @@
 		generatePieChartSymbols,
 		generatePieChartIconExpression,
 		getAggregatedPointsData,
+		getSeparatePieChartData,
+		createPieChartLayers,
+		removePieChartLayers,
 		getDesignColors,
 		getDefaultColor
 	} from '../utils/pieChartUtils';
@@ -79,6 +82,9 @@
 				map.removeLayer('points-layer');
 			}
 
+			// Remove existing pie chart layers if they exist
+			removePieChartLayers(map);
+
 			// Clean up pie chart images
 			cleanupPieChartImages(map);
 
@@ -88,11 +94,11 @@
 				type: 'circle',
 				source: 'points-source',
 				paint: {
-					'circle-radius': 10,
+					'circle-radius': 5,
 					'circle-color': generateDesignColorExpression() as any,
-					'circle-opacity': 0.8,
+					'circle-opacity': 0.9,
 					'circle-stroke-width': 1,
-					'circle-stroke-color': '#ffffff'
+					'circle-stroke-color': '##ccc'
 				}
 			});
 
@@ -138,9 +144,9 @@
 				console.warn('No filtered data available for pie charts');
 				return;
 			}
-			// Get aggregated data for pie charts
-			const aggregatedData = getAggregatedPointsData($filteredPointsData) as any;
-			console.log('Aggregated data features count:', aggregatedData.features.length);
+			// Get separate data for pie charts (no aggregation)
+			const separateData = getSeparatePieChartData($filteredPointsData) as any;
+			console.log('Separate data features count:', separateData.features.length);
 
 			// Generate pie chart symbols first
 			console.log('Generating pie chart symbols...');
@@ -151,31 +157,19 @@
 
 			console.log('Pie chart symbols generated, adding layer...');
 
-			// Update the data source with aggregated data for pie charts
+			// Update the data source with separate data for pie charts
 			if (map.getSource('points-source')) {
-				console.log('Updating source with aggregated data');
-				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(aggregatedData);
+				console.log('Updating source with separate data');
+				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData(separateData);
 			}
 
-			// Add symbol layer for pie charts
-			map.addLayer({
-				id: 'points-layer',
-				type: 'symbol',
-				source: 'points-source',
-				layout: {
-					'icon-image': generatePieChartIconExpression($filteredPointsData) as any,
-					'icon-size': 1,
-					'icon-allow-overlap': true,
-					'icon-ignore-placement': true
-				}
-			});
+			// Add symbol layers for pie charts (multiple layers for proper z-ordering)
+			createPieChartLayers(map, $filteredPointsData);
 
 			console.log('Pie chart layer added');
 
-			// Re-setup event handlers
-			map.on('click', 'points-layer', handlePointClick);
-			map.on('mouseenter', 'points-layer', handleMouseEnter);
-			map.on('mouseleave', 'points-layer', handleMouseLeave);
+			// Re-setup event handlers for all pie chart layers
+			setupPieChartEventHandlers();
 
 			// Ensure points are on top
 			ensurePointsOnTop();
@@ -374,14 +368,10 @@
 
 			// Create the GeoJSON source with our data if it doesn't exist
 			if (!sourceExists) {
-				// For pie charts, use aggregated data
+				// For pie charts, use separate data (no aggregation)
 				if ($visualizationType === 'pie-charts') {
-					dataToUse = getAggregatedPointsData($filteredPointsData) as any;
-					console.log(
-						'Using aggregated data for pie charts:',
-						dataToUse.features.length,
-						'features'
-					);
+					dataToUse = getSeparatePieChartData($filteredPointsData) as any;
+					console.log('Using separate data for pie charts:', dataToUse.features.length, 'features');
 				}
 
 				map.addSource('points-source', {
@@ -397,18 +387,8 @@
 						loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
 					});
 
-					// Add symbol layer for pie charts
-					map.addLayer({
-						id: 'points-layer',
-						type: 'symbol',
-						source: 'points-source',
-						layout: {
-							'icon-image': generatePieChartIconExpression($filteredPointsData) as any,
-							'icon-size': 1,
-							'icon-allow-overlap': true,
-							'icon-ignore-placement': true
-						}
-					});
+					// Add symbol layers for pie charts (multiple layers for proper z-ordering)
+					createPieChartLayers(map, $filteredPointsData);
 				} else {
 					// Add circle layer for dots (default)
 					map.addLayer({
@@ -437,10 +417,14 @@
 			// Mark that we've successfully added or updated points
 			pointsAdded = true;
 
-			// Set up event handlers
-			map.on('click', 'points-layer', handlePointClick);
-			map.on('mouseenter', 'points-layer', handleMouseEnter);
-			map.on('mouseleave', 'points-layer', handleMouseLeave);
+			// Set up event handlers based on visualization type
+			if ($visualizationType === 'pie-charts') {
+				setupPieChartEventHandlers();
+			} else {
+				map.on('click', 'points-layer', handlePointClick);
+				map.on('mouseenter', 'points-layer', handleMouseEnter);
+				map.on('mouseleave', 'points-layer', handleMouseLeave);
+			}
 
 			// Set up style change handler
 			map.on('styledata', handleStyleChange);
@@ -455,6 +439,34 @@
 			// Reset flag so we can try again
 			pointsAdded = false;
 		}
+	}
+
+	// Helper function to setup event handlers for pie chart layers
+	function setupPieChartEventHandlers() {
+		if (!map) return;
+
+		const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+		pieChartLayerIds.forEach((layerId) => {
+			if (map.getLayer(layerId)) {
+				map.on('click', layerId, handlePointClick);
+				map.on('mouseenter', layerId, handleMouseEnter);
+				map.on('mouseleave', layerId, handleMouseLeave);
+			}
+		});
+	}
+
+	// Helper function to remove event handlers for pie chart layers
+	function removePieChartEventHandlers() {
+		if (!map) return;
+
+		const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+		pieChartLayerIds.forEach((layerId) => {
+			if (map.getLayer(layerId)) {
+				map.off('click', layerId, handlePointClick);
+				map.off('mouseenter', layerId, handleMouseEnter);
+				map.off('mouseleave', layerId, handleMouseLeave);
+			}
+		});
 	}
 
 	// Reactively update the circle colors when needed (only for circle layers)
@@ -557,11 +569,11 @@
 				}); // Use the new visualization data store to get the appropriate data
 				let dataToUpdate = $filteredPointsData;
 
-				// For pie charts, use aggregated data
+				// For pie charts, use separate data (no aggregation)
 				if ($visualizationType === 'pie-charts') {
-					dataToUpdate = getAggregatedPointsData($filteredPointsData) as any;
+					dataToUpdate = getSeparatePieChartData($filteredPointsData) as any;
 					console.log(
-						'Using aggregated data for pie chart update:',
+						'Using separate data for pie chart update:',
 						dataToUpdate.features.length,
 						'features'
 					);
@@ -611,6 +623,10 @@
 				map.off('mouseenter', 'points-layer', handleMouseEnter);
 				map.off('mouseleave', 'points-layer', handleMouseLeave);
 			}
+
+			// Remove pie chart event handlers
+			removePieChartEventHandlers();
+
 			map.off('styledata', handleStyleChange);
 			// Remove the source data handler
 			// map.off('sourcedata', handleSourceData);
@@ -620,6 +636,10 @@
 				if (map.getLayer('points-layer')) {
 					map.removeLayer('points-layer');
 				}
+
+				// Remove pie chart layers
+				removePieChartLayers(map);
+
 				if (map.getSource('points-source')) {
 					map.removeSource('points-source');
 				}
