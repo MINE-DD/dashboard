@@ -99,29 +99,16 @@
 			// Clean up pie chart images
 			cleanupPieChartImages(map);
 
-			// Add circle layer for dots (use same properties as addPointsToMap for consistency)
-			map.addLayer({
-				id: 'points-layer',
-				type: 'circle',
-				source: 'points-source',
-				paint: {
-					'circle-radius': 10, // Use same radius as addPointsToMap
-					'circle-color': generateDesignColorExpression() as any,
-					'circle-opacity': 0.8, // Use same opacity as addPointsToMap
-					'circle-stroke-width': 1,
-					'circle-stroke-color': '#ffffff' // Use same stroke color as addPointsToMap
-				}
-			});
+			// Create circle layer using reusable function
+			createCircleLayer();
 
 			// Update the data source to use filtered data (not pie chart data)
 			if (map.getSource('points-source')) {
 				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
 			}
 
-			// Re-setup event handlers for dots
-			map.on('click', 'points-layer', handlePointClick);
-			map.on('mouseenter', 'points-layer', handleMouseEnter);
-			map.on('mouseleave', 'points-layer', handleMouseLeave);
+			// Setup event handlers using reusable function
+			setupCircleEventHandlers();
 
 			// Ensure points are on top
 			ensurePointsOnTop();
@@ -338,6 +325,47 @@
 		return matchExpression;
 	}
 
+	// Generate the circle paint configuration (reusable)
+	function generateCirclePaintConfig() {
+		return {
+			'circle-radius': 7, // Use same radius as addPointsToMap
+			'circle-color': generateDesignColorExpression() as any,
+			'circle-opacity': 0.9, // Use same opacity as addPointsToMap
+			'circle-stroke-width': 1,
+			'circle-stroke-color': '#ffffff' // Use same stroke color as addPointsToMap
+		};
+	}
+
+	// Create circle layer with consistent configuration (reusable)
+	function createCircleLayer() {
+		if (!map) return;
+
+		map.addLayer({
+			id: 'points-layer',
+			type: 'circle',
+			source: 'points-source',
+			paint: generateCirclePaintConfig()
+		});
+	}
+
+	// Setup event handlers for circle layer (reusable)
+	function setupCircleEventHandlers() {
+		if (!map) return;
+
+		map.on('click', 'points-layer', handlePointClick);
+		map.on('mouseenter', 'points-layer', handleMouseEnter);
+		map.on('mouseleave', 'points-layer', handleMouseLeave);
+	}
+
+	// Remove event handlers for circle layer (reusable)
+	function removeCircleEventHandlers() {
+		if (!map) return;
+
+		map.off('click', 'points-layer', handlePointClick);
+		map.off('mouseenter', 'points-layer', handleMouseEnter);
+		map.off('mouseleave', 'points-layer', handleMouseLeave);
+	}
+
 	// Legacy function kept for reference
 	function generatePathogenColorExpression() {
 		// Create a MapLibre match expression for the pathogens
@@ -401,20 +429,8 @@
 					// Add symbol layers for pie charts (multiple layers for proper z-ordering)
 					createPieChartLayers(map, $filteredPointsData);
 				} else {
-					// Add circle layer for dots (default)
-					map.addLayer({
-						id: 'points-layer',
-						type: 'circle',
-						source: 'points-source',
-						paint: {
-							'circle-radius': 10, // Keeping the bigger dots (10px radius)
-							// Use a match expression to color by design type
-							'circle-color': generateDesignColorExpression() as any,
-							'circle-opacity': 0.8,
-							'circle-stroke-width': 1,
-							'circle-stroke-color': '#ffffff'
-						}
-					});
+					// Create circle layer using reusable function
+					createCircleLayer();
 				}
 
 				// Move the points layer to the top of all layers
@@ -432,9 +448,7 @@
 			if ($visualizationType === 'pie-charts') {
 				setupPieChartEventHandlers();
 			} else {
-				map.on('click', 'points-layer', handlePointClick);
-				map.on('mouseenter', 'points-layer', handleMouseEnter);
-				map.on('mouseleave', 'points-layer', handleMouseLeave);
+				setupCircleEventHandlers();
 			}
 
 			// Set up style change handler
@@ -628,12 +642,8 @@
 	// Cleanup on component destruction
 	onDestroy(() => {
 		if (map) {
-			// Remove event listeners with proper references to handler functions
-			if (map.getLayer('points-layer')) {
-				map.off('click', 'points-layer', handlePointClick);
-				map.off('mouseenter', 'points-layer', handleMouseEnter);
-				map.off('mouseleave', 'points-layer', handleMouseLeave);
-			}
+			// Remove event listeners using reusable functions
+			removeCircleEventHandlers();
 
 			// Remove pie chart event handlers
 			removePieChartEventHandlers();
