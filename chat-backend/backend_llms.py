@@ -1,3 +1,4 @@
+from langgraph.graph import StateGraph, START, END
 from langchain_ollama import ChatOllama
 from langchain_community.chat_models import ChatLlamaCpp
 from langchain_core.prompts import ChatPromptTemplate
@@ -5,6 +6,74 @@ from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from minedd.query import Query
 from paperqa.settings import Settings, AgentSettings, ParsingSettings
 import multiprocessing
+
+from typing_extensions import TypedDict
+
+#TODO: For continuous conversation, you might want to check MessagesState: https://langchain-ai.github.io/langgraph/concepts/low_level/?h=messagesstate#messagesstate
+
+class MyState(TypedDict):
+    user_input: str
+    response: str
+
+class ChatBackend:
+    def __init__(self, model_name: str = 'llama3.2:latest'):
+        self.model_name = model_name
+        self.llm = ChatOllama(model=model_name, temperature=0.0, max_tokens=512)
+        # This calls: https://python.langchain.com/api_reference/_modules/langchain_experimental/agents/agent_toolkits/pandas/base.html#create_pandas_dataframe_agent
+        self.csv_agent = create_csv_agent(self.llm, "Plan-EO_Dashboard_point_data.csv", verbose=True, allow_dangerous_code=True)
+        self.graph = self.build_graph()
+        self.state = {"user_input": ""}
+    
+    def build_graph(self):
+        graph = StateGraph(state_schema=MyState)
+
+        # Define nodes
+        graph.add_node("router", self.router)
+        graph.add_node("general_chat", self.general_chat_node)
+        graph.add_node("csv_agent", self.csv_agent_node)
+
+        # Define edges
+        graph.add_edge(START, "router")
+        graph.add_conditional_edges(
+            "router",
+            lambda state: state["next_node"],
+            {
+                "general_chat": "general_chat",
+                "csv_agent": "csv_agent"
+            }
+        )
+        graph.add_edge("general_chat", END)
+        graph.add_edge("csv_agent", END)
+
+        compiled_graph = graph.compile()
+
+        return compiled_graph
+
+    def general_chat_node(self, state):
+        user_input = state["user_input"]
+        response = self.llm.invoke(user_input)
+        return {"response": response.text()}
+
+    def csv_agent_node(self, state):
+        user_input = state["user_input"]
+        response = self.csv_agent.invoke(user_input)
+        # response['input'] has the original question, response['output'] has the answer
+        return {"response": response['output']}
+#     }
+
+    def router(self, state):
+        user_input = state["user_input"].lower()
+        # Simple routing logic: you can use LLM or regex for more sophistication
+        if "csv" in user_input or "data" in user_input:
+            return {"next_node": "csv_agent"}
+        else:
+            return {"next_node": "general_chat"}
+    
+    def ask(self, question: str):
+        self.state["user_input"] = question
+        final_state = self.graph.invoke(self.state)
+        return str(final_state["response"])
+
 
 class ChatCSV:
     def __init__(self, model_name: str = 'llama3.2:latest'):

@@ -8,9 +8,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Dict, TypeVar
 import uuid
-from backend_llms import ChatCSV
-# from backend_llms import MineddBackend
-# from backend_llms import ChatSimple
+from backend_llms import ChatBackend
 ChatEngine = TypeVar('ChatEngine')
 Chain = TypeVar('Chain')
 
@@ -57,7 +55,7 @@ class ChatSession(BaseModel):
 # In-memory storage for demo purposes
 chat_sessions: Dict[str, ChatSession] = {}
 
-chat_backend = ChatCSV(model_name='llama3.2:latest')
+chat_backend = ChatBackend(model_name='llama3.2:latest')
 # chat_backend = MineddBackend(
 #     embeddings_model="mxbai-embed-large:latest",
 #     model_name='llama3.2:latest',
