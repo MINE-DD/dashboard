@@ -12,7 +12,7 @@ class ChatBackend:
         self.model_name = model_name
         self.llm = ChatOllama(model=model_name, temperature=0.0, max_tokens=512)
         # This calls: https://python.langchain.com/api_reference/_modules/langchain_experimental/agents/agent_toolkits/pandas/base.html#create_pandas_dataframe_agent
-        self.csv_agent = create_csv_agent(self.llm, "Plan-EO_Dashboard_point_data.csv", verbose=True, allow_dangerous_code=True)
+        self.csv_agent = create_csv_agent(self.llm, "../data/01_Points/Plan-EO_Dashboard_point_data.csv", verbose=True, allow_dangerous_code=True)
         self.graph = self.build_graph()
         self.state = {"messages": []} #{"user_input": ""}
     
