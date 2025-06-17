@@ -37,14 +37,17 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	// Import URL parameter utilities
+	import { parseUrlFilters, serializeFiltersToUrl, debounce } from '../utils/urlParams';
+	// Import map update functions
+	import { updateMapVisualization, triggerVisualizationUpdate, handleMapContentChange } from '../store';
 
 	const dispatch = createEventDispatcher();
 
 	// Import the filter-to-raster mappings to check which options have raster layers
 	import { filterToRasterMappings } from '../store/filterRasterMapping';
 	import type { FilterToRasterMapping } from '../store/types';
-	// Import URL parameter utilities
-	import { parseUrlFilters, serializeFiltersToUrl, debounce } from '../utils/urlParams';
+
 	let className: string | undefined = undefined; // class is a reserved keyword in JS, with initialization
 	export { className as class };
 	// Helper functions to check if an option has associated raster layers
@@ -86,15 +89,12 @@
 	// Visualization type options
 	import { visualizationOptions } from '../store/visualizationOptions';
 
-	function handleVisualizationTypeChange(event: Event) {
+	async function handleVisualizationTypeChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const newType = target.value as VisualizationType;
 
-		// Use the manual trigger function
-		const trigger = switchVisualization(newType);
-
-		// Dispatch an event that MapLayer can listen to
-		dispatch('visualizationchange', trigger);
+		console.log('Visualization type change requested:', newType);
+		await updateVisualizationType(newType);
 	}
 
 	async function handleAddLayerClick() {
@@ -128,6 +128,34 @@
 	$: hasActiveFilters =
 		selectedPathogenCount > 0 || selectedAgeGroupCount > 0 || selectedSyndromeCount > 0;
 
+	// Note: Map updates are now triggered automatically by the enhanced stores
+	// No need for reactive statements to trigger updates
+
+	// Action functions that update stores and trigger map updates
+	async function updatePathogenSelection(newSelection: Set<string>) {
+		console.log('Updating pathogen selection:', newSelection);
+		selectedPathogens.set(newSelection);
+		await handleMapContentChange();
+	}
+
+	async function updateAgeGroupSelection(newSelection: Set<string>) {
+		console.log('Updating age group selection:', newSelection);
+		selectedAgeGroups.set(newSelection);
+		await handleMapContentChange();
+	}
+
+	async function updateSyndromeSelection(newSelection: Set<string>) {
+		console.log('Updating syndrome selection:', newSelection);
+		selectedSyndromes.set(newSelection);
+		await handleMapContentChange();
+	}
+
+	async function updateVisualizationType(newType: VisualizationType) {
+		console.log('Updating visualization type:', newType);
+		visualizationType.set(newType);
+		// The visualization type store will handle the map update
+	}
+
 	// Helper function to toggle a value in a Set
 	function toggleSelection(set: Set<string>, value: string): Set<string> {
 		const newSet = new Set<string>();
@@ -153,14 +181,11 @@
 	}
 
 	// Clear all active filters
-	function clearAllFilters() {
-		$selectedPathogens = new Set();
-		$selectedAgeGroups = new Set();
-		$selectedSyndromes = new Set();
+	async function clearAllFilters() {
+		await updatePathogenSelection(new Set());
+		await updateAgeGroupSelection(new Set());
+		await updateSyndromeSelection(new Set());
 		clearFilterCache();
-
-		// The filteredPointsData store will automatically update due to the derived store
-		// No need to force reload data
 
 		// Update URL by removing filter parameters
 		if (typeof window !== 'undefined') {
@@ -191,15 +216,15 @@
 		if (category === 'pathogens') {
 			const newSet = new Set<string>();
 			if (selectedValue) newSet.add(selectedValue);
-			$selectedPathogens = newSet;
+			await updatePathogenSelection(newSet);
 		} else if (category === 'ageGroups') {
 			const newSet = new Set<string>();
 			if (selectedValue) newSet.add(selectedValue);
-			$selectedAgeGroups = newSet;
+			await updateAgeGroupSelection(newSet);
 		} else if (category === 'syndromes') {
 			const newSet = new Set<string>();
 			if (selectedValue) newSet.add(selectedValue);
-			$selectedSyndromes = newSet;
+			await updateSyndromeSelection(newSet);
 		}
 
 		// Log the current state of filters

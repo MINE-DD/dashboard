@@ -9,13 +9,13 @@ import {
   selectedPathogens,
   selectedAgeGroups,
   selectedSyndromes
-} from './stores';
+} from '../store/stores';
 import { get } from 'svelte/store';
 import { convertCsvToGeoJson } from './geoJsonConverter';
 import { generateColors } from './colorManager';
 import Papa from 'papaparse';
 import type { ParseResult, ParseConfig } from 'papaparse';
-import type { PointDataRow, PointFeatureCollection } from './types';
+import type { PointDataRow, PointFeatureCollection } from '../store/types';
 
 // Helper function to load CSV data with caching
 let dataCache: PointFeatureCollection | null = null;

@@ -10,8 +10,8 @@ import {
   pathogens, // Import all filter options
   ageGroups,
   syndromes
-} from './stores';
-import type { FeatureIndex, PointFeatureCollection } from './types';
+} from '../store/stores';
+import type { FeatureIndex, PointFeatureCollection } from '../store/types';
 
 // Cache for previously filtered results
 const filterCache = new Map<string, number[]>();

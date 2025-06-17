@@ -2,12 +2,12 @@ import { writable, get, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { FeatureIndex, PointFeatureCollection, RasterLayer } from './types';
 import { toastStore } from '$lib/stores/toast.store';
-import { loadAndProcessGeoTIFF, validateBounds } from './geoTiffProcessor';
+import { loadAndProcessGeoTIFF, validateBounds } from '../utils/geoTiffProcessor';
 
 // Visualization type for map points
 export type VisualizationType = 'dots' | 'pie-charts';
 
-// Create a persistent visualization type store
+// Create a persistent visualization type store with map updates
 function createVisualizationTypeStore() {
   const STORAGE_KEY = 'visualizationType';
   const defaultType: VisualizationType = 'pie-charts';
@@ -26,6 +26,17 @@ function createVisualizationTypeStore() {
         localStorage.setItem(STORAGE_KEY, value);
       }
       set(value);
+
+      // Trigger visualization type change through the store
+      setTimeout(async () => {
+        try {
+          const { switchVisualizationType } = await import('./mapVisualizationManager');
+          console.log(`Visualization type changed to ${value}, triggering switch`);
+          await switchVisualizationType(value);
+        } catch (error) {
+          console.warn('Failed to switch visualization type:', error);
+        }
+      }, 10);
     },
     update
   };
@@ -54,11 +65,7 @@ export const pointsData = writable<PointFeatureCollection>({
   features: []
 });
 
-// Filtered data store
-export const filteredPointsData = writable<PointFeatureCollection>({
-  type: 'FeatureCollection',
-  features: []
-});
+// Note: filteredPointsData is now provided by filterManager.ts as a derived store
 
 // Manual visualization switching function - called explicitly when visualization type changes
 export function switchVisualization(newType: VisualizationType) {
@@ -335,3 +342,5 @@ export function removeRasterLayer(id: string): void {
   // Optional: Add toast notification for removal
   // toast.push({ message: `Removed layer`, type: 'info' });
 }
+
+

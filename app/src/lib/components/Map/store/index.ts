@@ -44,16 +44,35 @@ export {
   pathogenCounts,
   ageGroupCounts,
   syndromeCounts
-} from './filterManager';
+} from '../utils/filterManager';
 
 // Re-export the data loader
-export { loadPointsData } from './dataLoader';
+export { loadPointsData } from '../utils/dataLoader';
 
 // Re-export the GeoJSON converter
-export { convertCsvToGeoJson } from './geoJsonConverter';
+export { convertCsvToGeoJson } from '../utils/geoJsonConverter';
 
 // Re-export the color manager
-export { generateColors } from './colorManager';
+export { generateColors } from '../utils/colorManager';
 
 // Re-export the maplibre helpers
-export { getMaplibreFilterExpression } from './maplibreHelpers';
+export { getMaplibreFilterExpression } from '../utils/maplibreHelpers';
+
+// Re-export the map visualization manager
+export {
+  mapInstance,
+  pointsAddedToMap,
+  isUpdatingVisualization,
+  visualizationUpdateTrigger,
+  mapUpdateSignal,
+  autoUpdateEnabled,
+  autoMapUpdater,
+  triggerVisualizationUpdate,
+  setMapInstance,
+  setPointsAddedToMap,
+  updateMapVisualization,
+  forceVisualizationUpdate,
+  handleMapContentChange,
+  addInitialPointsToMap,
+  switchVisualizationType
+} from './mapVisualizationManager';
