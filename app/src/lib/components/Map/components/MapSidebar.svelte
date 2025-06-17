@@ -40,13 +40,17 @@
 	// Import URL parameter utilities
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from '../utils/urlParams';
 	// Import map update functions
-	import { updateMapVisualization, triggerVisualizationUpdate, handleMapContentChange } from '../store';
+	import {
+		updateMapVisualization,
+		triggerVisualizationUpdate,
+		handleMapContentChange
+	} from '../store';
 
 	const dispatch = createEventDispatcher();
 
 	// Import the filter-to-raster mappings to check which options have raster layers
 	import { filterToRasterMappings } from '../store/filterRasterMapping';
-	import type { FilterToRasterMapping } from '../store/types';
+	import type { FilterToRasterMapping } from '$lib/types';
 
 	let className: string | undefined = undefined; // class is a reserved keyword in JS, with initialization
 	export { className as class };

@@ -1,12 +1,14 @@
 import { derived, get } from 'svelte/store';
-import type { FilterToRasterMapping } from './types';
+import type { FilterToRasterMapping } from '$lib/types';
 import {
   selectedPathogens,
   selectedAgeGroups,
-  selectedSyndromes,
+  selectedSyndromes
+} from '$lib/stores/filter.store';
+import {
   rasterLayers,
   updateRasterLayerVisibility
-} from './stores';
+} from '$lib/stores/raster.store';
 
 // Base URL for R2 storage
 const baseR2url = 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/';

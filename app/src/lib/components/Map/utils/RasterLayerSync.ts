@@ -1,6 +1,6 @@
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import type { RasterLayer } from '../store/types';
-import { fetchAndSetLayerBounds } from '../store';
+import type { RasterLayer } from '$lib/types';
+import { fetchAndSetLayerBounds } from '$lib/stores/raster.store';
 
 /**
  * Synchronize raster layers with the map

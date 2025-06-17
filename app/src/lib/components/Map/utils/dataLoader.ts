@@ -1,21 +1,18 @@
+import { isLoading, dataError, pointsData, pathogenColors } from '$lib/stores/data.store';
 import {
-  isLoading,
-  dataError,
-  pointsData,
   pathogens,
   ageGroups,
   syndromes,
-  pathogenColors,
   selectedPathogens,
   selectedAgeGroups,
   selectedSyndromes
-} from '../store/stores';
+} from '$lib/stores/filter.store';
 import { get } from 'svelte/store';
 import { convertCsvToGeoJson } from './geoJsonConverter';
 import { generateColors } from './colorManager';
 import Papa from 'papaparse';
 import type { ParseResult, ParseConfig } from 'papaparse';
-import type { PointDataRow, PointFeatureCollection } from '../store/types';
+import type { PointDataRow, PointFeatureCollection } from '$lib/types';
 
 // Helper function to load CSV data with caching
 let dataCache: PointFeatureCollection | null = null;

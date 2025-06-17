@@ -1,13 +1,9 @@
 import { writable, derived, get } from 'svelte/store';
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import type { PointFeatureCollection } from './types';
-import {
-  visualizationType,
-  type VisualizationType,
-  isLoading,
-  loadingMessage
-} from './stores';
-import { filteredPointsData } from '../utils/filterManager';
+import type { PointFeatureCollection } from '$lib/types';
+import { visualizationType, type VisualizationType } from '$lib/stores/map.store';
+import { isLoading, loadingMessage } from '$lib/stores/data.store';
+import { filteredPointsData } from '$lib/stores/filter.store';
 import {
   createPieChartImage,
   cleanupPieChartImages,

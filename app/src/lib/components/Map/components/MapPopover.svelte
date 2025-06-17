@@ -2,7 +2,7 @@
 	import * as maplibregl from 'maplibre-gl';
 	import type { Map } from 'maplibre-gl';
 	import { createEventDispatcher } from 'svelte';
-	import type { PointProperties } from '../store';
+	import type { PointProperties } from '$lib/types';
 
 	// Props
 	export let map: Map | null = null;

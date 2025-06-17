@@ -1,9 +1,15 @@
 // Re-export all public facing types
-export * from './types';
+// export * from './types'; // Types are now in $lib/types.ts and should be imported directly
 
-// Re-export stores
+// Re-export stores from new locations
 export {
   pointsData,
+  isLoading,
+  loadingMessage,
+  dataError,
+  pathogenColors
+} from '$lib/stores/data.store';
+export {
   pathogenIndex,
   ageGroupIndex,
   syndromeIndex,
@@ -12,23 +18,22 @@ export {
   syndromes,
   selectedPathogens,
   selectedAgeGroups,
-  selectedSyndromes,
-  isLoading,
-  loadingMessage,
-  dataError,
-  pathogenColors,
+  selectedSyndromes
+} from '$lib/stores/filter.store';
+export {
   visualizationType,
   switchVisualization,
-  type VisualizationType,
-  // New Raster Layer Store and Helpers
+  type VisualizationType // This type is also in map.store.ts
+} from '$lib/stores/map.store'; // Ensure VisualizationType is exported there
+export {
   rasterLayers,
   addRasterLayerFromUrl,
   updateRasterLayerVisibility,
   updateRasterLayerOpacity,
   updateAllRasterLayersOpacity,
   removeRasterLayer,
-  fetchAndSetLayerBounds // Add the missing export
-} from './stores';
+  fetchAndSetLayerBounds
+} from '$lib/stores/raster.store';
 
 // Re-export filter-to-raster mapping functionality
 export {
@@ -36,7 +41,7 @@ export {
   initFilterRasterConnection
 } from './filterRasterMapping';
 
-// Re-export the filter manager functions
+// Re-export the filter manager functions from the new filter store
 export {
   filteredIndices,
   filteredPointsData,
@@ -44,7 +49,7 @@ export {
   pathogenCounts,
   ageGroupCounts,
   syndromeCounts
-} from '../utils/filterManager';
+} from '$lib/stores/filter.store';
 
 // Re-export the data loader
 export { loadPointsData } from '../utils/dataLoader';

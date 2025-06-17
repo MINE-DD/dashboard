@@ -1,5 +1,5 @@
-import { pathogenIndex, ageGroupIndex, syndromeIndex } from '../store/stores';
-import type { PointDataRow, PointFeature, PointFeatureCollection, FeatureIndex } from '../store/types';
+import { pathogenIndex, ageGroupIndex, syndromeIndex } from '$lib/stores/filter.store';
+import type { PointDataRow, PointFeature, PointFeatureCollection, FeatureIndex } from '$lib/types';
 
 // Helper function to convert CSV data to GeoJSON with indexed structure
 export function convertCsvToGeoJson(csvData: PointDataRow[]): PointFeatureCollection {
