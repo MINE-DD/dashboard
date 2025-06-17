@@ -27,7 +27,11 @@
 		// Import visualization type store
 		visualizationType,
 		switchVisualization,
-		type VisualizationType
+		type VisualizationType,
+		// Import new derived stores for filter option counts
+		pathogenCounts,
+		ageGroupCounts,
+		syndromeCounts
 	} from '../store';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
@@ -144,8 +148,8 @@
 		}
 		clearFilterCache();
 
-		// Force reload data when all filters in a category are toggled
-		loadPointsData(POINTS_DATA_URL, true);
+		// The filteredPointsData store will automatically update due to the derived store
+		// No need to force reload data
 	}
 
 	// Clear all active filters
@@ -155,8 +159,8 @@
 		$selectedSyndromes = new Set();
 		clearFilterCache();
 
-		// Force reload data when filters are cleared
-		loadPointsData(POINTS_DATA_URL, true);
+		// The filteredPointsData store will automatically update due to the derived store
+		// No need to force reload data
 
 		// Update URL by removing filter parameters
 		if (typeof window !== 'undefined') {
@@ -205,10 +209,8 @@
 			syndromes: Array.from($selectedSyndromes)
 		});
 
-		// Force reload data when filters are changed
-		await loadPointsData(POINTS_DATA_URL, true);
-
-		// Log the filtered data after reload
+		// The filteredPointsData store will automatically update due to the derived store
+		// No need to force reload data - just clear the cache to ensure fresh filtering
 		console.log(
 			`After filter change: ${$filteredPointsData.features.length} points visible out of ${$pointsData.features.length} total`
 		);
@@ -360,7 +362,11 @@
 						<option value="" selected={$selectedPathogens.size === 0}>Select Pathogen</option>
 						{#each Array.from($pathogens || []).sort() as pathogen}
 							<option value={pathogen} selected={$selectedPathogens?.has(pathogen)}>
-								{pathogen}{pathogensWithRasterLayers.has(pathogen) ? ' *' : ''}
+								{pathogen} ({$pathogenCounts.get(pathogen) || 0}){pathogensWithRasterLayers.has(
+									pathogen
+								)
+									? ' *'
+									: ''}
 							</option>
 						{/each}
 					</select>
@@ -383,7 +389,12 @@
 						<option value="" selected={$selectedAgeGroups.size === 0}>Select Age Group</option>
 						{#each Array.from($ageGroups || []).sort() as ageGroup}
 							<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
-								{ageGroup}{hasRasterLayers('ageGroup', ageGroup as string) ? ' *' : ''}
+								{ageGroup} ({$ageGroupCounts.get(ageGroup) || 0}){hasRasterLayers(
+									'ageGroup',
+									ageGroup as string
+								)
+									? ' *'
+									: ''}
 							</option>
 						{/each}
 					</select>
@@ -406,7 +417,12 @@
 						<option value="" selected={$selectedSyndromes.size === 0}>Select Syndrome</option>
 						{#each Array.from($syndromes || []).sort() as syndrome}
 							<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
-								{syndrome}{hasRasterLayers('syndrome', syndrome as string) ? ' *' : ''}
+								{syndrome} ({$syndromeCounts.get(syndrome) || 0}){hasRasterLayers(
+									'syndrome',
+									syndrome as string
+								)
+									? ' *'
+									: ''}
 							</option>
 						{/each}
 					</select>

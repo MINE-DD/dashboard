@@ -236,6 +236,23 @@ export async function generatePieChartSymbols(
       }
     });
 
+    // Create default pie chart image for fallback
+    const defaultImageUrl = createPieChartImage(0.5, 100, 'Study Design');
+    const defaultImg = new Image();
+    await new Promise<void>((resolve, reject) => {
+      defaultImg.onload = () => {
+        try {
+          map.addImage('pie-chart-default', defaultImg);
+          resolve();
+        } catch (error) {
+          console.error('Error adding default pie chart image to map:', error);
+          reject(error);
+        }
+      };
+      defaultImg.onerror = reject;
+      defaultImg.src = defaultImageUrl;
+    });
+
     // Add pie chart images to map
     const imagePromises: Promise<void>[] = [];
     uniqueCombinations.forEach(({ prevalenceValue, samples, design }, key) => {
@@ -277,9 +294,14 @@ export async function generatePieChartSymbols(
  */
 export function generatePieChartIconExpression(
   filteredPointsData: FeatureCollection<Point>
-): any[] {
+): any {
   // Use separate data (no aggregation)
   const separateData = getSeparatePieChartData(filteredPointsData);
+
+  // If no features, return default image
+  if (!separateData.features || separateData.features.length === 0) {
+    return 'pie-chart-default';
+  }
 
   const expression: any[] = ['case'];
 
@@ -382,9 +404,9 @@ export function createPieChartLayers(map: MaplibreMap, filteredPointsData: Featu
       id: config.id,
       type: 'symbol',
       source: 'points-source',
-      filter: config.filter,
+      filter: config.filter as any,
       layout: {
-        'icon-image': generatePieChartIconExpression(filteredPointsData) as any,
+        'icon-image': generatePieChartIconExpression(filteredPointsData),
         'icon-size': 1,
         'icon-allow-overlap': true,
         'icon-ignore-placement': true

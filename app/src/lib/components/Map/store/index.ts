@@ -40,7 +40,10 @@ export {
 export {
   filteredIndices,
   filteredPointsData,
-  clearFilterCache
+  clearFilterCache,
+  pathogenCounts,
+  ageGroupCounts,
+  syndromeCounts
 } from './filterManager';
 
 // Re-export the data loader

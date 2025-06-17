@@ -524,6 +524,13 @@
 		}
 	}
 
+	// Update visualization when filtered data changes
+	$: if (map && pointsAdded && $filteredPointsData && $filteredPointsData.features) {
+		console.log('Reactive statement triggered: filtered data changed, features count:', $filteredPointsData.features.length);
+		// Use a small delay to ensure all stores have updated
+		setTimeout(() => updateMapWithFilteredData(), 0);
+	}
+
 	// Also try once on mount as a backup with multiple attempts
 	onMount(() => {
 		// console.log('Component mounted - backup attempt to add points');
@@ -561,8 +568,13 @@
 
 	// Function to update map with filtered data
 	async function updateMapWithFilteredData() {
+		console.log('updateMapWithFilteredData called');
+		
 		// Don't update if we're currently switching visualization types or if map is not available
-		if (switchingVisualizationType || !map || !map.loaded()) return;
+		if (switchingVisualizationType || !map || !map.loaded()) {
+			console.log('Skipping update: switching =', switchingVisualizationType, 'map =', !!map, 'loaded =', map?.loaded());
+			return;
+		}
 
 		try {
 			// First check if source exists
@@ -617,14 +629,15 @@
 						loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
 					});
 
-					// Update the layer's icon expression if it exists
-					if (map.getLayer('points-layer')) {
-						map.setLayoutProperty(
-							'points-layer',
-							'icon-image',
-							generatePieChartIconExpression($filteredPointsData) as any
-						);
-					}
+					// Update the layer's icon expression for all pie chart layers
+					const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+					const iconExpression = generatePieChartIconExpression($filteredPointsData) as any;
+					
+					pieChartLayerIds.forEach(layerId => {
+						if (map.getLayer(layerId)) {
+							map.setLayoutProperty(layerId, 'icon-image', iconExpression);
+						}
+					});
 				}
 
 				// Ensure points are on top
