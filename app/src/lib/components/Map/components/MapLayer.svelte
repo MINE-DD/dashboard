@@ -12,7 +12,7 @@
 		addInitialPointsToMap,
 		updateMapVisualization,
 		switchVisualizationType as storeSwitchVisualizationType,
-		mapUpdateSignal,
+		// mapUpdateSignal, // Removed as part of refactor
 		type VisualizationType
 	} from '../store';
 
@@ -31,7 +31,7 @@
 		console.log('Setting map instance in store');
 		setMapInstance(map);
 		mapInstanceSet = true;
-		
+
 		// Wait for map to be fully loaded before attempting initialization
 		if (map.loaded()) {
 			// Map is already loaded
@@ -81,7 +81,7 @@
 
 		// Check if map is ready - use multiple criteria
 		const mapReady = map.loaded() || map.isStyleLoaded() || map.getStyle();
-		
+
 		if (!mapReady) {
 			console.log('Cannot initialize: map not ready');
 			return;
@@ -113,11 +113,15 @@
 			}
 			return;
 		}
-		
+
 		initializationAttempted = true;
-		console.log('Initializing map visualization with', $filteredPointsData.features.length, 'filtered data points');
+		console.log(
+			'Initializing map visualization with',
+			$filteredPointsData.features.length,
+			'filtered data points'
+		);
 		const success = await addInitialPointsToMap();
-		
+
 		if (success) {
 			console.log('✅ Map visualization initialized successfully');
 			// Setup event handlers
@@ -204,11 +208,11 @@
 	// Handle style changes
 	function handleStyleChange() {
 		console.log('Style change detected, reinitializing visualization...');
-		
+
 		// Reset the points added flag
 		setPointsAddedToMap(false);
 		initializationAttempted = false;
-		
+
 		// Small delay to let the style change settle
 		setTimeout(() => {
 			if (map && map.loaded() && $filteredPointsData?.features?.length > 0) {
@@ -223,21 +227,21 @@
 
 	onDestroy(() => {
 		console.log('MapLayer component destroying');
-		
+
 		if (map) {
 			removeEventHandlers();
 			map.off('styledata', handleStyleChange);
 		}
-		
+
 		// Reset map instance in store
 		setMapInstance(null);
 		setPointsAddedToMap(false);
 	});
-	
+
 	// Export function for Map component to call
 	export async function switchVisualizationType(newType: VisualizationType): Promise<boolean> {
 		console.log(`MapLayer: Switching visualization to ${newType}`);
-		
+
 		try {
 			// Use the store function to switch visualization type
 			const result = await storeSwitchVisualizationType(newType);

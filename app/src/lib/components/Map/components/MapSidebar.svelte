@@ -42,7 +42,7 @@
 	// Import map update functions
 	import {
 		updateMapVisualization,
-		triggerVisualizationUpdate,
+		// triggerVisualizationUpdate, // Removed as part of refactor
 		handleMapContentChange
 	} from '../store';
 
@@ -155,9 +155,12 @@
 	}
 
 	async function updateVisualizationType(newType: VisualizationType) {
-		console.log('Updating visualization type:', newType);
-		visualizationType.set(newType);
-		// The visualization type store will handle the map update
+		console.log('Requesting switch to visualization type:', newType); // Adjusted log for clarity
+		// visualizationType.set(newType); // Store update moved to switchVisualizationType
+		// Explicitly call the function to switch visualization mechanics
+		// Ensure switchVisualizationType is imported, likely from '../store' which re-exports it from mapVisualizationManager
+		const { switchVisualizationType } = await import('../store/mapVisualizationManager'); // Direct import for clarity
+		await switchVisualizationType(newType);
 	}
 
 	// Helper function to toggle a value in a Set
@@ -352,7 +355,7 @@
 					</label>
 					<select
 						id="visualization-type"
-						bind:value={$visualizationType}
+						value={$visualizationType}
 						on:change={handleVisualizationTypeChange}
 						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
 					>

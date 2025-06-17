@@ -15,6 +15,7 @@ import {
   getDesignColors,
   getDefaultColor
 } from '../utils/pieChartUtils';
+import { debounce } from '../utils/urlParams'; // Assuming debounce is here
 
 // Store to track the current map instance
 export const mapInstance = writable<MaplibreMap | null>(null);
@@ -25,51 +26,8 @@ export const pointsAddedToMap = writable<boolean>(false);
 // Store to track if we're currently updating the visualization
 export const isUpdatingVisualization = writable<boolean>(false);
 
-// Store for triggering visualization updates
-export const visualizationUpdateTrigger = writable<number>(0);
-
-// Derived store that combines all the factors that should trigger a map update
-export const mapUpdateSignal = derived(
-  [filteredPointsData, visualizationType, mapInstance, pointsAddedToMap, visualizationUpdateTrigger],
-  ([$filteredPointsData, $visualizationType, $mapInstance, $pointsAddedToMap, $trigger]) => {
-    return {
-      filteredData: $filteredPointsData,
-      visualizationType: $visualizationType,
-      map: $mapInstance,
-      pointsAdded: $pointsAddedToMap,
-      trigger: $trigger,
-      timestamp: Date.now()
-    };
-  }
-);
-
-// Auto-update store that triggers updates when conditions are met
+// Auto-update store (can be used by components if needed, but not for automatic map updates from here)
 export const autoUpdateEnabled = writable<boolean>(true);
-
-// Enhanced derived store that automatically triggers updates
-export const autoMapUpdater = derived(
-  [mapUpdateSignal, autoUpdateEnabled],
-  ([$signal, $autoEnabled], set) => {
-    if (!$autoEnabled || !$signal.map || !$signal.map.loaded() || !$signal.pointsAdded) {
-      return;
-    }
-
-    // Debounce rapid updates
-    const timeoutId = setTimeout(() => {
-      console.log('Auto-triggering map visualization update from store');
-      updateMapVisualization().catch(console.error);
-      set($signal.timestamp);
-    }, 100);
-
-    // Cleanup function
-    return () => clearTimeout(timeoutId);
-  }
-);
-
-// Function to trigger a visualization update
-export function triggerVisualizationUpdate() {
-  visualizationUpdateTrigger.update(n => n + 1);
-}
 
 // Function to set the map instance
 export function setMapInstance(map: MaplibreMap | null) {
@@ -329,6 +287,9 @@ export async function switchVisualizationType(newType: VisualizationType): Promi
   const $currentType = get(visualizationType);
 
   if (!$map || !$map.loaded() || $currentType === newType) {
+    console.warn(
+      `Switch aborted or unnecessary: mapInstance exists: ${!!$map}, map loaded: ${$map ? $map.loaded() : 'N/A'}, currentType: ${$currentType}, newType: ${newType}, types are same: ${$currentType === newType}`
+    );
     return false;
   }
 
@@ -417,10 +378,7 @@ export async function forceVisualizationUpdate(): Promise<boolean> {
 
   try {
     const result = await updateMapVisualization();
-
-    // Also trigger the update signal for any listeners
-    triggerVisualizationUpdate();
-
+    // visualizationUpdateTrigger was removed, direct update is preferred
     return result;
   } finally {
     // Re-enable auto-updates
@@ -429,31 +387,41 @@ export async function forceVisualizationUpdate(): Promise<boolean> {
 }
 
 // Centralized function to handle any map content change (filters, visualization type, etc.)
-export async function handleMapContentChange(): Promise<boolean> {
+// This function will now incorporate debouncing.
+const debouncedUpdate = debounce(async () => {
   const $map = get(mapInstance);
   const $pointsAdded = get(pointsAddedToMap);
 
-  console.log('Map content change detected:', {
+  console.log('Debounced map content change detected:', {
     mapReady: !!$map && $map.loaded(),
     pointsAdded: $pointsAdded
   });
 
-  // If points haven't been added yet, try to add them
   if (!$pointsAdded) {
     const initSuccess = await addInitialPointsToMap();
     if (initSuccess) {
-      console.log('Successfully initialized map with new content');
-      return true;
+      console.log('Debounced: Successfully initialized map with new content');
     } else {
-      console.log('Failed to initialize map with new content');
-      return false;
+      console.log('Debounced: Failed to initialize map with new content');
     }
+    return; // Return after attempting init
   }
 
   // If points are already added, update the visualization
   const updateSuccess = await updateMapVisualization();
-  console.log('Map content update result:', updateSuccess);
-  return updateSuccess;
+  console.log('Debounced: Map content update result:', updateSuccess);
+}, 150); // 150ms debounce time, adjust as needed
+
+export async function handleMapContentChange(): Promise<boolean> {
+  console.log('handleMapContentChange called, triggering debounced update.');
+  debouncedUpdate();
+  // Since debouncedUpdate is async and we're not awaiting it here,
+  // this function's boolean return type might not be immediately meaningful
+  // for the success of the debounced operation.
+  // Consider if this function still needs to return a Promise<boolean>
+  // or if its role is purely to trigger the debounced action.
+  // For now, returning true to indicate the trigger was initiated.
+  return true;
 }
 
 // Helper function to generate design color expression

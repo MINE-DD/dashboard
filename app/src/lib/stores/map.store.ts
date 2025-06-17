@@ -23,24 +23,8 @@ function createVisualizationTypeStore() {
         localStorage.setItem(STORAGE_KEY, value);
       }
       set(value);
-
-      // Trigger visualization type change through the store
-      // The mapVisualizationManager is expected to subscribe to this store
-      // or be called by components reacting to this store's change.
-      // The direct import and call to switchVisualizationType is a bit of a tight coupling
-      // that might be revisited in a future refactor if desired.
-      setTimeout(async () => {
-        try {
-          // Assuming mapVisualizationManager is correctly imported and used
-          // where this store's value change is observed.
-          // For now, we keep the original dynamic import pattern if it's crucial.
-          const { switchVisualizationType } = await import('$lib/components/Map/store/mapVisualizationManager');
-          console.log(`Visualization type changed to ${value}, triggering switch`);
-          await switchVisualizationType(value);
-        } catch (error) {
-          console.warn('Failed to switch visualization type via map.store.ts:', error);
-        }
-      }, 10);
+      // The side effect of calling switchVisualizationType will be handled
+      // by the component or service that triggers this 'set' operation.
     },
     update
   };

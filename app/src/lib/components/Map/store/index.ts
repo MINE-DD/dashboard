@@ -68,11 +68,11 @@ export {
   mapInstance,
   pointsAddedToMap,
   isUpdatingVisualization,
-  visualizationUpdateTrigger,
-  mapUpdateSignal,
-  autoUpdateEnabled,
-  autoMapUpdater,
-  triggerVisualizationUpdate,
+  // visualizationUpdateTrigger, // Removed as part of refactor
+  // mapUpdateSignal, // Removed as part of refactor
+  autoUpdateEnabled, // Kept as it might be used by components
+  // autoMapUpdater, // Removed as part of refactor
+  // triggerVisualizationUpdate, // Removed as part of refactor
   setMapInstance,
   setPointsAddedToMap,
   updateMapVisualization,
