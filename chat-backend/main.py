@@ -55,7 +55,10 @@ class ChatSession(BaseModel):
 # In-memory storage for demo purposes
 chat_sessions: Dict[str, ChatSession] = {}
 
-chat_backend = ChatBackend(model_name='llama3.2:latest')
+chat_backend = ChatBackend(
+    model_name='llama3.2:latest', 
+    ollama_url="http://host.docker.internal:11434"
+    )
 # chat_backend = MineddBackend(
 #     embeddings_model="mxbai-embed-large:latest",
 #     model_name='llama3.2:latest',
