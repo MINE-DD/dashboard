@@ -310,7 +310,7 @@ export function updateRasterLayerOpacity(id: string, opacity: number): void {
  * @param opacity The new opacity value (0 to 1).
  */
 export function updateAllRasterLayersOpacity(opacity: number): void {
-  console.log(`Store: Updating opacity for all visible layers to ${opacity}`);
+  // console.log(`Store: Updating opacity for all visible layers to ${opacity}`);
   rasterLayers.update((layers) => {
     // Iterate through all layers and update opacity for visible ones
     layers.forEach((layer) => {

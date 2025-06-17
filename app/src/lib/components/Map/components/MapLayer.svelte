@@ -410,7 +410,7 @@
 				// For pie charts, use separate data (no aggregation)
 				if ($visualizationType === 'pie-charts') {
 					dataToUse = getSeparatePieChartData($filteredPointsData) as any;
-					console.log('Using separate data for pie charts:', dataToUse.features.length, 'features');
+					// console.log('Using separate data for pie charts:', dataToUse.features.length, 'features');
 				}
 
 				map.addSource('points-source', {

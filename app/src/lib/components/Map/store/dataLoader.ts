@@ -138,8 +138,6 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
 
       // Ensure syndromes needed for raster layers are available
       syndromeSet.add('Asymptomatic');
-      syndromeSet.add('Community');
-      syndromeSet.add('Medical');
       // console.log('Added syndromes for raster layers. Current syndromes:', Array.from(syndromeSet));
 
       // Update stores

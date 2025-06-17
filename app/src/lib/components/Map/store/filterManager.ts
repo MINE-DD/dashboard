@@ -151,6 +151,7 @@ export const filteredIndices = derived(
       const syndromeMatches = new Set<number>();
       for (const syndrome of $selectedSyndromes) {
         const indices = $syndromeIndex.get(syndrome);
+
         if (indices) {
           const beforeCount = syndromeMatches.size;
           for (const idx of indices) {
