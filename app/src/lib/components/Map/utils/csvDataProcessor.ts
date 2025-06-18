@@ -74,13 +74,16 @@ function findClosestPointFeature(
   let closestPointProps: PointProperties | null = null;
   let minDistance = Infinity;
 
+  const normalizedTargetPathogen = targetPathogen?.trim().toLowerCase();
+  const normalizedTargetAgeGroup = targetAgeGroup?.trim().toLowerCase();
+
   for (const feature of allPointFeatures) {
     if (
       feature.properties &&
       feature.geometry &&
       feature.geometry.type === 'Point' &&
-      feature.properties.pathogen === targetPathogen &&
-      feature.properties.ageGroup === targetAgeGroup
+      feature.properties.pathogen?.trim().toLowerCase() === normalizedTargetPathogen &&
+      feature.properties.ageGroup?.trim().toLowerCase() === normalizedTargetAgeGroup
     ) {
       const pointLng = feature.geometry.coordinates[0];
       const pointLat = feature.geometry.coordinates[1];
@@ -138,6 +141,7 @@ export async function processPathogenData(
     );
 
     if (!relevantPointProps) {
+      // console.log(`No matching data point found for pathogen "${pathogen}" and age group "${ageRange}" near the clicked location. Coords: ${coordinates}`);
       throw new Error(
         `No matching data point found for pathogen "${pathogen}" and age group "${ageRange}" near the clicked location.`
       );
