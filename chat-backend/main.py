@@ -2,6 +2,7 @@
 FastAPI backend for the AI Chat functionality.
 Provides endpoints for chat message processing with simulated AI responses.
 """
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -57,7 +58,7 @@ chat_sessions: Dict[str, ChatSession] = {}
 
 chat_backend = ChatBackend(
     model_name='llama3.2:latest', 
-    ollama_url="http://host.docker.internal:11434"
+    ollama_url=os.getenv("OLLAMA_BASE_URL")
     )
 # chat_backend = MineddBackend(
 #     embeddings_model="mxbai-embed-large:latest",
@@ -104,7 +105,7 @@ async def send_message(session_id: str, message: ChatMessage):
         session.messages.append(user_message)
 
         # Generate AI response
-        ai_response_content = chat_backend.ask(message.content)
+        ai_response_content = chat_backend.ask(message.content, show_reformulation=True)
 
         ai_response = ChatResponse(
             id=str(uuid.uuid4()),

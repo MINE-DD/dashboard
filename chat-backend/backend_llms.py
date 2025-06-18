@@ -1,4 +1,4 @@
-from langgraph.graph import StateGraph, START, END, MessagesState
+from langgraph.graph import StateGraph, START, END
 from langchain_ollama import ChatOllama
 # from langchain_community.chat_models import ChatLlamaCpp
 # from langchain_core.prompts import ChatPromptTemplate
@@ -6,9 +6,19 @@ from langchain_experimental.agents.agent_toolkits import create_csv_agent
 # from minedd.query import Query
 # from paperqa.settings import Settings, AgentSettings, ParsingSettings
 # import multiprocessing
+from typing import Annotated, TypedDict
+from langchain_core.messages import HumanMessage, BaseMessage
+from langgraph.graph.message import add_messages
+
+class ConversationState(TypedDict):
+    """Enhanced state for context-aware query reformulation."""
+    messages: Annotated[list[BaseMessage], add_messages]
+    reformulated_query: str
+    original_query: str
+    context_window: int
 
 class ChatBackend:
-    def __init__(self, model_name: str = 'llama3.2:latest', ollama_url:str="http://host.docker.internal:11434"):
+    def __init__(self, model_name: str = 'llama3.2:latest', ollama_url:str="http://0.0.0.0:11434"):
         self.model_name = model_name
         self.llm = ChatOllama(
             base_url=ollama_url,
@@ -17,75 +27,212 @@ class ChatBackend:
             max_tokens=512
             )
         # This calls: https://python.langchain.com/api_reference/_modules/langchain_experimental/agents/agent_toolkits/pandas/base.html#create_pandas_dataframe_agent
-        self.csv_agent = create_csv_agent(self.llm, "Plan-EO_Dashboard_point_data.csv", verbose=True, allow_dangerous_code=True)
+        self.csv_agent = create_csv_agent(
+            self.llm, 
+            "Plan-EO_Dashboard_point_data.csv", 
+            agent_type="zero-shot-react-description",
+            verbose=True, 
+            allow_dangerous_code=True
+            )
         self.graph = self.build_graph()
         self.state = {"messages": []}
     
     def build_graph(self):
-        graph = StateGraph(state_schema=MessagesState)
-
+        graph = StateGraph(state_schema=ConversationState)
+        
         # Define nodes
-        graph.add_node("router", self.router)
+        graph.add_node("router", self.context_aware_router)
+        graph.add_node("query_reformulation", self.query_reformulation_node)
         graph.add_node("general_chat", self.general_chat_node)
-        graph.add_node("csv_agent", self.csv_agent_node)
-
+        graph.add_node("enhanced_csv_agent", self.enhanced_csv_agent_node)
+        
         # Define edges
         graph.add_edge(START, "router")
         graph.add_conditional_edges(
             "router",
-            lambda state: state["next_node"],
+            lambda state: state.get("next_node"),
             {
                 "general_chat": "general_chat",
-                "csv_agent": "csv_agent"
+                "query_reformulation": "query_reformulation"
             }
         )
+        
+        # After query reformulation, always go to CSV agent
+        graph.add_edge("query_reformulation", "enhanced_csv_agent")
         graph.add_edge("general_chat", END)
-        graph.add_edge("csv_agent", END)
-
-        # checkpointer = InMemorySaver()
+        graph.add_edge("enhanced_csv_agent", END)
+        
         compiled_graph = graph.compile()
-
         return compiled_graph
 
-    def general_chat_node(self, state):
-        last_message = state["messages"][-1]
+
+    def get_chat_history(self, messages, last_k:int):
+        last_messages = []
+        if last_k <=0:
+            return [{ "role": "user", "content": messages[-1].content}]
+        for m in messages[-5:]:
+            role = "user" if isinstance(m, HumanMessage) else "assistant"
+            last_messages.append({ "role": role, "content": m.content})
+        return last_messages
+
+
+    def query_reformulation_node(self, state: ConversationState, last_n: int = 5) -> ConversationState:
+        """
+        Reformulates the last question into a pandas query using conversation context.
+        
+        This node analyzes the last_n messages to understand the full context
+        and creates a more precise pandas query for the CSV agent.
+        """
+        if not state["messages"]:
+            return {
+                "messages": state["messages"],
+                "reformulated_query": "",
+                "original_query": "",
+                "context_window": 0
+            }
+        
+        # Get the last message (current question)
+        current_question = state["messages"][-1].content
+        
+        # Extract last_n messages for context
+        context_messages = state["messages"][-last_n:] if len(state["messages"]) >= last_n else state["messages"]
+        
+        # Build context string
+        context_str = ""
+        for i, msg in enumerate(context_messages[:-1]):  # Exclude current question
+            role = "user" if isinstance(msg, HumanMessage) else "assistant"
+            context_str += f"{role}: {msg.content}\n"
+        
+        # Create reformulation prompt
+        reformulation_prompt = f"""
+        You are a data analysis expert. Given the conversation context below and the current question, 
+        reformulate the current question into a clear, specific statement that can be mapped into a pandas query.
+
+        Conversation Context (last {len(context_messages)-1} messages):
+        {context_str}
+
+        Current Question: {current_question}
+
+        Instructions:
+        1. Analyze the conversation flow to understand what data the user is interested in
+        2. Consider any previous filters, columns, or analysis mentioned, but give priority to the latest question
+        3. Reformulate the current question to be more specific and contextually aware
+        4. Focus on creating a query that would work well with pandas operations
+        5. If the current question references "that data", "those results", or similar, 
+        specify what data based on the context
+
+        Reformulated Query (respond with only the reformulated question):
+        """
+        
+        # Get reformulated query from LLM
+        response = self.llm.invoke([{"role": "user", "content": reformulation_prompt}])
+        reformulated_query = response.content.strip()
+        
+        return {
+            "messages": state["messages"],
+            "reformulated_query": reformulated_query,
+            "original_query": current_question,
+            "context_window": len(context_messages)
+        }
+
+    def enhanced_csv_agent_node(self, state: ConversationState) -> ConversationState:
+        """Enhanced CSV agent that uses reformulated queries with context."""
+        
+        # Use reformulated query if available, otherwise use original
+        query_to_use = state.get("reformulated_query", "") or state["messages"][-1].content
+        
+        # Create a message object for the CSV agent
+        query_message = {"role": "user", "content": query_to_use}
+        
+        # Add context information to help the agent
+        context_info = ""
+        if state.get("original_query") and state.get("reformulated_query"):
+            context_info = f"""
+            Original question: {state['original_query']}
+            Reformulated with context: {state['reformulated_query']}
+            Context window: {state.get('context_window', 0)} messages
+            
+            Please answer the reformulated question:
+            """
+            query_message["content"] = context_info + query_to_use
+        
+        # Invoke CSV agent with the enhanced query
+        response = self.csv_agent.invoke(query_message["content"])
+        
+        return {
+            "messages": [{"role": "assistant", "content": response['output']}],
+            "reformulated_query": state.get("reformulated_query", ""),
+            "original_query": state.get("original_query", ""),
+            "context_window": state.get("context_window", 0)
+        }
+
+
+    def context_aware_router(self, state: ConversationState) -> str:
+        """
+        Routes queries based on whether they need context-aware reformulation.
+        """
+        
+        message = state["messages"][-1].content.lower()
+        
+        # Keywords that suggest data/CSV queries
+        data_keywords = ["csv", "data", "analyze", "chart", "graph", "table", 
+                        "statistics", "numbers", "calculate", "sum", "average",
+                        "filter", "group", "sort", "count", "mean", "median"]
+        
+        # Context-dependent phrases that need reformulation
+        context_phrases = ["that data", "those results", "the same", "also show",
+                        "compared to", "like before", "similar analysis",
+                        "from earlier", "previous", "again"]
+        
+        has_data_intent = any(keyword in message for keyword in data_keywords)
+        needs_context = any(phrase in message for phrase in context_phrases)
+        
+        if has_data_intent or needs_context:
+            return {"next_node": "query_reformulation"}
+        else:
+            return {"next_node": "general_chat"}
+
+
+    def ask(self, question: str, show_reformulation: bool = False):
+        """
+        Process question through context-aware reformulation system.
+        
+        Args:
+            question: The user's question
+            show_reformulation: Whether to show the reformulated query
+        """
+        initial_state = {
+            "messages": [{"role": "user", "content": question}],
+            "reformulated_query": "",
+            "original_query": "",
+            "context_window": 0
+        }
+        
+        final_state = self.graph.invoke(initial_state)
+        
+        # Extract response
+        response = final_state["messages"][-1].content
+        
+        # Show reformulation details if requested
+        if show_reformulation and final_state.get("reformulated_query"):
+            print(f"Original: {final_state.get('original_query', 'N/A')}")
+            print(f"Reformulated: {final_state.get('reformulated_query', 'N/A')}")
+            print(f"Context window: {final_state.get('context_window', 0)} messages")
+            print("-" * 50)
+        
+        return response
+
+
+    def general_chat_node(self, state: ConversationState) -> ConversationState:
+        last_messages = self.get_chat_history(state["messages"], last_k=5)
         messages = [
             {"role": "system",
             "content": """You are a purely logical assistant. Focus only on facts and information.
                 Provide clear, concise answers based on logic and evidence."""
-            },
-            {
-                "role": "user",
-                "content": last_message.content
-            }
-        ]
+            }] + last_messages
         # Input to Invoke Must be a PromptValue, str, or list of BaseMessages
         response = self.llm.invoke(messages)
         return {"messages": response}
-
-    def csv_agent_node(self, state):
-        last_message = state["messages"][-1]
-        response = self.csv_agent.invoke(last_message)
-        # response['input'] has the original question, response['output'] has the answer
-        return {"messages": [{"role": "assistant", "content": response['output']}]}
-#     }
-
-    def router(self, state):
-        last_message = state["messages"][-1].content.lower()
-        # Simple routing logic: you can use LLM or regex for more sophistication
-        if "csv" in last_message or "data" in last_message:
-            return {"next_node": "csv_agent"}
-        else:
-            return {"next_node": "general_chat"}
-    
-    def ask(self, question: str):
-        self.state["messages"] = self.state.get("messages", []) + [
-            {"role": "user", "content": question}
-        ]
-        final_state = self.graph.invoke(self.state)
-        final_response = final_state["messages"][-1].content
-        # accumulated_messages = "\n=====\n".join([m.content for m in final_state["messages"]])
-        return final_response
 
 
 class ChatCSV:
