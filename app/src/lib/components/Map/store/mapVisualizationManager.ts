@@ -26,6 +26,9 @@ export const pointsAddedToMap = writable<boolean>(false);
 // Store to track if we're currently updating the visualization
 export const isUpdatingVisualization = writable<boolean>(false);
 
+// Store to track if a programmatic switch is in progress
+export const isProgrammaticSwitching = writable<boolean>(false);
+
 // Auto-update store (can be used by components if needed, but not for automatic map updates from here)
 export const autoUpdateEnabled = writable<boolean>(true);
 
@@ -296,6 +299,7 @@ export async function switchVisualizationType(newType: VisualizationType): Promi
   console.log(`Switching visualization from ${$currentType} to ${newType}`);
 
   isUpdatingVisualization.set(true);
+  isProgrammaticSwitching.set(true); // Set flag
 
   try {
     // Update the visualization type store
@@ -364,6 +368,7 @@ export async function switchVisualizationType(newType: VisualizationType): Promi
     console.error('Error switching visualization type:', error);
     return false;
   } finally {
+    isProgrammaticSwitching.set(false); // Clear flag
     isUpdatingVisualization.set(false);
   }
 }
