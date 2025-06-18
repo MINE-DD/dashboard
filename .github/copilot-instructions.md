@@ -23,8 +23,9 @@ This is the **MINE-DD Dashboard**, a geospatial data visualization platform deve
 ### Mapping & Geospatial
 
 - **MapLibre GL JS** for interactive maps
-- **GeoTIFF** library for raster data processing
-- **TiTiler** for serving Cloud-Optimized GeoTIFFs
+- **GeoTIFF library (geotiff npm package)** for client-side COG processing and rendering
+- **Direct COG access** from Cloudflare R2 using HTTP range requests for optimal performance
+- **No TiTiler dependency** - all raster processing handled client-side
 - Multiple map style sources: CARTO, MapTiler, OpenStreetMap
 - Custom map style management with categories (Base Maps, Satellite & Terrain, Themes)
 
@@ -41,7 +42,8 @@ This is the **MINE-DD Dashboard**, a geospatial data visualization platform deve
 - **Cloud Optimized GeoTIFF (COG)** as the primary raster format
 - **Cloudflare R2** as the primary storage backend for COG files
 - **Direct COG access** from client-side using range requests for optimal performance
-- **TiTiler** as fallback/alternative for serving raster tiles when needed
+- **Client-side processing** using geotiff.js library for browser-based COG reading and rendering
+- **No server intermediary** - eliminates TiTiler dependency and reduces latency
 - **S3-compatible storage** pattern for flexibility across different cloud providers
 
 ### Data Processing & Visualization
@@ -174,13 +176,15 @@ $lib: "./src/lib";
 - `AUTH_SECRET`: Authentication secret
 - Database connection variables
 - `BASE_PATH`: For deployment path configuration
+- `VITE_R2_BUCKET_URL`: Cloudflare R2 bucket URL for COG files (optional, defaults to hardcoded URL)
 
 ### Deployment
 
 - **Static Site**: Uses static adapter for deployment
 - **Vercel**: Primary deployment target
-- **Docker**: Containerized development environment
+- **Docker**: Containerized development environment (legacy)
 - **GitHub Pages**: Alternative deployment option
+- **Simplified Infrastructure**: No server-side dependencies for raster processing
 
 ## Raster Data Architecture & COG Integration
 
@@ -196,12 +200,13 @@ $lib: "./src/lib";
 - **Direct browser access**: Client-side COG reading using range requests
 - **No server intermediary**: Reduces latency and server load
 - **Optimal performance**: Leverages COG's internal tiling and overviews
+- **geotiff.js library**: Handles all COG processing in the browser
 
-#### Fallback/Alternative: TiTiler Integration
+#### Legacy/Alternative: TiTiler Integration (Deprecated)
 
-- **TiTiler service**: For scenarios requiring tile servers or advanced processing
-- **Tile-based serving**: When direct COG access isn't suitable
-- **Server-side processing**: For color mapping, band combinations, or analytics
+- **Note**: TiTiler has been removed from the current architecture
+- **Replaced by**: Direct client-side COG processing for better performance
+- **Migration complete**: All raster processing now handled by geotiff.js library
 
 ### COG File Organization
 
@@ -227,10 +232,12 @@ data/cogs/
 
 #### Client-Side COG Integration
 
-- **GeoTIFF.js library**: For browser-based COG reading
-- **MapLibre GL integration**: Add COG data as sources/layers
+- **GeoTIFF.js library**: For browser-based COG reading and processing
+- **MapLibre GL integration**: Add processed COG data as image sources/layers
+- **Canvas-based rendering**: Client-side data visualization with colormap application
 - **Progressive loading**: Load overviews first, then higher resolution as needed
 - **Error handling**: Graceful fallbacks when COG access fails
+- **No-data transparency**: Efficient handling of missing data areas
 
 #### Storage URL Patterns
 
@@ -248,6 +255,8 @@ const signedCogUrl = await generateSignedUrl(cogPath, ttl);
 - **CDN integration**: Use Cloudflare CDN for global distribution
 - **Caching strategy**: Implement appropriate cache headers for COG files
 - **Bandwidth efficiency**: Only download needed image portions
+- **Client-side processing**: Reduce server load by processing COGs in browser
+- **Memory management**: Efficient handling of large raster datasets
 
 ### Development Workflow
 
@@ -266,136 +275,519 @@ const signedCogUrl = await generateSignedUrl(cogPath, ttl);
 
 When implementing raster data features, **always prioritize the direct COG + Cloudflare R2 approach** unless specific requirements necessitate alternative solutions. This ensures optimal performance, scalability, and cost-effectiveness for the geospatial data visualization platform.
 
-## Development Practices
+### COG Processing Workflow
 
-### Modularity & Separation of Concerns (CORE PRINCIPLE)
+#### Core Processing Pipeline
 
-**The application should be as modular as possible within reasonable terms.** Every component, utility, and store should have a single, well-defined responsibility:
+```typescript
+// 1. Load COG from R2 URL
+const cogUrl = `${baseR2url}01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif`;
+const tiff = await GeoTIFF.fromUrl(cogUrl);
+const image = await tiff.getImage();
 
-#### Component Modularity
+// 2. Extract metadata and bounds
+const metadata = {
+  width: image.getWidth(),
+  height: image.getHeight(),
+  bounds: image.getBoundingBox(),
+  resolution: image.getResolution(),
+  samplesPerPixel: image.getSamplesPerPixel(),
+};
 
-- **Break down complex components** into smaller, focused sub-components
-- **Single Responsibility**: Each component should handle one specific concern
-- **Example**: `Map.svelte` delegates to `MapCore`, `MapControls`, `RasterLayerManager`, `MapSidebar`, etc.
-- **Avoid monolithic components** - if a component exceeds ~200 lines, consider splitting it
-- **Create specialized components** for distinct UI patterns (modals, forms, data displays)
+// 3. Read raster data with range requests
+const data = await image.readRasters();
 
-#### Store Modularity
+// 4. Process data with colormap on canvas
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
+const imageData = ctx.createImageData(width, height);
 
-- **Separate stores by domain**: authentication, map state, user preferences, data processing
-- **Use folder structure** with index re-exports for complex store modules
-- **Example**: `stores/mapStyle/` contains `types.ts`, `store.ts`, and `index.ts`
-- **Avoid god stores** - split large stores into focused, smaller ones
+// 5. Apply viridis colormap with transparency
+for (let i = 0; i < width * height; i++) {
+  const value = data[0][i];
+  if (value === 0 || isNaN(value)) {
+    // Transparent for no-data
+    imageData.data[i * 4 + 3] = 0;
+  } else {
+    const [r, g, b] = getViridisColor(value);
+    imageData.data[i * 4] = r;
+    imageData.data[i * 4 + 1] = g;
+    imageData.data[i * 4 + 2] = b;
+    imageData.data[i * 4 + 3] = 255;
+  }
+}
 
-#### Utility Modularity
+// 6. Convert to data URL and add to map
+const dataUrl = canvas.toDataURL("image/png");
+map.addSource(sourceId, {
+  type: "image",
+  url: dataUrl,
+  coordinates: fixedCoordinates,
+});
+```
 
-- **Create specific utility modules** for distinct operations (CSV processing, URL params, data transformations)
-- **Group related utilities** in dedicated files or folders
-- **Example**: `Map/utils/` contains `urlParams.ts`, `csvDataProcessor.ts`, etc.
-- **Pure functions**: Utilities should be stateless and testable
+#### Key Implementation Files
 
-#### API/Service Layer Modularity
+- **`src/lib/components/Map/utils/geoTiffProcessor.ts`**: Core COG processing utilities
+- **`src/lib/components/Map/store/geoTiffProcessor.ts`**: Alternative processor with global GeoTIFF access
+- **`src/lib/stores/raster.store.ts`**: Raster layer state management
+- **`src/lib/components/Map/components/GeoTIFFExample.svelte`**: Example implementation
+- **`app.html`**: Global GeoTIFF library loaded via CDN
 
-- **Separate API calls** by resource type or domain
-- **Create service modules** for external integrations (MapTiler, TiTiler, database operations)
-- **Abstract complex operations** into dedicated service functions
+#### Current R2 Configuration
 
-### Component Development
+```typescript
+// Base R2 URL for all COG files
+const baseR2url = "https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/";
 
-- Use **Svelte 5 runes** syntax consistently
-- Implement **TypeScript interfaces** for all props
-- Follow **modular component architecture** with clear separation of concerns
-- Use **snippet-based composition** for flexible layouts
-- **Extract reusable logic** into composable functions or custom stores
-- **Limit component scope** to a single responsibility
+// Predefined layer configurations
+const layersToAdd = [
+  {
+    name: "SHIG 0-11 Asym Pr",
+    sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif`,
+    isVisible: false,
+    opacity: 0.8,
+  },
+  // ... additional layers
+];
+```
 
-### State Management
+### Error Handling & Debugging
 
-- Use **Svelte stores** for global state with clear domain separation
-- Implement **persistent stores** for user preferences
-- Create **modular store structure** with index re-exports
-- Use **browser-aware** patterns for SSR compatibility
-- **Separate read and write operations** when store logic becomes complex
-- **Group related state** in domain-specific store modules
+#### Common Issues and Solutions
 
-### Styling
+1. **CORS Errors**: Ensure R2 bucket has proper CORS configuration
 
-- **Tailwind-first** approach with component-specific styles
-- Use **DaisyUI** components consistently
-- Follow **responsive design** patterns
-- Maintain **custom theme** consistency
-- **Extract common style patterns** into reusable CSS classes or Svelte components
+   ```json
+   {
+     "AllowedOrigins": ["*"],
+     "AllowedMethods": ["GET", "HEAD"],
+     "AllowedHeaders": ["Range", "Accept-Encoding"],
+     "MaxAgeSeconds": 3600
+   }
+   ```
 
-### Data Processing
+2. **Range Request Failures**: Check that COG files are properly optimized
 
-- Use **TypeScript** for type-safe data handling
-- Implement **CSV processing** in dedicated utility modules
-- Use **proper error handling** for async operations
-- Follow **modular utility** patterns with single-purpose functions
-- **Separate data transformation logic** from UI components
-- **Create typed interfaces** for all data structures
+   ```bash
+   # Verify COG structure
+   gdalinfo -checksum path/to/file.tif
+   ```
 
-### File Organization Principles
+3. **Memory Issues**: Handle large COG files with progressive loading
 
-- **Group by feature/domain** rather than by file type
-- **Use index files** to create clean public APIs for modules
-- **Keep related files together** (component + types + utilities + tests)
-- **Avoid deep nesting** - prefer flat, organized structures
-- **Clear naming conventions** that reflect the module's purpose
+   ```typescript
+   // Load overview first, then full resolution
+   const overview = await image.getImage(0); // Lowest resolution
+   const fullRes = await image.getImage(image.getImageCount() - 1);
+   ```
 
-## MCP Servers and Documentation
+4. **Projection Issues**: Handle coordinate system conversion
+   ```typescript
+   const geoKeys = image.getGeoKeys();
+   const projectionInfo = geoKeys?.ProjectedCSTypeGeoKey
+     ? `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`
+     : "EPSG:4326";
+   ```
 
-### Context7 MCP Server
+### Browser Compatibility
 
-**Always prefer using MCP servers when available** for accessing up-to-date library documentation and best practices. The project is configured with the Context7 MCP server which provides access to the latest documentation for popular libraries and frameworks.
+#### GeoTIFF Library Requirements
 
-#### When to Use MCP Servers
+- **Modern Browsers**: Chrome 60+, Firefox 55+, Safari 11+, Edge 79+
+- **Web Workers**: Supported for background processing
+- **ArrayBuffer**: Required for binary data handling
+- **Canvas API**: Required for image rendering
+- **Fetch API**: Required for range requests
 
-- **Library Documentation**: When implementing features with external libraries (SvelteKit, TailwindCSS, DaisyUI, etc.)
-- **API References**: When working with authentication, database operations, or third-party integrations
-- **Best Practices**: When looking for current patterns and recommended approaches
-- **Troubleshooting**: When debugging issues with specific libraries or frameworks
+#### Fallback Strategies
 
-#### Available MCP Servers
+```typescript
+// Check for GeoTIFF support
+if (!window.GeoTIFF && typeof GeoTIFF === "undefined") {
+  console.error("GeoTIFF library not available");
+  // Fallback to static image or error message
+}
+
+// Handle browser compatibility
+if (!("readAsArrayBuffer" in new FileReader())) {
+  console.warn("Limited browser support for binary data");
+}
+```
+
+### Migration from TiTiler (Completed)
+
+#### What Was Removed
+
+- **Docker Services**: TiTiler container and related services
+- **Server Dependencies**: FastAPI, TiTiler, python-multipart
+- **Environment Variables**: `VITE_TITILER_ENDPOINT`, `VITE_TITILER_DATA_PREFIX`
+- **Tile Endpoints**: All `/cog/` API endpoints for tile serving
+- **Volume Mounts**: Local data directory mounting for TiTiler
+
+#### What Was Added
+
+- **geotiff npm package**: Client-side COG processing library
+- **Canvas Processing**: Browser-based image rendering
+- **Direct R2 Access**: HTTP range requests to Cloudflare R2
+- **Client-side Colormaps**: Viridis colormap implementation
+- **Transparent No-data**: Proper handling of missing data areas
+
+#### Key Benefits of Migration
+
+- **Reduced Infrastructure**: No server-side processing required
+- **Better Performance**: Direct CDN access with edge caching
+- **Lower Latency**: Eliminated server round-trips
+- **Improved Scalability**: Browser-based processing scales with users
+- **Cost Efficiency**: No compute costs for raster processing
+
+#### Migration Checklist for New Features
+
+- ✅ Use `geotiff` library instead of TiTiler endpoints
+- ✅ Store COG files in Cloudflare R2 with public access
+- ✅ Implement client-side colormap processing
+- ✅ Handle coordinate system conversion in browser
+- ✅ Use canvas for data visualization
+- ✅ Implement proper error handling for network failures
+- ✅ Add transparent handling for no-data values
+
+### Development Environment Setup
+
+#### Required Dependencies
 
 ```json
 {
-  "servers": {
-    "context7": {
-      "url": "https://mcp.context7.com/mcp"
-    }
+  "dependencies": {
+    "geotiff": "^2.1.1",
+    "maplibre-gl": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/geotiff": "latest"
   }
 }
 ```
 
-#### Usage Guidelines
+#### Local Development with COG Files
 
-1. **Check MCP first** before making assumptions about library APIs or patterns
-2. **Verify current documentation** for libraries like:
+```typescript
+// For local development, serve COG files statically
+const isDev = import.meta.env.DEV;
+const baseUrl = isDev
+  ? "http://localhost:5173/data/cogs/"
+  : "https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/";
+```
 
-   - SvelteKit (routing, forms, authentication)
-   - Svelte 5 (runes syntax, components)
-   - TailwindCSS/DaisyUI (component patterns)
-   - @auth/sveltekit (authentication flows)
-   - PostgreSQL drivers and ORMs
+#### Testing COG Access
 
-3. **Use for implementation guidance** when:
+```bash
+# Test direct COG access
+curl -I "https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif"
 
-   - Setting up new features
-   - Integrating external services
-   - Following framework-specific patterns
-   - Implementing security best practices
+# Should return 200 OK with Accept-Ranges: bytes header
+```
 
-4. **Combine with project patterns** by using MCP documentation as a foundation and adapting it to follow the project's modular architecture and coding conventions
+### Performance Optimization Guidelines
 
-#### Example Usage Scenarios
+#### COG File Optimization
 
-- Implementing new SvelteKit form actions → Check Context7 for latest SvelteKit form patterns
-- Adding new authentication providers → Reference current @auth/sveltekit documentation
-- Creating responsive layouts → Get latest TailwindCSS/DaisyUI component examples
-- Database integration patterns → Check PostgreSQL and relevant driver documentation
-- API integration → Reference current HTTP client and validation patterns
+```bash
+# Convert existing raster to optimized COG
+gdal_translate -of COG \
+  -co TILING_SCHEME=GoogleMapsCompatible \
+  -co COMPRESS=DEFLATE \
+  -co BLOCKSIZE=512 \
+  input.tif output_cog.tif
 
-Always cross-reference MCP server information with the project's established patterns to maintain consistency while leveraging the most current library documentation and best practices.
+# Add overviews for multi-resolution
+gdaladdo -r average output_cog.tif 2 4 8 16 32
+```
 
-When working on this project, always consider the geospatial nature of the application, maintain the modular architecture patterns, and follow the established Svelte 5 conventions. **Before adding code to an existing file, consider if the functionality would be better served in a separate, focused module.** Pay special attention to map performance and user experience when dealing with large datasets.
+#### Memory Management
+
+```typescript
+// Implement progressive loading
+const loadCOGProgressively = async (url: string) => {
+  const tiff = await GeoTIFF.fromUrl(url);
+
+  // Load lowest resolution first for quick preview
+  const overview = await tiff.getImage(0);
+  renderPreview(overview);
+
+  // Load full resolution in background
+  const fullImage = await tiff.getImage(tiff.getImageCount() - 1);
+  renderFullResolution(fullImage);
+};
+```
+
+#### Caching Strategy
+
+```typescript
+// Implement browser caching for processed data URLs
+const cacheKey = `cog-${url}-${colormap}-${rescale.join(",")}`;
+const cached = localStorage.getItem(cacheKey);
+if (cached) {
+  return cached; // Return cached data URL
+}
+
+// Process and cache result
+const dataUrl = await processGeoTIFF(image, options);
+localStorage.setItem(cacheKey, dataUrl);
+```
+
+### Best Practices for COG Implementation
+
+#### Code Organization
+
+```typescript
+// Preferred structure for COG-related code
+src/lib/components/Map/
+├── utils/
+│   ├── geoTiffProcessor.ts     // Core processing logic
+│   ├── colormaps.ts           // Colormap definitions and utilities
+│   └── coordinateUtils.ts     // Projection and bounds handling
+├── stores/
+│   ├── raster.store.ts        // Raster layer state management
+│   └── mapState.store.ts      // Map-specific state
+└── components/
+    ├── RasterLayerManager.svelte
+    ├── COGUploader.svelte
+    └── LayerControls.svelte
+```
+
+#### Error Handling Patterns
+
+```typescript
+// Robust error handling for COG operations
+const loadCOGWithRetry = async (url: string, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await GeoTIFF.fromUrl(url);
+    } catch (error) {
+      if (attempt === maxRetries) {
+        console.error(
+          `Failed to load COG after ${maxRetries} attempts:`,
+          error
+        );
+        throw new Error(`COG loading failed: ${error.message}`);
+      }
+
+      // Exponential backoff
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 * Math.pow(2, attempt - 1))
+      );
+    }
+  }
+};
+```
+
+#### State Management for Raster Layers
+
+```typescript
+// Use stores for raster layer management
+export const rasterLayers = writable<Map<string, RasterLayer>>(new Map());
+
+// Helper functions for common operations
+export const addRasterLayer = (layer: RasterLayer) => {
+  rasterLayers.update((layers) => layers.set(layer.id, layer));
+};
+
+export const updateLayerVisibility = (id: string, visible: boolean) => {
+  rasterLayers.update((layers) => {
+    const layer = layers.get(id);
+    if (layer) {
+      layers.set(id, { ...layer, isVisible: visible });
+    }
+    return layers;
+  });
+};
+```
+
+#### TypeScript Interfaces
+
+```typescript
+// Define clear interfaces for COG data structures
+interface RasterLayer {
+  id: string;
+  name: string;
+  sourceUrl: string;
+  isVisible: boolean;
+  opacity: number;
+  bounds?: [number, number, number, number];
+  metadata?: GeoTIFFMetadata;
+  colormap?: "viridis" | "plasma" | "inferno";
+  rescale?: [number, number];
+  isLoading?: boolean;
+  error?: string | null;
+}
+
+interface GeoTIFFMetadata {
+  width: number;
+  height: number;
+  bounds: number[];
+  resolution: number[];
+  samplesPerPixel: number;
+  projection?: string;
+}
+```
+
+#### CORS Configuration for R2
+
+```json
+// Required R2 CORS policy
+[
+  {
+    "AllowedOrigins": ["https://yourdomain.com", "http://localhost:5173"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["Range", "Accept-Encoding", "Accept", "Content-Type"],
+    "MaxAgeSeconds": 3600,
+    "ExposeHeaders": ["Content-Range", "Content-Length", "Accept-Ranges"]
+  }
+]
+```
+
+#### Data Validation
+
+```typescript
+// Validate COG data before processing
+const validateCOGData = (image: any) => {
+  const width = image.getWidth();
+  const height = image.getHeight();
+
+  // Prevent excessive memory usage
+  if (width * height > 50_000_000) {
+    // 50MP limit
+    throw new Error("COG file too large for client-side processing");
+  }
+
+  // Validate bounds
+  const bounds = image.getBoundingBox();
+  if (!Array.isArray(bounds) || bounds.length !== 4) {
+    throw new Error("Invalid COG bounds data");
+  }
+
+  return true;
+};
+```
+
+#### Environment Variables
+
+```bash
+# Production environment variables
+VITE_R2_BUCKET_URL=https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev
+VITE_MAPTILER_KEY=your_maptiler_key
+VITE_SENTRY_DSN=your_sentry_dsn # For error tracking
+
+# Development overrides
+VITE_COG_BASE_URL=http://localhost:5173/data/cogs/
+VITE_DEBUG_COG=true
+```
+
+### Testing Strategies
+
+#### Unit Testing COG Processing
+
+```typescript
+// Example test for COG processing utilities
+import { describe, it, expect, vi } from "vitest";
+import { loadAndProcessGeoTIFF } from "$lib/components/Map/utils/geoTiffProcessor";
+
+describe("COG Processing", () => {
+  it("should process valid COG file", async () => {
+    const mockUrl = "https://example.com/test.tif";
+    const result = await loadAndProcessGeoTIFF(mockUrl);
+
+    expect(result.dataUrl).toMatch(/^data:image\/png;base64,/);
+    expect(result.metadata).toHaveProperty("width");
+    expect(result.bounds).toHaveLength(4);
+  });
+
+  it("should handle invalid COG gracefully", async () => {
+    const invalidUrl = "https://example.com/invalid.tif";
+    await expect(loadAndProcessGeoTIFF(invalidUrl)).rejects.toThrow();
+  });
+});
+```
+
+#### Integration Testing
+
+```typescript
+// Test COG integration with MapLibre
+const testCOGLayerIntegration = async (map, cogUrl) => {
+  const { dataUrl, bounds } = await loadAndProcessGeoTIFF(cogUrl);
+
+  map.addSource("test-cog", {
+    type: "image",
+    url: dataUrl,
+    coordinates: convertBoundsToCoordinates(bounds),
+  });
+
+  map.addLayer({
+    id: "test-cog-layer",
+    type: "raster",
+    source: "test-cog",
+  });
+
+  // Verify layer was added
+  expect(map.getLayer("test-cog-layer")).toBeTruthy();
+};
+```
+
+#### Performance Monitoring
+
+```typescript
+// Track COG loading performance
+const trackCOGPerformance = async (
+  url: string,
+  operation: () => Promise<any>
+) => {
+  const startTime = performance.now();
+
+  try {
+    const result = await operation();
+    const loadTime = performance.now() - startTime;
+
+    // Send metrics to analytics
+    analytics.track("COG_LOAD_SUCCESS", {
+      url,
+      loadTime,
+      fileSize: result.metadata?.width * result.metadata?.height,
+    });
+
+    return result;
+  } catch (error) {
+    analytics.track("COG_LOAD_ERROR", {
+      url,
+      error: error.message,
+      loadTime: performance.now() - startTime,
+    });
+    throw error;
+  }
+};
+```
+
+#### Error Tracking
+
+```typescript
+// Comprehensive error tracking for COG operations
+const handleCOGError = (error: Error, context: Record<string, any>) => {
+  console.error("COG Error:", error);
+
+  // Send to error tracking service
+  Sentry.captureException(error, {
+    tags: {
+      component: "COG_PROCESSOR",
+      operation: context.operation,
+    },
+    extra: context,
+  });
+
+  // Update UI state
+  toastStore.addToast({
+    type: "error",
+    message: `Failed to load raster data: ${error.message}`,
+    timeout: 5000,
+  });
+};
+```
+
+When implementing new COG-related features, always follow these patterns and prioritize client-side processing with proper error handling and performance monitoring. The direct COG + R2 approach should be the default choice for all raster data visualization needs.
