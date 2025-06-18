@@ -53,7 +53,7 @@
 				// before clearing the flag, as 'styledata' might fire immediately.
 				setTimeout(() => {
 					isAdjustingLayerOrder.set(false);
-				}, 0);
+				}, 10); // Increased delay slightly
 			}
 		}
 	}
