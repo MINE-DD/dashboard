@@ -64,11 +64,6 @@
 		// Parse URL parameters
 		const urlParams = parseUrlFilters();
 
-		// Get the current state of filters
-		// const $selectedPathogens = get(selectedPathogens); // Not directly used here, but good for context
-		// const $selectedAgeGroups = get(selectedAgeGroups);
-		// const $selectedSyndromes = get(selectedSyndromes);
-
 		// Clear filter cache before loading data to ensure fresh filtering
 		clearFilterCache();
 
@@ -135,13 +130,25 @@
 
 		let features: maplibregl.MapGeoJSONFeature[] = [];
 		if (map.getLayer('points-layer')) {
-			features = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y], {
+			// Define a small bounding box around the click point to make selection more robust
+			const pointClickPixelBuffer = 5; // 5px buffer
+			const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
+				[
+					event.detail.point.x - pointClickPixelBuffer,
+					event.detail.point.y - pointClickPixelBuffer
+				],
+				[event.detail.point.x + pointClickPixelBuffer, event.detail.point.y + pointClickPixelBuffer]
+			];
+			features = map.queryRenderedFeatures(bbox, {
 				layers: ['points-layer']
 			});
 		}
 
 		if (features.length > 0) {
-			return; // Point click handled by MapLayer
+			// A point feature was clicked, let MapLayer handle it via pointclick event
+			// This event is caught by handlePointClick in this component.
+			// No need to do anything further here, as handlePointClick will set popover details.
+			return;
 		}
 
 		const allFeatures = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y]);
@@ -181,27 +188,18 @@
 
 		isLoading.set(true);
 		try {
-			// Determine Pathogen:
-			// 1. From selectedPathogens store
-			// 2. Infer from visible raster layer name
-			// 3. Default to 'Shigella'
 			let pathogen: string;
 			const $currentSelectedPathogens = get(selectedPathogens);
 
 			if ($currentSelectedPathogens && $currentSelectedPathogens.size > 0) {
-				// Assuming only one pathogen can be selected for this popover type,
-				// or using the first one if multiple are somehow selected.
 				pathogen = $currentSelectedPathogens.values().next().value as string;
 			} else {
-				// Fallback: Infer from visible raster layer or use default
 				let inferredPathogenFromLayer = null;
 				for (const [, layerDetails] of $currentRasterLayers) {
 					if (layerDetails.isVisible) {
 						const parts = layerDetails.name.split('_');
 						if (parts.length > 0) {
-							switch (
-								parts[0].toUpperCase() // Normalize to uppercase for matching
-							) {
+							switch (parts[0].toUpperCase()) {
 								case 'SHIG':
 									inferredPathogenFromLayer = 'Shigella';
 									break;
@@ -216,16 +214,16 @@
 									break;
 							}
 						}
-						if (inferredPathogenFromLayer) break; // Found one
+						if (inferredPathogenFromLayer) break;
 					}
 				}
-				pathogen = inferredPathogenFromLayer || 'Shigella'; // Use inferred or final default
+				pathogen = inferredPathogenFromLayer || 'Shigella';
 			}
 
 			const $currentSelectedAgeGroups = get(selectedAgeGroups);
-			let ageGroup = '0-11 months'; // Default age group
+			let ageGroup = '0-11 months';
 			if ($currentSelectedAgeGroups && $currentSelectedAgeGroups.size > 0) {
-				ageGroup = $currentSelectedAgeGroups.values().next().value as string; // Ensure it's a string
+				ageGroup = $currentSelectedAgeGroups.values().next().value as string;
 			}
 
 			const data = await processPathogenData(pathogen, clickCoordinates, ageGroup, '');
@@ -240,7 +238,7 @@
 				location: `Coordinates: ${formattedLng}, ${formattedLat}`,
 				cases: '-',
 				samples: '-',
-				standardError: (data.upperBound - data.lowerBound) / (2 * 1.96) / 100, // Corrected Z-score
+				standardError: (data.upperBound - data.lowerBound) / (2 * 1.96) / 100,
 				study: data.study,
 				duration: data.duration,
 				source: data.source,
