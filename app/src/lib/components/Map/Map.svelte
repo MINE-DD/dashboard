@@ -65,9 +65,9 @@
 		const urlParams = parseUrlFilters();
 
 		// Get the current state of filters
-		const $selectedPathogens = get(selectedPathogens);
-		const $selectedAgeGroups = get(selectedAgeGroups);
-		const $selectedSyndromes = get(selectedSyndromes);
+		// const $selectedPathogens = get(selectedPathogens); // Not directly used here, but good for context
+		// const $selectedAgeGroups = get(selectedAgeGroups);
+		// const $selectedSyndromes = get(selectedSyndromes);
 
 		// Clear filter cache before loading data to ensure fresh filtering
 		clearFilterCache();
@@ -181,34 +181,51 @@
 
 		isLoading.set(true);
 		try {
-			let pathogen = 'Shigella'; // Default pathogen
+			// Determine Pathogen:
+			// 1. From selectedPathogens store
+			// 2. Infer from visible raster layer name
+			// 3. Default to 'Shigella'
+			let pathogen: string;
+			const $currentSelectedPathogens = get(selectedPathogens);
+
+			if ($currentSelectedPathogens && $currentSelectedPathogens.size > 0) {
+				// Assuming only one pathogen can be selected for this popover type,
+				// or using the first one if multiple are somehow selected.
+				pathogen = $currentSelectedPathogens.values().next().value as string;
+			} else {
+				// Fallback: Infer from visible raster layer or use default
+				let inferredPathogenFromLayer = null;
+				for (const [, layerDetails] of $currentRasterLayers) {
+					if (layerDetails.isVisible) {
+						const parts = layerDetails.name.split('_');
+						if (parts.length > 0) {
+							switch (
+								parts[0].toUpperCase() // Normalize to uppercase for matching
+							) {
+								case 'SHIG':
+									inferredPathogenFromLayer = 'Shigella';
+									break;
+								case 'ROTA':
+									inferredPathogenFromLayer = 'Rotavirus';
+									break;
+								case 'NORO':
+									inferredPathogenFromLayer = 'Norovirus';
+									break;
+								case 'CAMP':
+									inferredPathogenFromLayer = 'Campylobacter';
+									break;
+							}
+						}
+						if (inferredPathogenFromLayer) break; // Found one
+					}
+				}
+				pathogen = inferredPathogenFromLayer || 'Shigella'; // Use inferred or final default
+			}
+
 			const $currentSelectedAgeGroups = get(selectedAgeGroups);
 			let ageGroup = '0-11 months'; // Default age group
 			if ($currentSelectedAgeGroups && $currentSelectedAgeGroups.size > 0) {
 				ageGroup = $currentSelectedAgeGroups.values().next().value as string; // Ensure it's a string
-			}
-
-			for (const [, layerDetails] of $currentRasterLayers) {
-				if (layerDetails.isVisible) {
-					const parts = layerDetails.name.split('_');
-					if (parts.length > 0) {
-						switch (parts[0]) {
-							case 'SHIG':
-								pathogen = 'Shigella';
-								break;
-							case 'ROTA':
-								pathogen = 'Rotavirus';
-								break;
-							case 'NORO':
-								pathogen = 'Norovirus';
-								break;
-							case 'CAMP':
-								pathogen = 'Campylobacter';
-								break;
-						}
-					}
-					break;
-				}
 			}
 
 			const data = await processPathogenData(pathogen, clickCoordinates, ageGroup, '');

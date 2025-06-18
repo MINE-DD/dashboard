@@ -166,17 +166,16 @@ export async function processPathogenData(
     };
   } catch (error) {
     console.error('Error processing pathogen data from pointsData store:', error);
-    // Return default values if data processing fails, or rethrow if preferred
-    // For now, matching the old behavior of returning defaults:
+    // Return default values if data processing fails
     return {
-      prevalence: 10.96, // Default placeholder
-      lowerBound: 8.65,  // Default placeholder
-      upperBound: 13.27, // Default placeholder
-      ageRange: ageRange || '0-11 months', // Use input or a default
-      study: `Spatiotemporal model of ${pathogen}`, // Placeholder
-      duration: 'annual average for 2018', // Placeholder
-      source: 'Badr, Colston et al. 2023 Lancet Glob Health', // Placeholder
-      sourceUrl: 'https://www.thelancet.com/journals/langlo/article/PIIS2214-109X(23)00126-2/fulltext' // Placeholder
+      prevalence: 0, // Default to 0%
+      lowerBound: 0, // Default to 0
+      upperBound: 0, // Default to 0
+      ageRange: ageRange || 'N/A', // Use input ageRange or 'N/A'
+      study: 'No specific data point found for this query',
+      duration: 'N/A',
+      source: 'N/A',
+      sourceUrl: '#' // No specific link
     };
   }
 }
