@@ -71,6 +71,7 @@ export {
   // visualizationUpdateTrigger, // Removed as part of refactor
   // mapUpdateSignal, // Removed as part of refactor
   autoUpdateEnabled, // Kept as it might be used by components
+  isAdjustingLayerOrder, // Add the new store here
   // autoMapUpdater, // Removed as part of refactor
   // triggerVisualizationUpdate, // Removed as part of refactor
   setMapInstance,

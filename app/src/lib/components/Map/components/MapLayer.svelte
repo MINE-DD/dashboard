@@ -10,8 +10,10 @@
 		setPointsAddedToMap,
 		addInitialPointsToMap,
 		// updateMapVisualization, // Not used directly
-		switchVisualizationType as storeSwitchVisualizationType
+		switchVisualizationType as storeSwitchVisualizationType,
 		// type VisualizationType // Already imported below
+		isAdjustingLayerOrder, // Import the new store
+		isUpdatingVisualization // Import this store as well
 	} from '../store'; // This imports from ../store/index.ts
 
 	import { isProgrammaticSwitching } from '../store/mapVisualizationManager'; // Correct path
@@ -197,8 +199,12 @@
 
 	// Handle style changes
 	function handleStyleChange() {
-		if (get(isProgrammaticSwitching)) {
-			// console.log('Style change detected during programmatic switch, ignoring in MapLayer.');
+		if (
+			get(isProgrammaticSwitching) ||
+			get(isAdjustingLayerOrder) ||
+			get(isUpdatingVisualization)
+		) {
+			// console.log('Style change detected during programmatic switch, layer order adjustment, or visualization update, ignoring in MapLayer.');
 			return;
 		}
 

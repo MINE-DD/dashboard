@@ -191,9 +191,9 @@ export function updateRasterLayerOpacity(
       try {
         const currentOpacity = map.getPaintProperty(layerId, 'raster-opacity') ?? 1;
         if (currentOpacity !== layer.opacity) {
-          console.log(`Map (Opacity): Attempting to set opacity for ${layerId} to ${layer.opacity}`);
+          // console.log(`Map (Opacity): Attempting to set opacity for ${layerId} to ${layer.opacity}`);
           map.setPaintProperty(layerId, 'raster-opacity', layer.opacity);
-          console.log(`Map (Opacity): Successfully set opacity for ${layerId}`);
+          // console.log(`Map (Opacity): Successfully set opacity for ${layerId}`);
         }
       } catch (error) {
         // Ignore errors if layer doesn't exist (might happen during transitions)

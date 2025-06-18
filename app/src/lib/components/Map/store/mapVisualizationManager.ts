@@ -29,6 +29,9 @@ export const isUpdatingVisualization = writable<boolean>(false);
 // Store to track if a programmatic switch is in progress
 export const isProgrammaticSwitching = writable<boolean>(false);
 
+// Store to track if layer order is being programmatically adjusted
+export const isAdjustingLayerOrder = writable<boolean>(false);
+
 // Auto-update store (can be used by components if needed, but not for automatic map updates from here)
 export const autoUpdateEnabled = writable<boolean>(true);
 

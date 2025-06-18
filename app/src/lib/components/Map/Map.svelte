@@ -17,10 +17,12 @@
 		selectedPathogens,
 		selectedAgeGroups,
 		selectedSyndromes,
-		clearFilterCache
+		clearFilterCache,
+		pointsAddedToMap
 	} from './store';
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
 	import { processPathogenData } from './utils/csvDataProcessor';
+	import { isClickOnVisibleRaster } from './utils/rasterClickUtils';
 
 	// Import modularized components
 	import MapCore from './components/MapCore.svelte';
@@ -164,11 +166,16 @@
 
 			// Move the country boundaries layer to the top after other initial layers are likely added
 			// Using a timeout to allow other components (like MapLayer, RasterLayerManager) to add their layers
+			// The main call to ensureCorrectLayerOrder will now be triggered by pointsAddedToMap store
+			// However, we can still move the country boundaries layer here if it exists early.
 			setTimeout(() => {
 				if (map && map.getLayer('country-boundaries-layer')) {
-					map.moveLayer('country-boundaries-layer');
+					// This specific move might be redundant if ensureCorrectLayerOrder runs soon after,
+					// but can help if boundaries appear before points layer is fully ready.
+					// map.moveLayer('country-boundaries-layer');
+					// Let's rely on the reactive pointsAddedToMap for the main ordering.
 				}
-			}, 500); // Adjust timeout as needed
+			}, 500); // Original delay for boundaries, can be adjusted or removed if covered by reactive block
 		}
 	}
 
@@ -194,9 +201,12 @@
 		popoverProperties = null;
 
 		// Check if the click was on a point feature
-		const features = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y], {
-			layers: ['points-layer']
-		});
+		let features: maplibregl.MapGeoJSONFeature[] = [];
+		if (map.getLayer('points-layer')) {
+			features = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y], {
+				layers: ['points-layer']
+			});
+		}
 
 		// If the click was on a point feature, let the point click handler handle it
 		if (features.length > 0) {
@@ -236,52 +246,62 @@
 		}
 
 		// For non-point, non-water clicks, get the coordinates
-		const coordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
+		const clickCoordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
 
-		// Show loading state
+		const $currentRasterLayers = get(rasterLayers);
+		const showRasterEstimationPopover = isClickOnVisibleRaster(
+			clickCoordinates,
+			$currentRasterLayers
+		);
+
+		if (!showRasterEstimationPopover) {
+			// Click was not on any visible raster layer's bounds
+			isLoading.set(false); // Ensure loading is off if we return early
+			return;
+		}
+
+		// --- If we reach here, the click was on a visible raster layer ---
+		// Proceed with existing logic to show the estimation popover
 		isLoading.set(true);
-
 		try {
 			// Get visible raster layers to determine pathogen
 			let pathogen = 'Shigella'; // Default pathogen
 			let ageGroup = '0-11 months'; // Default age group
 
 			// Try to get pathogen from visible raster layers
-			const visibleRasterLayers: string[] = [];
-			$rasterLayers.forEach((layer, id) => {
-				if (layer.isVisible) {
-					visibleRasterLayers.push(id);
-					// Extract pathogen and age group from the first visible layer
-					if (visibleRasterLayers.length === 1) {
-						const parts = layer.name.split('_');
-						if (parts.length > 0) {
-							// Try to extract pathogen from layer name
-							switch (parts[0]) {
-								case 'SHIG':
-									pathogen = 'Shigella';
-									break;
-								case 'ROTA':
-									pathogen = 'Rotavirus';
-									break;
-								case 'NORO':
-									pathogen = 'Norovirus';
-									break;
-								case 'CAMP':
-									pathogen = 'Campylobacter';
-									break;
-								// Add more mappings as needed
-							}
+			// This logic can be kept or refined. For now, it uses the first visible raster.
+			for (const [, layerDetails] of $currentRasterLayers) {
+				if (layerDetails.isVisible) {
+					const parts = layerDetails.name.split('_');
+					if (parts.length > 0) {
+						// Try to extract pathogen from layer name
+						switch (parts[0]) {
+							case 'SHIG':
+								pathogen = 'Shigella';
+								break;
+							case 'ROTA':
+								pathogen = 'Rotavirus';
+								break;
+							case 'NORO':
+								pathogen = 'Norovirus';
+								break;
+							case 'CAMP':
+								pathogen = 'Campylobacter';
+								break;
+							// Add more mappings as needed
 						}
+						// TODO: Potentially extract age group from layerDetails.name if needed
 					}
+					break; // Found the first visible layer, use its context
 				}
-			});
+			}
 
 			// Process data for the clicked location
-			const data = await processPathogenData(pathogen, coordinates, ageGroup, '');
+			const data = await processPathogenData(pathogen, clickCoordinates, ageGroup, '');
 
 			// Format coordinates for display
-			const formattedLng = coordinates[0].toFixed(4);
-			const formattedLat = coordinates[1].toFixed(4);
+			const formattedLng = clickCoordinates[0].toFixed(4);
+			const formattedLat = clickCoordinates[1].toFixed(4);
 
 			// Convert the data to a format compatible with MapPopover
 			popoverProperties = {
@@ -300,7 +320,7 @@
 			};
 
 			// Show the popover
-			popoverCoordinates = coordinates;
+			popoverCoordinates = clickCoordinates;
 			showPopover = true;
 		} catch (error) {
 			console.error('Error processing data for popover:', error);
@@ -420,6 +440,41 @@
 				serializeFiltersToUrl(map, globalOpacity);
 			}
 		}, 100);
+	}
+
+	// Reactive statement to ensure layer order once points are added to the map
+	$: if ($pointsAddedToMap && map && isStyleLoaded && rasterLayerManager) {
+		console.log('Map.svelte: pointsAddedToMap is true, ensuring layer order.');
+		// Short delay to ensure map has processed the points layer addition
+		setTimeout(() => {
+			if (rasterLayerManager && typeof rasterLayerManager.ensureCorrectLayerOrder === 'function') {
+				rasterLayerManager.ensureCorrectLayerOrder();
+			}
+		}, 250); // Increased delay
+	}
+
+	// Reactive statement to ensure layer order if raster layers change (e.g., a new one is added/shown)
+	// This complements the onLayerAdded callback inside syncRasterLayers by providing a Map.svelte-level check.
+	// It might be slightly redundant but acts as a fallback.
+	let previousVisibleRasterCount = 0;
+	$: {
+		if (map && isStyleLoaded && rasterLayerManager) {
+			const currentVisibleRasterCount = Array.from(get(rasterLayers).values()).filter(
+				(l) => l.isVisible && l.bounds
+			).length;
+			if (currentVisibleRasterCount !== previousVisibleRasterCount) {
+				console.log('Map.svelte: Visible raster count changed, ensuring layer order.');
+				setTimeout(() => {
+					if (
+						rasterLayerManager &&
+						typeof rasterLayerManager.ensureCorrectLayerOrder === 'function'
+					) {
+						rasterLayerManager.ensureCorrectLayerOrder();
+					}
+				}, 100); // Delay to allow map to update
+			}
+			previousVisibleRasterCount = currentVisibleRasterCount;
+		}
 	}
 </script>
 
