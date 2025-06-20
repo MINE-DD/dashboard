@@ -2,69 +2,66 @@
 
 ## Project Overview
 
-This is the **MINE-DD Dashboard**, a geospatial data visualization platform developed by the Netherlands eScience Center. The project serves and visualizes geographical data on an interactive map interface for mining-related data analysis.
+The **MINE-DD Dashboard** is a geospatial data visualization platform developed by the Netherlands eScience Center. It serves and visualizes geographical data on an interactive map interface for mining-related data analysis.
+
+## Quick Reference
+
+### Core Architecture
+
+- **Frontend**: SvelteKit + Svelte 5 + TypeScript
+- **Raster Data**: Direct COG access from Cloudflare R2 (client-side processing)
+- **Maps**: MapLibre GL JS with multiple style sources
+- **Database**: PostgreSQL with Auth.js authentication
+- **Deployment**: Static site generation with Vercel
+
+### Key Principles
+
+- **State Management**: All shared state in `.store.svelte.ts` files using Svelte 5 runes
+- **COG-First**: Prioritize Cloud Optimized GeoTIFF with direct R2 access
+- **Client-Side Processing**: Use geotiff.js for browser-based raster processing
+- **Modular Components**: Break complex functionality into focused sub-components
 
 ## Technology Stack
 
 ### Frontend Framework
 
-- **SvelteKit** with **Svelte 5** (using modern runes API)
+- **SvelteKit** with **Svelte 5** (modern runes API)
 - **TypeScript** for type safety
-- **Vite** as the build tool
+- **Vite** as build tool
 - **Static site generation** with `@sveltejs/adapter-static`
 
-#### State Management and reactivity
+### State Management & Reactivity
 
-1. Clear Store Architecture Guidelines
-   Emphasized the .store.svelte.ts naming convention for easy identification
-   Made it clear that ALL shared state must live in stores, not components
-2. Pure Svelte 5 Runes Focus
-   Specified using only $state, $derived, and $effect
-   Avoided complex external libraries or patterns
-   Emphasized the reactive-by-default nature
-3. Business Logic Centralization
-   Stores contain all business logic, API calls, and data transformations
-   Components become thin presentation layers
-   Clear separation of concerns
-4. Comprehensive Store Pattern
-   Complete example showing reactive state, derived state, and methods
-   Read-only getter pattern for state access
-   Proper TypeScript integration
-5. Component Usage Examples
-   Showed how components should consume stores
-   Demonstrated automatic UI updates through reactive state
-   Event handler delegation to store actions
-6. Multi-Store Composition
-   Examples of how to use multiple focused stores together
-   Domain-specific store organization
-7. Benefits and Mental Model
-   Clear explanation of why this approach is beneficial
-   Simple mental model without external dependencies
+**Follow the `.store.svelte.ts` naming convention for all shared state:**
 
-The instructions now clearly communicate that:
+- **Store Architecture**: ALL shared state must live in stores, not components
+- **Svelte 5 Runes**: Use only `$state`, `$derived`, and `$effect`
+- **Business Logic**: Centralized in stores (API calls, data transformations)
+- **Components**: Thin presentation layers that consume store state
+- **Domain-specific**: Organize stores by functionality (e.g., `map.store.svelte.ts`, `auth.store.svelte.ts`)
 
-- Information sharing → Store with $state
-- API fetching → Store methods that update $state
-- Computed values → $derived in stores
-- Modular architecture → Domain-specific .store.svelte.ts files
-- Components → Thin layers that consume store state and trigger actions
-- This approach keeps the code modular, reactive, and maintainable while leveraging Svelte 5's powerful runes system effectively.
+**Mental Model:**
+
+- Information sharing → Store with `$state`
+- API fetching → Store methods that update `$state`
+- Computed values → `$derived` in stores
+- Components → Consume store state and trigger store actions
 
 ### Styling & UI
 
 - **Tailwind CSS** with custom configuration
 - **DaisyUI** component library with custom "ctw" theme
-- **@tailwindcss/typography**, **@tailwindcss/forms**, **@tailwindcss/container-queries** plugins
-- Custom CSS in `src/lib/assets/css/app.css`
+- **Plugins**: `@tailwindcss/typography`, `@tailwindcss/forms`, `@tailwindcss/container-queries`
+- **Custom CSS**: `src/lib/assets/css/app.css`
 
 ### Mapping & Geospatial
 
 - **MapLibre GL JS** for interactive maps
-- **GeoTIFF library (geotiff npm package)** for client-side COG processing and rendering
-- **Direct COG access** from Cloudflare R2 using HTTP range requests for optimal performance
+- **GeoTIFF library** (`geotiff` npm package) for client-side COG processing
+- **Direct COG access** from Cloudflare R2 using HTTP range requests
 - **No TiTiler dependency** - all raster processing handled client-side
-- Multiple map style sources: CARTO, MapTiler, OpenStreetMap
-- Custom map style management with categories (Base Maps, Satellite & Terrain, Themes)
+- **Map styles**: Multiple sources (CARTO, MapTiler, OpenStreetMap)
+- **Style management**: Categorized with runtime switching
 
 ### Backend & Database
 
@@ -74,39 +71,30 @@ The instructions now clearly communicate that:
 - **node-pg-migrate** for database migrations
 - **Bun.js** runtime support
 
-### Raster Data Backend Architecture
-
-- **Cloud Optimized GeoTIFF (COG)** as the primary raster format
-- **Cloudflare R2** as the primary storage backend for COG files
-- **Direct COG access** from client-side using range requests for optimal performance
-- **Client-side processing** using geotiff.js library for browser-based COG reading and rendering
-- **No server intermediary** - eliminates TiTiler dependency and reduces latency
-- **S3-compatible storage** pattern for flexibility across different cloud providers
-
 ### Data Processing & Visualization
 
 - **Chart.js** for data visualization
 - **Papa Parse** for CSV processing
 - **date-fns** for date manipulation
-- Custom CSV data processor for pathogen data
+- **Custom processors** for pathogen data
 
 ### Development Tools
 
 - **ESLint** with TypeScript and Svelte plugins
 - **Prettier** with Svelte and Tailwind plugins
-- **mdsvex** for Markdown processing in Svelte
+- **mdsvex** for Markdown processing
 - **unplugin-icons** for icon management
 - **vitest** for testing
 
-## Architecture Patterns
+## Architecture & File Organization
 
-### File Structure & Organization
+### Project Structure
 
 ```
 src/
 ├── lib/
 │   ├── components/        # Reusable components
-│   │   ├── Map/          # Map-related components (modular structure)
+│   │   ├── Map/          # Map-related components (modular)
 │   │   └── ui/           # UI components
 │   ├── stores/           # Svelte stores (modular with index exports)
 │   ├── assets/css/       # Stylesheets
@@ -119,9 +107,9 @@ src/
 
 ### Component Architecture
 
-- **Modular Map Components**: `Map.svelte` uses multiple sub-components (MapCore, MapControls, RasterLayerManager, etc.)
-- **Svelte 5 Runes**: Uses modern `$props()`, `$state()`, and `{@render}` syntax
-- **Component Composition**: Heavy use of snippet-based composition with `children` props
+- **Modular Map Components**: `Map.svelte` uses multiple sub-components
+- **Svelte 5 Runes**: Modern `$props()`, `$state()`, `{@render}` syntax
+- **Component Composition**: Snippet-based composition with `children` props
 
 ### Store Management
 
@@ -141,7 +129,7 @@ $lib: "./src/lib";
 
 ## Code Style Guidelines
 
-### Formatting (Prettier Config)
+### Formatting (Prettier)
 
 - **Tabs**: Use tabs for indentation
 - **Single Quotes**: Prefer single quotes
@@ -149,12 +137,12 @@ $lib: "./src/lib";
 - **Print Width**: 100 characters
 - **HTML Whitespace**: `htmlWhitespaceSensitivity: "ignore"`
 
-### TypeScript Conventions
+### TypeScript
 
 - **Strict Mode**: Enabled with strict type checking
 - **Interface Definitions**: Clear interfaces for props and data models
 - **Type Imports**: Use `import type` for type-only imports
-- **Modern Module Resolution**: Uses `bundler` resolution
+- **Module Resolution**: Uses `bundler` resolution
 
 ### Svelte 5 Patterns
 
@@ -183,27 +171,19 @@ $lib: "./src/lib";
 {/if}
 ```
 
-### CSS/Styling Conventions
+### CSS/Styling
 
 - **Tailwind-first**: Prefer Tailwind utilities over custom CSS
 - **DaisyUI Components**: Use DaisyUI components when available
-- **Custom Theme**: Uses "ctw" custom theme with specific brand colors
-- **Responsive Design**: Uses Tailwind responsive prefixes (`sm:`, `md:`, etc.)
-- **Grid Layouts**: Extensive use of CSS Grid (`grid-rows-[auto_auto_1fr]`)
+- **Custom Theme**: Uses "ctw" custom theme with brand colors
+- **Responsive Design**: Tailwind responsive prefixes (`sm:`, `md:`, etc.)
+- **Grid Layouts**: CSS Grid (`grid-rows-[auto_auto_1fr]`)
 
-### Map Component Patterns
+### Component Patterns
 
-- **Modular Structure**: Break complex maps into focused sub-components
-- **Store-based State**: Use dedicated stores for map state management
-- **Layer Management**: Separate components for different layer types
-- **Style Management**: Categorized map styles with runtime switching
-
-### Authentication Patterns
-
-- **Multi-provider Support**: Google, Credentials, Resend email
-- **JWT Strategy**: Session management with JWT tokens
-- **Route Protection**: Server-side route protection patterns
-- **Browser-aware**: Conditional rendering based on authentication state
+- **Modular Structure**: Break complex components into focused sub-components
+- **Store-based State**: Use dedicated stores for state management
+- **Authentication**: Multi-provider with JWT tokens and route protection
 
 ## Environment & Configuration
 
@@ -211,15 +191,14 @@ $lib: "./src/lib";
 
 - `VITE_MAPTILER_KEY`: MapTiler API key for satellite imagery
 - `AUTH_SECRET`: Authentication secret
-- Database connection variables
+- `VITE_R2_BUCKET_URL`: Cloudflare R2 bucket URL for COG files
 - `BASE_PATH`: For deployment path configuration
-- `VITE_R2_BUCKET_URL`: Cloudflare R2 bucket URL for COG files (optional, defaults to hardcoded URL)
+- Database connection variables
 
 ### Deployment
 
 - **Static Site**: Uses static adapter for deployment
 - **Vercel**: Primary deployment target
-- **Docker**: Containerized development environment (legacy)
 - **GitHub Pages**: Alternative deployment option
 - **Simplified Infrastructure**: No server-side dependencies for raster processing
 
@@ -389,9 +368,9 @@ const layersToAdd = [
 ];
 ```
 
-### Error Handling & Debugging
+## Error Handling & Debugging
 
-#### Common Issues and Solutions
+### Common Issues and Solutions
 
 1. **CORS Errors**: Ensure R2 bucket has proper CORS configuration
 
@@ -452,9 +431,9 @@ if (!("readAsArrayBuffer" in new FileReader())) {
 }
 ```
 
-### Migration from TiTiler (Completed)
+## Migration from TiTiler (Completed)
 
-#### What Was Removed
+### What Was Removed
 
 - **Docker Services**: TiTiler container and related services
 - **Server Dependencies**: FastAPI, TiTiler, python-multipart
@@ -462,7 +441,7 @@ if (!("readAsArrayBuffer" in new FileReader())) {
 - **Tile Endpoints**: All `/cog/` API endpoints for tile serving
 - **Volume Mounts**: Local data directory mounting for TiTiler
 
-#### What Was Added
+### What Was Added
 
 - **geotiff npm package**: Client-side COG processing library
 - **Canvas Processing**: Browser-based image rendering
@@ -470,7 +449,7 @@ if (!("readAsArrayBuffer" in new FileReader())) {
 - **Client-side Colormaps**: Viridis colormap implementation
 - **Transparent No-data**: Proper handling of missing data areas
 
-#### Key Benefits of Migration
+### Key Benefits of Migration
 
 - **Reduced Infrastructure**: No server-side processing required
 - **Better Performance**: Direct CDN access with edge caching
@@ -478,7 +457,7 @@ if (!("readAsArrayBuffer" in new FileReader())) {
 - **Improved Scalability**: Browser-based processing scales with users
 - **Cost Efficiency**: No compute costs for raster processing
 
-#### Migration Checklist for New Features
+### Migration Checklist for New Features
 
 - ✅ Use `geotiff` library instead of TiTiler endpoints
 - ✅ Store COG files in Cloudflare R2 with public access
@@ -488,9 +467,9 @@ if (!("readAsArrayBuffer" in new FileReader())) {
 - ✅ Implement proper error handling for network failures
 - ✅ Add transparent handling for no-data values
 
-### Development Environment Setup
+## Development Environment Setup
 
-#### Required Dependencies
+### Required Dependencies
 
 ```json
 {
@@ -504,7 +483,7 @@ if (!("readAsArrayBuffer" in new FileReader())) {
 }
 ```
 
-#### Local Development with COG Files
+### Local Development with COG Files
 
 ```typescript
 // For local development, serve COG files statically
@@ -514,7 +493,7 @@ const baseUrl = isDev
   : "https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/";
 ```
 
-#### Testing COG Access
+### Testing COG Access
 
 ```bash
 # Test direct COG access
@@ -523,9 +502,9 @@ curl -I "https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/01_Pathogens/S
 # Should return 200 OK with Accept-Ranges: bytes header
 ```
 
-### Performance Optimization Guidelines
+## Performance Optimization Guidelines
 
-#### COG File Optimization
+### COG File Optimization
 
 ```bash
 # Convert existing raster to optimized COG
@@ -539,7 +518,7 @@ gdal_translate -of COG \
 gdaladdo -r average output_cog.tif 2 4 8 16 32
 ```
 
-#### Memory Management
+### Memory Management
 
 ```typescript
 // Implement progressive loading
@@ -556,7 +535,7 @@ const loadCOGProgressively = async (url: string) => {
 };
 ```
 
-#### Caching Strategy
+### Caching Strategy
 
 ```typescript
 // Implement browser caching for processed data URLs
@@ -571,9 +550,9 @@ const dataUrl = await processGeoTIFF(image, options);
 localStorage.setItem(cacheKey, dataUrl);
 ```
 
-### Best Practices for COG Implementation
+## Best Practices for COG Implementation
 
-#### Code Organization
+### Code Organization
 
 ```typescript
 // Preferred structure for COG-related code
@@ -591,7 +570,7 @@ src/lib/components/Map/
     └── LayerControls.svelte
 ```
 
-#### Error Handling Patterns
+### Error Handling Patterns
 
 ```typescript
 // Robust error handling for COG operations
@@ -617,7 +596,7 @@ const loadCOGWithRetry = async (url: string, maxRetries = 3) => {
 };
 ```
 
-#### State Management for Raster Layers
+### State Management for Raster Layers
 
 ```typescript
 // Use stores for raster layer management
@@ -639,7 +618,7 @@ export const updateLayerVisibility = (id: string, visible: boolean) => {
 };
 ```
 
-#### TypeScript Interfaces
+### TypeScript Interfaces
 
 ```typescript
 // Define clear interfaces for COG data structures
@@ -667,7 +646,7 @@ interface GeoTIFFMetadata {
 }
 ```
 
-#### CORS Configuration for R2
+### CORS Configuration for R2
 
 ```json
 // Required R2 CORS policy
@@ -682,7 +661,7 @@ interface GeoTIFFMetadata {
 ]
 ```
 
-#### Data Validation
+### Data Validation
 
 ```typescript
 // Validate COG data before processing
@@ -706,7 +685,7 @@ const validateCOGData = (image: any) => {
 };
 ```
 
-#### Environment Variables
+### Environment Variables
 
 ```bash
 # Production environment variables
@@ -719,9 +698,9 @@ VITE_COG_BASE_URL=http://localhost:5173/data/cogs/
 VITE_DEBUG_COG=true
 ```
 
-### Testing Strategies
+## Testing Strategies
 
-#### Unit Testing COG Processing
+### Unit Testing COG Processing
 
 ```typescript
 // Example test for COG processing utilities
@@ -745,7 +724,7 @@ describe("COG Processing", () => {
 });
 ```
 
-#### Integration Testing
+### Integration Testing
 
 ```typescript
 // Test COG integration with MapLibre
@@ -769,7 +748,7 @@ const testCOGLayerIntegration = async (map, cogUrl) => {
 };
 ```
 
-#### Performance Monitoring
+### Performance Monitoring
 
 ```typescript
 // Track COG loading performance
@@ -802,7 +781,7 @@ const trackCOGPerformance = async (
 };
 ```
 
-#### Error Tracking
+### Error Tracking
 
 ```typescript
 // Comprehensive error tracking for COG operations
