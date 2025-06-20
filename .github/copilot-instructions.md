@@ -13,6 +13,43 @@ This is the **MINE-DD Dashboard**, a geospatial data visualization platform deve
 - **Vite** as the build tool
 - **Static site generation** with `@sveltejs/adapter-static`
 
+#### State Management and reactivity
+
+1. Clear Store Architecture Guidelines
+   Emphasized the .store.svelte.ts naming convention for easy identification
+   Made it clear that ALL shared state must live in stores, not components
+2. Pure Svelte 5 Runes Focus
+   Specified using only $state, $derived, and $effect
+   Avoided complex external libraries or patterns
+   Emphasized the reactive-by-default nature
+3. Business Logic Centralization
+   Stores contain all business logic, API calls, and data transformations
+   Components become thin presentation layers
+   Clear separation of concerns
+4. Comprehensive Store Pattern
+   Complete example showing reactive state, derived state, and methods
+   Read-only getter pattern for state access
+   Proper TypeScript integration
+5. Component Usage Examples
+   Showed how components should consume stores
+   Demonstrated automatic UI updates through reactive state
+   Event handler delegation to store actions
+6. Multi-Store Composition
+   Examples of how to use multiple focused stores together
+   Domain-specific store organization
+7. Benefits and Mental Model
+   Clear explanation of why this approach is beneficial
+   Simple mental model without external dependencies
+
+The instructions now clearly communicate that:
+
+- Information sharing → Store with $state
+- API fetching → Store methods that update $state
+- Computed values → $derived in stores
+- Modular architecture → Domain-specific .store.svelte.ts files
+- Components → Thin layers that consume store state and trigger actions
+- This approach keeps the code modular, reactive, and maintainable while leveraging Svelte 5's powerful runes system effectively.
+
 ### Styling & UI
 
 - **Tailwind CSS** with custom configuration
