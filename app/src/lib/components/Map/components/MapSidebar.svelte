@@ -28,6 +28,8 @@
 		visualizationType,
 		switchVisualization,
 		type VisualizationType,
+		// Import bar thickness store
+		barThickness,
 		// Import new derived stores for filter option counts
 		pathogenCounts,
 		ageGroupCounts,
@@ -45,6 +47,7 @@
 		// triggerVisualizationUpdate, // Removed as part of refactor
 		handleMapContentChange
 	} from '../store';
+	import MaterialSymbolsSettingsOutlineRounded from '~icons/material-symbols/settings-outline-rounded';
 
 	const dispatch = createEventDispatcher();
 
@@ -122,6 +125,7 @@
 
 	// Sidebar configuration
 	let collapsed = false;
+	let showSettingsModal = false;
 
 	// Stats for selected filters
 	$: visiblePoints = $filteredPointsData?.features?.length || 0;
@@ -279,35 +283,44 @@
 >
 	<!-- Sidebar header with toggle button -->
 	<div class="z-10 border-b border-white/30 bg-gradient-to-r from-white/40 to-white/20 p-4">
-		<button
-			class=" hidden w-full items-center justify-between sm:flex"
-			on:click={() => (collapsed = !collapsed)}
-		>
-			<h2 class="text-base-content text-md m-0 mr-20 font-semibold">Data Explorer</h2>
-			<span
-				class="btn btn-sm btn-ghost btn-square"
-				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="h-5 w-5"
+		<div class="hidden w-full items-center justify-between sm:flex">
+			<h2 class="text-base-content text-md m-0 mr-8 font-semibold">Data Explorer</h2>
+			<div class="flex items-center gap-1">
+				<!-- Settings button -->
+				<button
+					class="btn btn-sm btn-ghost btn-square"
+					title="Visualization Settings"
+					on:click={() => (showSettingsModal = true)}
 				>
-					{#if collapsed}
-						<polyline points="9 18 15 12 9 6"></polyline>
-					{:else}
-						<polyline points="6 9 12 15 18 9"></polyline>
-					{/if}
-				</svg>
-			</span>
-		</button>
+					<MaterialSymbolsSettingsOutlineRounded />
+				</button>
+				<!-- Collapse button -->
+				<button
+					class="btn btn-sm btn-ghost btn-square"
+					title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+					on:click={() => (collapsed = !collapsed)}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-5 w-5"
+					>
+						{#if collapsed}
+							<polyline points="9 18 15 12 9 6"></polyline>
+						{:else}
+							<polyline points="6 9 12 15 18 9"></polyline>
+						{/if}
+					</svg>
+				</button>
+			</div>
+		</div>
 
 		{#if !collapsed}
 			<!-- {#if $isLoading}
@@ -538,3 +551,73 @@
 		<!-- Closes tab content div -->
 	{/if}
 </div>
+
+<!-- Settings Modal -->
+{#if showSettingsModal}
+	<div class="modal modal-open">
+		<div class="modal-box">
+			<h3 class="mb-4 text-lg font-bold">Visualization Settings</h3>
+
+			<!-- 3D Bar Settings (only show when 3D bars are selected) -->
+			{#if $visualizationType === '3d-bars'}
+				<div class="form-control mb-4 w-full">
+					<label class="label">
+						<span class="label-text font-medium">3D Bar Base Thickness</span>
+						<span class="label-text-alt font-bold">{Math.round($barThickness * 100)}km</span>
+					</label>
+					<input
+						type="range"
+						min="0.05"
+						max="0.5"
+						step="0.01"
+						bind:value={$barThickness}
+						on:input={async () => {
+							// Trigger map update when thickness changes
+							await handleMapContentChange();
+						}}
+						class="range range-primary"
+					/>
+					<div class="mt-1 flex w-full justify-between px-2 text-xs">
+						<span>5km</span>
+						<span>50km</span>
+					</div>
+					<div class="mt-2">
+						<p class="text-base-content/70 text-sm">
+							<strong>Base thickness</strong>
+							- automatically scaled by sample size (like pie chart diameter)
+						</p>
+						<p class="text-base-content/60 mt-1 text-xs">
+							• Larger studies get thicker bars (more reliable data)
+							<br />
+							• Height represents prevalence values
+							<br />
+							• Color indicates study design type
+						</p>
+					</div>
+				</div>
+			{:else}
+				<div class="alert alert-info">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						fill="none"
+						viewBox="0 0 24 24"
+						class="h-6 w-6 shrink-0 stroke-current"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+						></path>
+					</svg>
+					<span>Select "3D Bar Extrusions" to access bar thickness settings.</span>
+				</div>
+			{/if}
+
+			<div class="modal-action">
+				<button class="btn btn-primary" on:click={() => (showSettingsModal = false)}>Done</button>
+			</div>
+		</div>
+		<div class="modal-backdrop" on:click={() => (showSettingsModal = false)}></div>
+	</div>
+{/if}

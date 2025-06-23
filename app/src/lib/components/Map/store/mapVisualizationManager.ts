@@ -15,6 +15,12 @@ import {
   getDesignColors,
   getDefaultColor
 } from '../utils/pieChartUtils';
+import {
+  convertPointsToPolygons,
+  create3DBarLayer,
+  remove3DBarLayer,
+  get3DCameraSettings
+} from '../utils/barExtrusionUtils';
 import { debounce } from '../utils/urlParams'; // Assuming debounce is here
 
 // Store to track the current map instance
@@ -103,6 +109,8 @@ export async function updateMapVisualization(): Promise<boolean> {
     let dataToUpdate = $filteredData;
     if ($vizType === 'pie-charts') {
       dataToUpdate = getSeparatePieChartData($filteredData) as any;
+    } else if ($vizType === '3d-bars') {
+      dataToUpdate = convertPointsToPolygons($filteredData) as any;
     }
 
     // Update the source data
@@ -176,6 +184,11 @@ function ensurePointsOnTop(map: MaplibreMap) {
       map.moveLayer(layerId);
     }
   });
+
+  // For 3D bars visualization
+  if (map.getLayer('3d-bars-layer')) {
+    map.moveLayer('3d-bars-layer');
+  }
 }
 
 // Function to add initial points to map (called once when map is ready)
@@ -229,6 +242,9 @@ export async function addInitialPointsToMap(): Promise<boolean> {
     if ($vizType === 'pie-charts') {
       dataToUse = getSeparatePieChartData($filteredData) as any;
       console.log('📊 Using separate pie chart data:', dataToUse.features.length, 'features');
+    } else if ($vizType === '3d-bars') {
+      dataToUse = convertPointsToPolygons($filteredData) as any;
+      console.log('🏗️ Using 3D bar polygon data:', dataToUse.features.length, 'features');
     }
 
     console.log('🎯 Adding source to map...');
@@ -250,6 +266,17 @@ export async function addInitialPointsToMap(): Promise<boolean> {
 
       // Add symbol layers for pie charts
       createPieChartLayers($map, $filteredData);
+    } else if ($vizType === '3d-bars') {
+      // Add 3D bar extrusion layer
+      create3DBarLayer($map);
+
+      // Set optimal camera angle for 3D viewing
+      const cameraSettings = get3DCameraSettings();
+      $map.easeTo({
+        pitch: cameraSettings.pitch,
+        bearing: cameraSettings.bearing,
+        duration: 1000
+      });
     } else {
       // Add circle layer for dots
       $map.addLayer({
@@ -308,16 +335,19 @@ export async function switchVisualizationType(newType: VisualizationType): Promi
     // Update the visualization type store
     visualizationType.set(newType);
 
-    // Remove existing layers
-    if (newType === 'pie-charts') {
-      // Switching to pie charts - remove circle layer
+    // Remove existing layers based on current type
+    if ($currentType === 'pie-charts') {
+      // Remove pie chart layers
+      removePieChartLayers($map);
+      cleanupPieChartImages($map);
+    } else if ($currentType === '3d-bars') {
+      // Remove 3D bar layer
+      remove3DBarLayer($map);
+    } else {
+      // Remove circle layer (dots)
       if ($map.getLayer('points-layer')) {
         $map.removeLayer('points-layer');
       }
-    } else {
-      // Switching to dots - remove pie chart layers
-      removePieChartLayers($map);
-      cleanupPieChartImages($map);
     }
 
     // Add new layers
@@ -341,8 +371,27 @@ export async function switchVisualizationType(newType: VisualizationType): Promi
 
       // Add pie chart layers
       createPieChartLayers($map, $filteredData);
-    } else {
+    } else if (newType === '3d-bars') {
+      dataToUse = convertPointsToPolygons($filteredData) as any;
+
       // Update source data
+      const source = $map.getSource('points-source') as maplibregl.GeoJSONSource;
+      if (source) {
+        source.setData(dataToUse);
+      }
+
+      // Add 3D bar extrusion layer
+      create3DBarLayer($map);
+
+      // Set optimal camera angle for 3D viewing
+      const cameraSettings = get3DCameraSettings();
+      $map.easeTo({
+        pitch: cameraSettings.pitch,
+        bearing: cameraSettings.bearing,
+        duration: 1000
+      });
+    } else {
+      // Update source data for dots
       const source = $map.getSource('points-source') as maplibregl.GeoJSONSource;
       if (source) {
         source.setData(dataToUse);

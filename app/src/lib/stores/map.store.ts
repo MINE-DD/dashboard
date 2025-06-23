@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
 // Visualization type for map points
-export type VisualizationType = 'dots' | 'pie-charts';
+export type VisualizationType = 'dots' | 'pie-charts' | '3d-bars';
 
 // Create a persistent visualization type store with map updates
 function createVisualizationTypeStore() {
@@ -31,6 +31,9 @@ function createVisualizationTypeStore() {
 }
 
 export const visualizationType = createVisualizationTypeStore();
+
+// Store for 3D bar thickness (base size in degrees)
+export const barThickness = writable<number>(0.2);
 
 // Manual visualization switching function - called explicitly when visualization type changes
 // This function seems to primarily update the store, which then triggers the effect in its `set` method.

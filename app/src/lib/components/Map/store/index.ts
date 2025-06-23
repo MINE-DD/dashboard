@@ -23,7 +23,8 @@ export {
 export {
   visualizationType,
   switchVisualization,
-  type VisualizationType // This type is also in map.store.ts
+  type VisualizationType, // This type is also in map.store.ts
+  barThickness
 } from '$lib/stores/map.store'; // Ensure VisualizationType is exported there
 export {
   rasterLayers,
