@@ -55,6 +55,12 @@
 	import { filterToRasterMappings } from '../store/filterRasterMapping';
 	import type { FilterToRasterMapping } from '$lib/types';
 
+	// Import localStorage utilities for settings persistence
+	import {
+		loadStoredSettings,
+		saveSettingsToStorage
+	} from '$lib/stores/visualizationSettings/localStorage';
+
 	let className: string | undefined = undefined; // class is a reserved keyword in JS, with initialization
 	export { className as class };
 	// Helper functions to check if an option has associated raster layers
@@ -260,13 +266,23 @@
 		// Initialize the set of pathogens with raster layers
 		initPathogensWithRasterLayers();
 
-		// Parse URL parameters to set initial opacity
+		// Load stored settings from localStorage
+		const storedSettings = loadStoredSettings();
+
+		// Parse URL parameters to set initial opacity (URL takes precedence over localStorage)
 		const urlParams = parseUrlFilters();
 		if (urlParams.opacity !== undefined) {
 			globalOpacity = urlParams.opacity;
-			// Apply the opacity to all raster layers
-			updateAllRasterLayersOpacity(globalOpacity / 100);
+		} else {
+			// Use stored opacity if no URL parameter
+			globalOpacity = storedSettings.globalOpacity;
 		}
+
+		// Apply the opacity to all raster layers
+		updateAllRasterLayersOpacity(globalOpacity / 100);
+
+		// Update barThickness store with stored value
+		barThickness.set(storedSettings.barThickness);
 	});
 
 	// Clean up subscription when component is destroyed
@@ -514,34 +530,6 @@
 						{/each}
 					</div> -->
 
-					<!-- Global Opacity Control -->
-					<div class="form-control">
-						<label class="label flex justify-between py-1">
-							<span class="label-text text-secondary-focus text-sm font-medium">
-								Global Opacity
-							</span>
-							<span class="label-text-alt text-secondary text-sm font-bold">{globalOpacity}%</span>
-						</label>
-						<div class="relative">
-							<input
-								type="range"
-								min="0"
-								max="100"
-								bind:value={globalOpacity}
-								on:input={() => {
-									// Update opacity for all layers
-									updateAllRasterLayersOpacity(globalOpacity / 100);
-
-									// Dispatch an event to notify parent component
-									dispatch('opacitychange', { opacity: globalOpacity });
-								}}
-								class="range range-xs from-secondary/30 to-primary/50 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gradient-to-r"
-							/>
-							<div class="text-secondary absolute -bottom-4 left-0 text-xs">0%</div>
-							<div class="text-secondary absolute -bottom-4 right-0 text-xs">100%</div>
-						</div>
-					</div>
-
 					<div class="text-secondary/80 mt-4 text-xs italic">
 						Raster layers are automatically shown based on your filter selections.
 					</div>
@@ -558,6 +546,49 @@
 		<div class="modal-box">
 			<h3 class="mb-4 text-lg font-bold">Visualization Settings</h3>
 
+			<!-- Global Raster Opacity Control -->
+			<div class="form-control mb-4 w-full">
+				<label class="label">
+					<span class="label-text font-medium">Global Raster Opacity</span>
+					<span class="label-text-alt font-bold">{globalOpacity}%</span>
+				</label>
+				<div class="relative">
+					<input
+						type="range"
+						min="0"
+						max="100"
+						bind:value={globalOpacity}
+						on:input={() => {
+							// Update opacity for all layers
+							updateAllRasterLayersOpacity(globalOpacity / 100);
+
+							// Save to localStorage
+							saveSettingsToStorage({ globalOpacity });
+
+							// Dispatch an event to notify parent component
+							dispatch('opacitychange', { opacity: globalOpacity });
+						}}
+						class="range range-primary"
+					/>
+					<div class="mt-1 flex w-full justify-between px-2 text-xs">
+						<span>0%</span>
+						<span>100%</span>
+					</div>
+				</div>
+				<div class="mt-2">
+					<p class="text-base-content/70 text-sm">
+						Controls the transparency of all raster layers on the map.
+					</p>
+					<p class="text-base-content/60 mt-1 text-xs">
+						• 0% = Completely transparent (invisible)
+						<br />
+						• 100% = Completely opaque
+						<br />
+						• Applies to all active raster layers simultaneously
+					</p>
+				</div>
+			</div>
+
 			<!-- 3D Bar Settings (only show when 3D bars are selected) -->
 			{#if $visualizationType === '3d-bars'}
 				<div class="form-control mb-4 w-full">
@@ -572,6 +603,9 @@
 						step="0.01"
 						bind:value={$barThickness}
 						on:input={async () => {
+							// Save to localStorage
+							saveSettingsToStorage({ barThickness: $barThickness });
+
 							// Trigger map update when thickness changes
 							await handleMapContentChange();
 						}}
@@ -594,23 +628,6 @@
 							• Color indicates study design type
 						</p>
 					</div>
-				</div>
-			{:else}
-				<div class="alert alert-info">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						class="h-6 w-6 shrink-0 stroke-current"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-						></path>
-					</svg>
-					<span>Select "3D Bar Extrusions" to access bar thickness settings.</span>
 				</div>
 			{/if}
 
