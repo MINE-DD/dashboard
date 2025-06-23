@@ -33,7 +33,7 @@ function createVisualizationTypeStore() {
 export const visualizationType = createVisualizationTypeStore();
 
 // Store for 3D bar thickness (base size in degrees)
-export const barThickness = writable<number>(0.2);
+export const barThickness = writable<number>(0.4);
 
 // Manual visualization switching function - called explicitly when visualization type changes
 // This function seems to primarily update the store, which then triggers the effect in its `set` method.
