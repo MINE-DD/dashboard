@@ -138,7 +138,29 @@
 	function handlePointClick(e: any) {
 		if (e.features && e.features.length > 0) {
 			const feature = e.features[0];
-			const coordinates = feature.geometry.coordinates.slice();
+			let coordinates;
+
+			// Handle different geometry types
+			if (feature.geometry.type === 'Point') {
+				// For dots and pie charts (Point geometry)
+				coordinates = feature.geometry.coordinates.slice();
+			} else if (feature.geometry.type === 'Polygon') {
+				// For 3D bars (Polygon geometry) - get the center of the polygon
+				const polygonCoords = feature.geometry.coordinates[0]; // First ring of the polygon
+				// Calculate center point of the polygon
+				let sumLng = 0,
+					sumLat = 0;
+				const numPoints = polygonCoords.length - 1; // Exclude the closing point
+				for (let i = 0; i < numPoints; i++) {
+					sumLng += polygonCoords[i][0];
+					sumLat += polygonCoords[i][1];
+				}
+				coordinates = [sumLng / numPoints, sumLat / numPoints];
+			} else {
+				// Fallback for other geometry types
+				coordinates = feature.geometry.coordinates.slice();
+			}
+
 			const properties = feature.properties;
 
 			dispatch('pointclick', {
@@ -157,7 +179,7 @@
 		if (map) map.getCanvas().style.cursor = '';
 	}
 
-	// Setup event handlers for both visualization types
+	// Setup event handlers for all visualization types
 	function setupEventHandlers() {
 		if (!map) return;
 
@@ -175,6 +197,13 @@
 				map.on('mouseleave', layerId, handleMouseLeave);
 			}
 		});
+
+		// Add event handlers for 3D bars
+		if (map.getLayer('3d-bars-layer')) {
+			map.on('click', '3d-bars-layer', handlePointClick);
+			map.on('mouseenter', '3d-bars-layer', handleMouseEnter);
+			map.on('mouseleave', '3d-bars-layer', handleMouseLeave);
+		}
 	}
 
 	// Remove event handlers
@@ -195,6 +224,13 @@
 				map.off('mouseleave', layerId, handleMouseLeave);
 			}
 		});
+
+		// Remove event handlers for 3D bars
+		if (map.getLayer('3d-bars-layer')) {
+			map.off('click', '3d-bars-layer', handlePointClick);
+			map.off('mouseenter', '3d-bars-layer', handleMouseEnter);
+			map.off('mouseleave', '3d-bars-layer', handleMouseLeave);
+		}
 	}
 
 	// Handle style changes
