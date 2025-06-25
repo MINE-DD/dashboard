@@ -2,17 +2,17 @@
 FastAPI backend for the AI Chat functionality.
 Provides endpoints for chat message processing with simulated AI responses.
 """
-import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Dict, TypeVar
 import uuid
-from backend_llms import ChatBackend
+# import multiprocessing
+### Our Backends
+from backend_llms import ChatSimple, ChatCSV, ChatBackend, get_llm_engine
 ChatEngine = TypeVar('ChatEngine')
 Chain = TypeVar('Chain')
-
 
 
 
@@ -56,17 +56,21 @@ class ChatSession(BaseModel):
 # In-memory storage for demo purposes
 chat_sessions: Dict[str, ChatSession] = {}
 
-chat_backend = ChatBackend(
-    model_name='llama3.2:latest', 
-    ollama_url=os.getenv("OLLAMA_BASE_URL")
-    )
+llm = get_llm_engine()
+
+# chat_backend = ChatCSV(llm, "Plan-EO_Dashboard_point_data.csv")
+# chat_backend = ChatSimple(llm)
+chat_backend = ChatBackend(llm, csv_file="Plan-EO_Dashboard_point_data.csv", use_simple_csv_agent=False)
+
 # chat_backend = MineddBackend(
 #     embeddings_model="mxbai-embed-large:latest",
 #     model_name='llama3.2:latest',
 #     papers_directory="papers",
 #     embeddings_file="minedd-embeddings.pkl",
 #     )
-# chat_backend = ChatSimple(model_name="/Users/jose/Phi-3-mini-4k-instruct-fp16.gguf")
+
+
+
 
 @app.get("/")
 async def root():
@@ -105,7 +109,7 @@ async def send_message(session_id: str, message: ChatMessage):
         session.messages.append(user_message)
 
         # Generate AI response
-        ai_response_content = chat_backend.ask(message.content, show_reformulation=True)
+        ai_response_content = chat_backend.ask(message.content)
 
         ai_response = ChatResponse(
             id=str(uuid.uuid4()),
@@ -134,7 +138,7 @@ async def get_messages(session_id: str):
                 ChatResponse(
                     id=str(uuid.uuid4()),
                     type="bot",
-                    content="Hello! I'm your AI assistant. How can I help you today?",
+                    content="Hello! I'm your AI assistant. How can I help you today??",
                     timestamp=datetime.now()
                 )
             ]
