@@ -2,7 +2,7 @@
 	import * as maplibregl from 'maplibre-gl';
 	import type { Map } from 'maplibre-gl';
 	import { createEventDispatcher } from 'svelte';
-	import type { PointProperties } from '../store';
+	import type { PointProperties } from '$lib/types';
 
 	// Props
 	export let map: Map | null = null;
@@ -15,28 +15,28 @@
 
 	// Local popup instance
 	let popup: maplibregl.Popup | null = null;
-	let popupElement: HTMLElement;
+	let overlayElement: any = null; // Store the click handler function
 
 	// Create or update popup when data changes
 	$: if (map && coordinates && properties && visible) {
 		showPopup();
 	} else if (popup) {
-		popup.remove();
-		popup = null;
+		cleanup();
 	}
 
 	function showPopup() {
 		// Remove existing popup if any
-		if (popup) {
-			popup.remove();
-		}
+		cleanup();
 
 		if (!map || !coordinates || !properties) return;
+
+		// Create overlay element
+		createOverlay();
 
 		// Create new popup with enhanced styling
 		popup = new maplibregl.Popup({
 			closeButton: true,
-			closeOnClick: true,
+			closeOnClick: false, // We'll handle clicks with our overlay
 			maxWidth: '360px',
 			className: 'study-point-popup',
 			offset: 12
@@ -45,11 +45,60 @@
 			.setHTML(createPopupContent(properties))
 			.addTo(map);
 
-		// Handle popup close event
+		// Handle popup close event (only when closed by close button)
 		popup.on('close', () => {
+			cleanup();
 			visible = false;
 			dispatch('close');
 		});
+	}
+
+	function createOverlay() {
+		if (!map) return;
+
+		// Add document-level click listener to detect clicks outside popup
+		const handleDocumentClick = (e: MouseEvent) => {
+			// Check if the click target is inside the popup content
+			const popupContent = document.querySelector('.maplibregl-popup-content');
+			const popupContainer = document.querySelector('.maplibregl-popup');
+
+			if (
+				popupContent &&
+				(popupContent.contains(e.target as Node) ||
+					(popupContainer && popupContainer.contains(e.target as Node)))
+			) {
+				// Click is inside popup, don't close it
+				return;
+			}
+
+			// Click is outside popup, close it
+			closePopup();
+		};
+
+		// Add the click listener to document with a slight delay to avoid immediate closure
+		setTimeout(() => {
+			document.addEventListener('click', handleDocumentClick);
+		}, 100);
+
+		// Store the handler function so we can remove it later
+		overlayElement = { handleDocumentClick } as any;
+	}
+
+	function closePopup() {
+		cleanup();
+		visible = false;
+		dispatch('close');
+	}
+
+	function cleanup() {
+		if (popup) {
+			popup.remove();
+			popup = null;
+		}
+		if (overlayElement && (overlayElement as any).handleDocumentClick) {
+			document.removeEventListener('click', (overlayElement as any).handleDocumentClick);
+			overlayElement = null;
+		}
 	}
 
 	function createPopupContent(props: PointProperties): string {

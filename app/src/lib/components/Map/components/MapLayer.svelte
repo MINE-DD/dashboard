@@ -1,45 +1,166 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import { get } from 'svelte/store';
-	import maplibregl, { type Map } from 'maplibre-gl';
+	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import {
-		pointsData,
+		// pointsData, // Not used directly, can be removed if not needed by other logic
 		filteredPointsData,
-		selectedPathogens,
-		selectedAgeGroups,
-		selectedSyndromes,
-		pathogenColors,
-		getMaplibreFilterExpression,
-		clearFilterCache,
-		isLoading,
-		dataError
-	} from '../store';
+		dataError,
+		setMapInstance,
+		setPointsAddedToMap,
+		addInitialPointsToMap,
+		// updateMapVisualization, // Not used directly
+		switchVisualizationType as storeSwitchVisualizationType,
+		// type VisualizationType // Already imported below
+		isAdjustingLayerOrder, // Import the new store
+		isUpdatingVisualization // Import this store as well
+	} from '../store'; // This imports from ../store/index.ts
+
+	import { isProgrammaticSwitching } from '../store/mapVisualizationManager'; // Correct path
+	import type { VisualizationType } from '$lib/stores/map.store'; // Corrected path for VisualizationType
 
 	// Props
-	export let map: Map | null = null;
-	export let layerId = 'study-points';
-	export let sourceId = 'points-source';
-	export let clusterPointsAtZoomLevels = false; // Enable/disable clustering
+	export let map: MaplibreMap | null = null;
 
 	// Event dispatcher for selected point
 	const dispatch = createEventDispatcher();
-	let layerAdded = false;
 
-	// Expose a function to be called by the parent component
-	export function bringPointsToFront() {
-		ensurePointsOnTop();
+	// Track if the map instance has been set in the store
+	let mapInstanceSet = false;
+	let initializationAttempted = false;
+
+	// Set the map instance in the store when it becomes available
+	$: if (map && !mapInstanceSet) {
+		console.log('Setting map instance in store');
+		setMapInstance(map);
+		mapInstanceSet = true;
+
+		// Wait for map to be fully loaded before attempting initialization
+		if (map.loaded()) {
+			// Map is already loaded
+			console.log('Map already loaded, will attempt initialization');
+			// Small delay to ensure everything is settled
+			setTimeout(() => {
+				if (get(filteredPointsData)?.features?.length > 0) {
+					console.log('Map already loaded and data ready, initializing...');
+					initializeVisualization();
+				}
+			}, 200);
+		} else {
+			// Wait for map load event
+			console.log('Waiting for map to load...');
+			map.once('load', () => {
+				console.log('Map load event fired');
+				// Small delay to ensure everything is settled
+				setTimeout(() => {
+					if (get(filteredPointsData)?.features?.length > 0) {
+						console.log('Map loaded and data ready, initializing...');
+						initializeVisualization();
+					}
+				}, 200); // Increased delay
+			});
+		}
 	}
 
-	// ===== MAIN RENDERING APPROACH =====
+	// Simple reactive statement to attempt initialization when data becomes available
+	$: if (map && get(filteredPointsData)?.features?.length > 0 && !initializationAttempted) {
+		setTimeout(() => {
+			if (!initializationAttempted) {
+				initializeVisualization();
+			}
+		}, 50);
+	}
 
-	// Track if we've already added points to avoid duplicates
-	let pointsAdded = false;
+	// Function to initialize the map visualization (called once when ready)
+	async function initializeVisualization() {
+		if (initializationAttempted) {
+			return;
+		}
+
+		if (!map) {
+			console.log('Cannot initialize: no map instance');
+			return;
+		}
+
+		// Check if map is ready - use multiple criteria
+		const mapReady = map.loaded() || map.isStyleLoaded() || map.getStyle();
+
+		if (!mapReady) {
+			console.log('Cannot initialize: map not ready');
+			return;
+		}
+
+		if (!get(filteredPointsData)?.features?.length) {
+			console.log('Cannot initialize: no filtered data features available');
+			return;
+		}
+
+		// Check if source already exists to prevent duplicate initialization
+		let sourceExists = false;
+		try {
+			sourceExists = !!map.getSource('points-source');
+		} catch (e) {
+			sourceExists = false;
+		}
+
+		if (sourceExists) {
+			console.log('Points source already exists, skipping initialization');
+			initializationAttempted = true;
+			setPointsAddedToMap(true);
+			setupEventHandlers();
+			if (map) {
+				map.on('styledata', handleStyleChange);
+			}
+			return;
+		}
+
+		initializationAttempted = true;
+		console.log(
+			'Initializing map visualization with',
+			get(filteredPointsData).features.length,
+			'filtered data points'
+		);
+		const success = await addInitialPointsToMap();
+
+		if (success) {
+			console.log('✅ Map visualization initialized successfully');
+			setupEventHandlers();
+			if (map) {
+				map.on('styledata', handleStyleChange);
+			}
+		} else {
+			console.log('❌ Failed to initialize map visualization');
+			initializationAttempted = false;
+		}
+	}
 
 	// Define event handlers
 	function handlePointClick(e: any) {
 		if (e.features && e.features.length > 0) {
 			const feature = e.features[0];
-			const coordinates = feature.geometry.coordinates.slice();
+			let coordinates;
+
+			// Handle different geometry types
+			if (feature.geometry.type === 'Point') {
+				// For dots and pie charts (Point geometry)
+				coordinates = feature.geometry.coordinates.slice();
+			} else if (feature.geometry.type === 'Polygon') {
+				// For 3D bars (Polygon geometry) - get the center of the polygon
+				const polygonCoords = feature.geometry.coordinates[0]; // First ring of the polygon
+				// Calculate center point of the polygon
+				let sumLng = 0,
+					sumLat = 0;
+				const numPoints = polygonCoords.length - 1; // Exclude the closing point
+				for (let i = 0; i < numPoints; i++) {
+					sumLng += polygonCoords[i][0];
+					sumLat += polygonCoords[i][1];
+				}
+				coordinates = [sumLng / numPoints, sumLat / numPoints];
+			} else {
+				// Fallback for other geometry types
+				coordinates = feature.geometry.coordinates.slice();
+			}
+
 			const properties = feature.properties;
 
 			dispatch('pointclick', {
@@ -58,354 +179,112 @@
 		if (map) map.getCanvas().style.cursor = '';
 	}
 
-	// Helper function to ensure points are always on top of all other layers
-	let lastLogTime = 0;
-	const logInterval = 5000; // Log message at most every 5 seconds
+	// Setup event handlers for all visualization types
+	function setupEventHandlers() {
+		if (!map) return;
 
-	function ensurePointsOnTop() {
-		if (map && map.getLayer('points-layer')) {
-			// Move the points layer to the top of all layers
-			map.moveLayer('points-layer');
-
-			const now = Date.now();
-			if (now - lastLogTime > logInterval) {
-				// console.log('Ensured points layer is on top of all other layers');
-				lastLogTime = now;
-			}
-		}
-	}
-
-	// Remove the handleSourceData listener as we will trigger from Map.svelte
-	// function handleSourceData(e: any) {
-	// 	// Only act when a source is loaded and points layer exists, and it's not our own source
-	// 	if (
-	// 		e.sourceDataType === 'metadata' &&
-	// 		map &&
-	// 		map.getLayer('points-layer') &&
-	// 		e.sourceId !== 'points-source'
-	// 	) {
-	// 		// Ensure points are on top whenever any other source is loaded
-	// 		ensurePointsOnTop();
-	// 	}
-	// }
-
-	// Define a style change handler that can be bound properly
-	function handleStyleChange() {
-		// console.log('Style change detected, will re-add points once style is loaded');
-
-		// Remove the old handler to avoid duplicates
-		if (map) {
-			map.off('styledata', handleStyleChange);
-			// map.off('sourcedata', handleSourceData); // Removed
-		}
-
-		// Reset point-added flag to allow re-adding
-		pointsAdded = false;
-
-		// Add the points back after style is loaded with more generous timeout
-		setTimeout(() => {
-			// console.log('Attempting to re-add points after style change');
-			if (map && map.loaded()) {
-				try {
-					// Check if source and layer already exist before attempting to add
-					let sourceExists = false;
-					let layerExists = false;
-					try {
-						sourceExists = !!map.getSource('points-source');
-						layerExists = !!map.getLayer('points-layer');
-					} catch (e) {
-						// Ignore errors if source/layer don't exist
-					}
-
-					if (!sourceExists || !layerExists) {
-						addPointsToMap();
-					} else {
-						// If source and layer exist, just ensure points are on top
-						ensurePointsOnTop();
-					}
-				} catch (e) {
-					console.error('Error re-adding points after style change:', e);
-
-					// Try again if first attempt fails - sometimes needed
-					setTimeout(() => {
-						console.log('Second attempt to add points after style change');
-						if (map && map.loaded()) {
-							// Check again before adding
-							let sourceExists = false;
-							let layerExists = false;
-							try {
-								sourceExists = !!map.getSource('points-source');
-								layerExists = !!map.getLayer('points-layer');
-							} catch (e) {
-								// Ignore errors
-							}
-							if (!sourceExists || !layerExists) {
-								addPointsToMap();
-							} else {
-								ensurePointsOnTop();
-							}
-						}
-					}, 500);
-				}
-			}
-
-			// Re-add the style change handler for future style changes
-			if (map) {
-				map.on('styledata', handleStyleChange);
-			}
-		}, 800); // More time to ensure style is properly loaded
-	}
-
-	// Generate the paint color expression for design types
-	function generateDesignColorExpression() {
-		// Create a MapLibre match expression for the design types
-		const matchExpression: any[] = ['match', ['get', 'design']];
-
-		// Add design type colors
-		matchExpression.push('Surveillance');
-		matchExpression.push('#FFE5B4'); // Pastel Orange
-
-		matchExpression.push('Intervention Trial');
-		matchExpression.push('#B7EFC5'); // Pastel Green
-
-		matchExpression.push('Case control');
-		matchExpression.push('#FFB3C6'); // Pastel Red
-
-		matchExpression.push('Cohort');
-		matchExpression.push('#9197FF'); // Pastel Blue
-
-		// Add colors for positive/negative (if applicable)
-		// These might be in a different property, adjust as needed
-		matchExpression.push('#808080'); // Default color (dark gray)
-
-		return matchExpression;
-	}
-
-	// Legacy function kept for reference
-	function generatePathogenColorExpression() {
-		// Create a MapLibre match expression for the pathogens
-		const matchExpression: any[] = ['match', ['get', 'pathogen']];
-
-		// Add an entry for each pathogen and its color
-		// Use all known pathogens from the pathogenColors store, not just the filtered ones
-		$pathogenColors.forEach((color, pathogen) => {
-			matchExpression.push(pathogen);
-			matchExpression.push(color);
-		});
-
-		// Add a default color (gray) for any unmatched pathogens
-		matchExpression.push('#CCCCCC');
-
-		return matchExpression;
-	}
-
-	// Add points when component mounts or when map becomes available
-	function addPointsToMap() {
-		// Only add points if map exists, is loaded, and we have data
-		if (!map || !map.loaded() || !$pointsData.features.length) return;
-
-		// Do nothing if points are already added
-		if (pointsAdded) return;
-
-		try {
-			// console.log('Adding points to map...');
-
-			// Check if source already exists
-			let sourceExists = false;
-			try {
-				sourceExists = !!map.getSource('points-source');
-			} catch (e) {
-				sourceExists = false;
-			}
-
-			// Create the GeoJSON source with our data if it doesn't exist
-			if (!sourceExists) {
-				map.addSource('points-source', {
-					type: 'geojson',
-					data: $filteredPointsData
-				});
-
-				// Add a circle layer for the points with colors based on pathogen type
-				// Ensure it's added on top of all other layers by using a high z-index
-				map.addLayer({
-					id: 'points-layer',
-					type: 'circle',
-					source: 'points-source',
-					paint: {
-						'circle-radius': 10, // Keeping the bigger dots (10px radius)
-						// Use a match expression to color by design type
-						'circle-color': generateDesignColorExpression() as any,
-						'circle-opacity': 0.8,
-						'circle-stroke-width': 1,
-						'circle-stroke-color': '#ffffff'
-					}
-				});
-
-				// Move the points layer to the top of all layers
-				// This ensures it's always on top of raster layers
-				ensurePointsOnTop();
-			} else {
-				// Update the source data if it already exists
-				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
-			}
-
-			// Mark that we've successfully added or updated points
-			pointsAdded = true;
-
-			// Set up event handlers
+		if (map.getLayer('points-layer')) {
 			map.on('click', 'points-layer', handlePointClick);
 			map.on('mouseenter', 'points-layer', handleMouseEnter);
 			map.on('mouseleave', 'points-layer', handleMouseLeave);
+		}
 
-			// Set up style change handler
-			map.on('styledata', handleStyleChange);
+		const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+		pieChartLayerIds.forEach((layerId) => {
+			if (map.getLayer(layerId)) {
+				map.on('click', layerId, handlePointClick);
+				map.on('mouseenter', layerId, handleMouseEnter);
+				map.on('mouseleave', layerId, handleMouseLeave);
+			}
+		});
 
-			// Remove the source data handler as we will trigger from Map.svelte
-			// map.on('sourcedata', handleSourceData);
-
-			// console.log(`Successfully added ${$pointsData.features.length} points to map`);
-			layerAdded = true;
-		} catch (error) {
-			console.error('Error adding points to map:', error);
-			// Reset flag so we can try again
-			pointsAdded = false;
+		// Add event handlers for 3D bars
+		if (map.getLayer('3d-bars-layer')) {
+			map.on('click', '3d-bars-layer', handlePointClick);
+			map.on('mouseenter', '3d-bars-layer', handleMouseEnter);
+			map.on('mouseleave', '3d-bars-layer', handleMouseLeave);
 		}
 	}
 
-	// Reactively update the circle colors when needed
-	$: if (map && map.getLayer('points-layer') && pointsAdded) {
-		try {
-			map.setPaintProperty('points-layer', 'circle-color', generateDesignColorExpression() as any);
-		} catch (error) {
-			console.error('Error updating circle colors:', error);
+	// Remove event handlers
+	function removeEventHandlers() {
+		if (!map) return;
+
+		if (map.getLayer('points-layer')) {
+			map.off('click', 'points-layer', handlePointClick);
+			map.off('mouseenter', 'points-layer', handleMouseEnter);
+			map.off('mouseleave', 'points-layer', handleMouseLeave);
+		}
+
+		const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+		pieChartLayerIds.forEach((layerId) => {
+			if (map.getLayer(layerId)) {
+				map.off('click', layerId, handlePointClick);
+				map.off('mouseenter', layerId, handleMouseEnter);
+				map.off('mouseleave', layerId, handleMouseLeave);
+			}
+		});
+
+		// Remove event handlers for 3D bars
+		if (map.getLayer('3d-bars-layer')) {
+			map.off('click', '3d-bars-layer', handlePointClick);
+			map.off('mouseenter', '3d-bars-layer', handleMouseEnter);
+			map.off('mouseleave', '3d-bars-layer', handleMouseLeave);
 		}
 	}
 
-	// Add points when map is provided and data loads
-	$: if (map && $pointsData.features.length > 0 && !pointsAdded && map.loaded()) {
-		// console.log('Map and data available - initial attempt to add points');
-		// console.log('Points data features:', $pointsData.features.length);
-		// console.log('Filtered points data features:', $filteredPointsData.features.length);
-		addPointsToMap();
-
-		// Also add the style change handler
-		if (map) {
-			// console.log('Setting up style change handler');
-			map.on('styledata', handleStyleChange);
+	// Handle style changes
+	function handleStyleChange() {
+		if (
+			get(isProgrammaticSwitching) ||
+			get(isAdjustingLayerOrder) ||
+			get(isUpdatingVisualization)
+		) {
+			// console.log('Style change detected during programmatic switch, layer order adjustment, or visualization update, ignoring in MapLayer.');
+			return;
 		}
+
+		console.log('Style change detected (external/unexpected), reinitializing visualization...');
+		setPointsAddedToMap(false);
+		initializationAttempted = false;
+
+		setTimeout(() => {
+			if (map && map.loaded() && get(filteredPointsData)?.features?.length > 0) {
+				initializeVisualization();
+			}
+		}, 500);
 	}
 
-	// Also try once on mount as a backup with multiple attempts
 	onMount(() => {
-		// console.log('Component mounted - backup attempt to add points');
-
-		// First attempt
-		setTimeout(() => {
-			if (map && !pointsAdded && $pointsData.features.length > 0) {
-				// console.log('First backup attempt to add points');
-				// console.log('Points data features:', $pointsData.features.length);
-				// console.log('Filtered points data features:', $filteredPointsData.features.length);
-				addPointsToMap();
-			}
-		}, 800);
-
-		// Second attempt
-		setTimeout(() => {
-			if (map && !pointsAdded && $pointsData.features.length > 0) {
-				// console.log('Second backup attempt to add points');
-				// console.log('Points data features:', $pointsData.features.length);
-				// console.log('Filtered points data features:', $filteredPointsData.features.length);
-				addPointsToMap();
-			}
-		}, 1500);
-
-		// Third attempt
-		setTimeout(() => {
-			if (map && !pointsAdded && $pointsData.features.length > 0) {
-				// console.log('Third backup attempt to add points');
-				// console.log('Points data features:', $pointsData.features.length);
-				// console.log('Filtered points data features:', $filteredPointsData.features.length);
-				addPointsToMap();
-			}
-		}, 3000);
+		console.log('MapLayer component mounted');
 	});
 
-	// Update the map source when filtered data changes
-	$: if (map && map.loaded()) {
+	onDestroy(() => {
+		console.log('MapLayer component destroying');
+		if (map) {
+			removeEventHandlers();
+			map.off('styledata', handleStyleChange);
+		}
+		setMapInstance(null);
+		setPointsAddedToMap(false);
+	});
+
+	// Export function for Map component to call
+	export async function switchVisualizationType(newType: VisualizationType): Promise<boolean> {
+		console.log(`MapLayer: Switching visualization to ${newType}`);
 		try {
-			// First check if source exists
-			let sourceExists = false;
-			try {
-				sourceExists = !!map.getSource('points-source');
-			} catch (e) {
-				sourceExists = false;
-			}
-
-			if (sourceExists) {
-				console.log(
-					'Updating map with filtered data, points:',
-					$filteredPointsData.features.length,
-					'of',
-					$pointsData.features.length,
-					'total'
-				);
-
-				// Get the current filter state for debugging
-				const currentPathogens = Array.from(get(selectedPathogens));
-				const currentAgeGroups = Array.from(get(selectedAgeGroups));
-				const currentSyndromes = Array.from(get(selectedSyndromes));
-
-				console.log('Current filter state during map update:', {
-					pathogens: currentPathogens,
-					ageGroups: currentAgeGroups,
-					syndromes: currentSyndromes
-				});
-
-				// Update the map source with the filtered data
-				(map.getSource('points-source') as maplibregl.GeoJSONSource).setData($filteredPointsData);
-
-				// Ensure points are on top
-				ensurePointsOnTop();
-			} else if ($pointsData.features.length > 0 && !pointsAdded) {
-				// If source doesn't exist yet but we have data, try to add points
-				console.log('Source does not exist yet, adding points to map');
-				addPointsToMap();
-			}
+			const result = await storeSwitchVisualizationType(newType);
+			console.log(`MapLayer: Visualization switch result:`, result);
+			return result;
 		} catch (error) {
-			console.error('Error updating map source with filtered data:', error);
+			console.error('MapLayer: Error switching visualization:', error);
+			return false;
 		}
 	}
-
-	// Cleanup on component destruction
-	onDestroy(() => {
-		if (map) {
-			// Remove event listeners with proper references to handler functions
-			if (map.getLayer('points-layer')) {
-				map.off('click', 'points-layer', handlePointClick);
-				map.off('mouseenter', 'points-layer', handleMouseEnter);
-				map.off('mouseleave', 'points-layer', handleMouseLeave);
-			}
-			map.off('styledata', handleStyleChange);
-			// Remove the source data handler
-			// map.off('sourcedata', handleSourceData);
-
-			// Remove layers and sources
-			try {
-				if (map.getLayer('points-layer')) {
-					map.removeLayer('points-layer');
-				}
-				if (map.getSource('points-source')) {
-					map.removeSource('points-source');
-				}
-			} catch (error) {
-				console.error('Error cleaning up map resources:', error);
-			}
-		}
-	});
 </script>
 
-{#if $dataError}
+{#if get(dataError)}
 	<div class="map-error">
-		<p>Error loading data: {$dataError}</p>
+		<p>Error loading data: {get(dataError)}</p>
 	</div>
 {/if}

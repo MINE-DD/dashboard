@@ -31,7 +31,9 @@ The application is built using the following technologies:
 
 ## Key Features & Functionalities
 
-*   **Interactive Map:** Powered by Maplibre-GL for displaying geographical data.
+*   **Interactive Map:**
+    *   Powered by Maplibre-GL for displaying geographical data.
+    *   Ensures stable and efficient visualization type switching, preventing excessive re-initializations.
 *   **TiTiler Integration:**
     *   Serves Cloud-Optimized GeoTIFF (COG) raster data efficiently.
     *   Runs as a dedicated Docker service (`docker-compose.yml`).

@@ -5,7 +5,8 @@
 		rasterLayers,
 		updateRasterLayerVisibility,
 		updateRasterLayerOpacity,
-		updateAllRasterLayersOpacity
+		updateAllRasterLayersOpacity,
+		isAdjustingLayerOrder
 	} from '../store';
 	import {
 		syncRasterLayers,
@@ -21,22 +22,45 @@
 	// Track layers currently on the map
 	let currentMapLayers = new Set<string>();
 
-	// Function to bring points and country boundaries to front after adding raster layers
-	export function bringPointsToFront() {
+	// Function to ensure correct layering of points and boundaries over rasters
+	export function ensureCorrectLayerOrder() {
 		if (map) {
-			if (map.getLayer('points-layer')) {
-				map.moveLayer('points-layer');
-			}
-			// Also move the country boundaries layer to the top
-			if (map.getLayer('country-boundaries-layer')) {
-				map.moveLayer('country-boundaries-layer');
+			isAdjustingLayerOrder.set(true);
+			try {
+				// Move country boundaries first (it will be below points if both exist)
+				if (map.getLayer('country-boundaries-layer')) {
+					map.moveLayer('country-boundaries-layer');
+				}
+				// Then move points layer to be on top of everything (including boundaries)
+				if (map.getLayer('points-layer')) {
+					map.moveLayer('points-layer');
+					console.log('RasterLayerManager: Moved points-layer to top');
+				} else {
+					// If points-layer isn't there, check for pie chart layers
+					const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+					pieChartLayerIds.forEach((layerId) => {
+						if (map.getLayer(layerId)) {
+							map.moveLayer(layerId);
+							console.log(`RasterLayerManager: Moved ${layerId} to top`);
+						}
+					});
+				}
+				// If other layers need to be on top, add them here in order.
+			} catch (e) {
+				console.error('RasterLayerManager: Error during ensureCorrectLayerOrder:', e);
+			} finally {
+				// Use a short timeout to ensure MapLibre processes the moveLayer operations
+				// before clearing the flag, as 'styledata' might fire immediately.
+				setTimeout(() => {
+					isAdjustingLayerOrder.set(false);
+				}, 10); // Increased delay slightly
 			}
 		}
 	}
 
 	// Sync map layers when raster layers or map state changes
 	$: if (map && isStyleLoaded) {
-		syncRasterLayers($rasterLayers, map, isStyleLoaded, currentMapLayers, bringPointsToFront);
+		syncRasterLayers($rasterLayers, map, isStyleLoaded, currentMapLayers, ensureCorrectLayerOrder);
 	}
 
 	// Update opacity when raster layers change

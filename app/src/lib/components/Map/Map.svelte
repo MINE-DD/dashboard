@@ -8,6 +8,7 @@
 	import {
 		loadPointsData,
 		isLoading,
+		loadingMessage,
 		dataError,
 		pointsData,
 		filteredPointsData,
@@ -16,10 +17,12 @@
 		selectedPathogens,
 		selectedAgeGroups,
 		selectedSyndromes,
-		clearFilterCache
+		clearFilterCache,
+		pointsAddedToMap
 	} from './store';
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
 	import { processPathogenData } from './utils/csvDataProcessor';
+	import { isClickOnVisibleRaster } from './utils/rasterClickUtils';
 
 	// Import modularized components
 	import MapCore from './components/MapCore.svelte';
@@ -29,7 +32,7 @@
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
 	import MapLegend from './components/MapLegend.svelte';
-	import VisualizationTypeSelector from './components/VisualizationTypeSelector.svelte';
+	import type { VisualizationType } from './store/types';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
@@ -61,36 +64,11 @@
 		// Parse URL parameters
 		const urlParams = parseUrlFilters();
 
-		// Get the current state of filters
-		const $selectedPathogens = get(selectedPathogens);
-		const $selectedAgeGroups = get(selectedAgeGroups);
-		const $selectedSyndromes = get(selectedSyndromes);
-
-		// Log the current filter state
-		// console.log('Current filter state before preloading:', {
-		// 	pathogens: Array.from($selectedPathogens || []),
-		// 	ageGroups: Array.from($selectedAgeGroups || []),
-		// 	syndromes: Array.from($selectedSyndromes || [])
-		// });
-
 		// Clear filter cache before loading data to ensure fresh filtering
 		clearFilterCache();
 
-		// console.log('Preloading data with filters:', {
-		// 	pathogens: Array.from($selectedPathogens || []),
-		// 	ageGroups: Array.from($selectedAgeGroups || []),
-		// 	syndromes: Array.from($selectedSyndromes || [])
-		// });
-
 		// Always force reload on initial load to ensure data is fresh
 		await loadPointsData(POINTS_DATA_URL, true);
-
-		// Log the loaded data size
-		const $pointsData = get(pointsData);
-		const $filteredPointsData = get(filteredPointsData);
-		// console.log(
-		// 	`Loaded ${$pointsData.features.length} total points, ${$filteredPointsData.features.length} filtered points`
-		// );
 
 		return urlParams;
 	}
@@ -100,49 +78,13 @@
 		map = event.detail.map;
 		isStyleLoaded = true;
 
-		// Force a single reload of the data to ensure filters are applied
-		// This is simpler and more reliable than multiple reloads
 		setTimeout(() => {
-			// console.log('Map: Forcing data reload after map is ready');
-
-			// Get the current filter state
-			const $selectedPathogens = get(selectedPathogens);
-			const $selectedAgeGroups = get(selectedAgeGroups);
-			const $selectedSyndromes = get(selectedSyndromes);
-
-			// Log the current filter state
-			// console.log('Current filter state before reload:', {
-			// 	pathogens: Array.from($selectedPathogens || []),
-			// 	ageGroups: Array.from($selectedAgeGroups || []),
-			// 	syndromes: Array.from($selectedSyndromes || [])
-			// });
-
-			// Clear filter cache again to ensure fresh filtering
 			clearFilterCache();
-
-			// Force reload with a longer timeout to ensure data is fully loaded
 			loadPointsData(POINTS_DATA_URL, true).then(() => {
-				// Log the loaded data size after reload
-				const $pointsData = get(pointsData);
-				const $filteredPointsData = get(filteredPointsData);
-				// console.log(
-				// 	`After map ready: ${$pointsData.features.length} total points, ${$filteredPointsData.features.length} filtered points`
-				// );
-
-				// Log the filter state after reload
-				const currentPathogens = Array.from(get(selectedPathogens) || []);
-				const currentAgeGroups = Array.from(get(selectedAgeGroups) || []);
-				const currentSyndromes = Array.from(get(selectedSyndromes) || []);
-
-				// console.log('Filter state after reload:', {
-				// 	pathogens: currentPathogens,
-				// 	ageGroups: currentAgeGroups,
-				// 	syndromes: currentSyndromes
-				// });
+				// Optional: log data after reload
 			});
-		}, 800); // Increased timeout for better reliability
+		}, 800);
 
-		// Add country boundaries GeoJSON source and layer
 		if (map && !map.getSource('country-boundaries')) {
 			map.addSource('country-boundaries', {
 				type: 'geojson',
@@ -154,29 +96,23 @@
 				type: 'line',
 				source: 'country-boundaries',
 				layout: {
-					visibility: 'none' // Initially hidden
+					visibility: 'none'
 				},
 				paint: {
-					'line-color': '#80808090', // Blue color for boundaries
+					'line-color': '#80808090',
 					'line-width': 2
 				}
 			});
 
-			// Move the country boundaries layer to the top after other initial layers are likely added
-			// Using a timeout to allow other components (like MapLayer, RasterLayerManager) to add their layers
 			setTimeout(() => {
-				if (map && map.getLayer('country-boundaries-layer')) {
-					map.moveLayer('country-boundaries-layer');
-				}
-			}, 500); // Adjust timeout as needed
+				// Layer ordering handled by reactive statements
+			}, 500);
 		}
 	}
 
 	// Handle style change event
 	function handleStyleChange() {
 		isStyleLoaded = true;
-
-		// Update URL when style changes
 		if (map) {
 			setTimeout(() => {
 				serializeFiltersToUrl(map, globalOpacity);
@@ -188,31 +124,37 @@
 	async function handleMapClick(event: CustomEvent) {
 		if (!map) return;
 
-		// Reset popup state to ensure we can show a new popup
 		showPopover = false;
 		popoverCoordinates = null;
 		popoverProperties = null;
 
-		// Check if the click was on a point feature
-		const features = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y], {
-			layers: ['points-layer']
-		});
+		let features: maplibregl.MapGeoJSONFeature[] = [];
+		if (map.getLayer('points-layer')) {
+			// Define a small bounding box around the click point to make selection more robust
+			const pointClickPixelBuffer = 5; // 5px buffer
+			const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
+				[
+					event.detail.point.x - pointClickPixelBuffer,
+					event.detail.point.y - pointClickPixelBuffer
+				],
+				[event.detail.point.x + pointClickPixelBuffer, event.detail.point.y + pointClickPixelBuffer]
+			];
+			features = map.queryRenderedFeatures(bbox, {
+				layers: ['points-layer']
+			});
+		}
 
-		// If the click was on a point feature, let the point click handler handle it
 		if (features.length > 0) {
+			// A point feature was clicked, let MapLayer handle it via pointclick event
+			// This event is caught by handlePointClick in this component.
+			// No need to do anything further here, as handlePointClick will set popover details.
 			return;
 		}
 
-		// Check if the click is on land or water by querying all rendered features at the click point
-		// Most map styles have a 'water' layer or something similar
 		const allFeatures = map.queryRenderedFeatures([event.detail.point.x, event.detail.point.y]);
-
-		// Check if any of the features at the click point are water features
 		const isWater = allFeatures.some((feature) => {
-			// Check for common water-related layer IDs and types
 			const layerId = feature.layer.id.toLowerCase();
 			const sourceLayer = feature.sourceLayer?.toLowerCase() || '';
-
 			return (
 				layerId.includes('water') ||
 				layerId.includes('ocean') ||
@@ -227,135 +169,160 @@
 			);
 		});
 
-		// If the click is on water, don't show a popup
 		if (isWater) {
-			// Optional: could add a visual indication that water clicks are disabled
-			// console.log('Click on water detected - no popup displayed');
 			isLoading.set(false);
 			return;
 		}
 
-		// For non-point, non-water clicks, get the coordinates
-		const coordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
+		const clickCoordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
+		const $currentRasterLayers = get(rasterLayers);
+		const showRasterEstimationPopover = isClickOnVisibleRaster(
+			clickCoordinates,
+			$currentRasterLayers
+		);
 
-		// Show loading state
+		if (!showRasterEstimationPopover) {
+			isLoading.set(false);
+			return;
+		}
+
 		isLoading.set(true);
-
 		try {
-			// Get visible raster layers to determine pathogen
-			let pathogen = 'Shigella'; // Default pathogen
-			let ageGroup = '0-11 months'; // Default age group
+			let pathogen: string;
+			const $currentSelectedPathogens = get(selectedPathogens);
 
-			// Try to get pathogen from visible raster layers
-			const visibleRasterLayers: string[] = [];
-			$rasterLayers.forEach((layer, id) => {
-				if (layer.isVisible) {
-					visibleRasterLayers.push(id);
-					// Extract pathogen and age group from the first visible layer
-					if (visibleRasterLayers.length === 1) {
-						const parts = layer.name.split('_');
+			if ($currentSelectedPathogens && $currentSelectedPathogens.size > 0) {
+				pathogen = $currentSelectedPathogens.values().next().value as string;
+			} else {
+				let inferredPathogenFromLayer = null;
+				for (const [, layerDetails] of $currentRasterLayers) {
+					if (layerDetails.isVisible) {
+						const parts = layerDetails.name.split('_');
 						if (parts.length > 0) {
-							// Try to extract pathogen from layer name
-							switch (parts[0]) {
+							switch (parts[0].toUpperCase()) {
 								case 'SHIG':
-									pathogen = 'Shigella';
+									inferredPathogenFromLayer = 'Shigella';
 									break;
 								case 'ROTA':
-									pathogen = 'Rotavirus';
+									inferredPathogenFromLayer = 'Rotavirus';
 									break;
 								case 'NORO':
-									pathogen = 'Norovirus';
+									inferredPathogenFromLayer = 'Norovirus';
 									break;
 								case 'CAMP':
-									pathogen = 'Campylobacter';
+									inferredPathogenFromLayer = 'Campylobacter';
 									break;
-								// Add more mappings as needed
 							}
 						}
+						if (inferredPathogenFromLayer) break;
 					}
 				}
-			});
+				pathogen = inferredPathogenFromLayer || 'Shigella';
+			}
 
-			// Process data for the clicked location
-			const data = await processPathogenData(pathogen, coordinates, ageGroup, '');
+			const $currentSelectedAgeGroups = get(selectedAgeGroups);
+			let ageGroup = '0-11 months';
+			if ($currentSelectedAgeGroups && $currentSelectedAgeGroups.size > 0) {
+				ageGroup = $currentSelectedAgeGroups.values().next().value as string;
+			}
 
-			// Format coordinates for display
-			const formattedLng = coordinates[0].toFixed(4);
-			const formattedLat = coordinates[1].toFixed(4);
+			const data = await processPathogenData(pathogen, clickCoordinates, ageGroup, '');
+			const formattedLng = clickCoordinates[0].toFixed(4);
+			const formattedLat = clickCoordinates[1].toFixed(4);
 
-			// Convert the data to a format compatible with MapPopover
 			popoverProperties = {
 				pathogen: pathogen,
-				prevalenceValue: data.prevalence / 100, // Convert percentage to decimal
+				prevalenceValue: data.prevalence / 100,
 				ageGroup: data.ageRange,
-				syndrome: '', // No syndrome for non-point clicks as per user feedback
-				location: `Coordinates: ${formattedLng}, ${formattedLat}`, // Show actual coordinates
-				cases: '-', // Not available for non-point clicks
-				samples: '-', // Not available for non-point clicks
-				standardError: (data.upperBound - data.lowerBound) / (2 * 196) / 100, // Approximate SE from CI
+				syndrome: '',
+				location: `Coordinates: ${formattedLng}, ${formattedLat}`,
+				cases: '-',
+				samples: '-',
+				standardError: (data.upperBound - data.lowerBound) / (2 * 1.96) / 100,
 				study: data.study,
 				duration: data.duration,
 				source: data.source,
 				hyperlink: data.sourceUrl
 			};
 
-			// Show the popover
-			popoverCoordinates = coordinates;
+			popoverCoordinates = clickCoordinates;
 			showPopover = true;
 		} catch (error) {
 			console.error('Error processing data for popover:', error);
 		} finally {
-			// Hide loading state
 			isLoading.set(false);
 		}
 	}
 
-	// Handle point click events from MapLayer
 	function handlePointClick(event: CustomEvent) {
-		// Reset popup state to ensure we can show a new popup
 		showPopover = false;
 		popoverCoordinates = null;
 		popoverProperties = null;
 
-		// Set new popup data
 		const { coordinates, properties } = event.detail;
 		popoverCoordinates = coordinates;
 		popoverProperties = properties;
 		showPopover = true;
 	}
 
-	// Handle opacity change
 	function handleOpacityChange(event: CustomEvent<{ opacity: number }>) {
 		globalOpacity = event.detail.opacity;
-
-		// Update URL when opacity changes
 		if (map) {
 			serializeFiltersToUrl(map, globalOpacity);
 		}
 	}
 
-	// Initialize map and data
-	onMount(async () => {
-		// Preload data before initializing map
-		const urlParams = await preloadData();
+	async function handleVisualizationChange(
+		event: CustomEvent<{ visualizationType: VisualizationType; timestamp: number }>
+	) {
+		const { visualizationType: newType } = event.detail;
+		console.log(`Map received visualization change event: ${newType}`);
 
-		// Override initial values with URL parameters if present
+		const attemptSwitch = async () => {
+			if (mapLayerComponent && map && map.loaded()) {
+				try {
+					await mapLayerComponent.switchVisualizationType(newType);
+					return true;
+				} catch (error) {
+					console.error('Error during visualization switch:', error);
+					return false;
+				}
+			}
+			return false;
+		};
+
+		let success = await attemptSwitch();
+		if (!success) {
+			console.warn('Map or MapLayer not ready for visualization switch, retrying...');
+			const maxRetries = 5;
+			const baseDelay = 100;
+			for (let attempt = 1; attempt <= maxRetries && !success; attempt++) {
+				const delay = baseDelay * Math.pow(2, attempt - 1);
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				console.log(`Retry attempt ${attempt}/${maxRetries} for visualization switch`);
+				success = await attemptSwitch();
+			}
+			if (success) {
+				console.log(`Visualization switch succeeded after retries`);
+			} else {
+				console.error(`Failed to switch visualization after ${maxRetries} attempts`);
+			}
+		}
+	}
+
+	onMount(async () => {
+		const urlParams = await preloadData();
 		if (urlParams.center) initialCenter = urlParams.center;
 		if (urlParams.zoom) initialZoom = urlParams.zoom;
 		if (urlParams.styleId) initialStyleId = urlParams.styleId;
-
-		// Process opacity from URL if present
 		if (urlParams.opacity !== undefined) {
 			globalOpacity = urlParams.opacity;
-			// Update global opacity for raster layers (value between 0-100)
 			updateAllRasterLayersOpacity(urlParams.opacity / 100);
 		}
 
-		// Determine which style to use - prioritize initialStyleId if provided
 		if (initialStyleId) {
 			const styleFromId = getStyleById(initialStyleId);
 			if (styleFromId) {
-				// Update the store to match the initial style
 				selectedMapStyle.set(styleFromId);
 			} else {
 				console.warn(`Initial style ID "${initialStyleId}" not found. Using default.`);
@@ -363,19 +330,46 @@
 		}
 	});
 
-	// Monitor filter changes to update URL
 	$: if (map && isStyleLoaded) {
-		// Use a small timeout to batch filter changes that might happen together
 		setTimeout(() => {
 			if (map) {
 				serializeFiltersToUrl(map, globalOpacity);
 			}
 		}, 100);
 	}
+
+	$: if ($pointsAddedToMap && map && isStyleLoaded && rasterLayerManager) {
+		console.log('Map.svelte: pointsAddedToMap is true, ensuring layer order.');
+		setTimeout(() => {
+			if (rasterLayerManager && typeof rasterLayerManager.ensureCorrectLayerOrder === 'function') {
+				rasterLayerManager.ensureCorrectLayerOrder();
+			}
+		}, 250);
+	}
+
+	let previousVisibleRasterCount = 0;
+	$: {
+		if (map && isStyleLoaded && rasterLayerManager) {
+			const currentVisibleRasterCount = Array.from(get(rasterLayers).values()).filter(
+				(l) => l.isVisible && l.bounds
+			).length;
+			if (currentVisibleRasterCount !== previousVisibleRasterCount) {
+				console.log('Map.svelte: Visible raster count changed, ensuring layer order.');
+				setTimeout(() => {
+					if (
+						rasterLayerManager &&
+						typeof rasterLayerManager.ensureCorrectLayerOrder === 'function'
+					) {
+						rasterLayerManager.ensureCorrectLayerOrder();
+					}
+				}, 100);
+			}
+			previousVisibleRasterCount = currentVisibleRasterCount;
+		}
+	}
 </script>
 
 <div class="relative h-full">
-	<!-- Map Core Component -->
 	<MapCore
 		{initialCenter}
 		{initialZoom}
@@ -386,60 +380,49 @@
 		on:click={handleMapClick}
 	/>
 
-	<!-- Map Controls -->
 	{#if map}
 		<MapControls {map} position="top-right" />
 	{/if}
 
-	<!-- Raster Layer Manager -->
 	{#if map && isStyleLoaded}
 		<RasterLayerManager {map} {isStyleLoaded} bind:globalOpacity bind:this={rasterLayerManager} />
 	{/if}
 
-	<!-- Map Layer for Points -->
 	{#if map && isStyleLoaded}
 		<MapLayer {map} on:pointclick={handlePointClick} bind:this={mapLayerComponent} />
 	{/if}
 
-	<!-- Map Sidebar with filters -->
 	<div class="absolute left-6 top-16 z-10">
-		<MapSidebar class="hidden sm:block" bind:globalOpacity on:opacitychange={handleOpacityChange} />
+		<MapSidebar
+			class="hidden sm:block"
+			bind:globalOpacity
+			on:opacitychange={handleOpacityChange}
+			on:visualizationchange={handleVisualizationChange}
+		/>
 	</div>
 
-	<!-- Visualization Type Selector -->
-	<div class="absolute right-6 top-20 z-10">
-		<div class="rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter">
-			<VisualizationTypeSelector />
-		</div>
-	</div>
-
-	<!-- Point Popover for details -->
 	{#if map && showPopover && popoverCoordinates && popoverProperties}
 		<MapPopover
 			{map}
 			coordinates={popoverCoordinates}
 			properties={popoverProperties}
 			visible={showPopover}
-			on:close={() => (showPopover = false)}
+			on:close={() => {
+				showPopover = false;
+			}}
 		/>
 	{/if}
 
-	<!-- Map Legend for design types -->
 	{#if map && isStyleLoaded && $filteredPointsData.features.length > 0}
-		<MapLegend visible={true} position="bottom-right" />
+		<MapLegend visible={true} />
 	{/if}
 
-	<!-- Raster Popup has been removed as per requirements -->
-
-	<!-- Loading indicator -->
 	{#if $isLoading}
-		<div class="loading-indicator">
-			<div class="loading-spinner"></div>
-			<div class="loading-text">Loading...</div>
+		<div class="alert fixed bottom-6 left-4 z-[1000] w-auto shadow-lg">
+			<span class="text-sm font-medium">{$loadingMessage || 'Loading...'}</span>
 		</div>
 	{/if}
 
-	<!-- Error Display -->
 	{#if $dataError}
 		<div class="error-overlay">
 			<div class="error-container">
@@ -454,36 +437,6 @@
 </div>
 
 <style>
-	/* Loading indicator */
-	.loading-indicator {
-		position: absolute;
-		top: 16px;
-		right: 16px;
-		display: flex;
-		align-items: center;
-		background-color: rgba(255, 255, 255, 0.9);
-		border-radius: 8px;
-		padding: 8px 16px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-		z-index: 1000;
-	}
-
-	.loading-spinner {
-		width: 20px;
-		height: 20px;
-		border: 2px solid #f3f3f3;
-		border-top: 2px solid hsl(var(--p));
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-right: 8px;
-	}
-
-	.loading-text {
-		font-size: 14px;
-		color: #333;
-		font-weight: 500;
-	}
-
 	/* Error display */
 	.error-overlay {
 		position: absolute;
@@ -526,14 +479,5 @@
 
 	.retry-button:hover {
 		background-color: hsl(var(--p) / 0.8); /* Slightly darker on hover */
-	}
-
-	@keyframes spin {
-		0% {
-			transform: rotate(0deg);
-		}
-		100% {
-			transform: rotate(360deg);
-		}
 	}
 </style>

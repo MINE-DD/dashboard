@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { selectedPathogens, selectedAgeGroups, selectedSyndromes } from './stores';
+import { selectedPathogens, selectedAgeGroups, selectedSyndromes } from '$lib/stores/filter.store';
 
 // Helper function to get MapLibre filter expression based on current filter state
 export function getMaplibreFilterExpression(): any[] {

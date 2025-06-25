@@ -1,25 +1,6 @@
 <script lang="ts">
 	import { visualizationType, type VisualizationType } from '../store';
-
-	// No need for selectedType prop since we're using the store directly
-
-	const visualizationOptions = [
-		{
-			value: 'lite-dots' as VisualizationType,
-			label: 'Lite Dots',
-			description: 'Simple small colored dots'
-		},
-		{
-			value: 'dots' as VisualizationType,
-			label: 'Standard Dots',
-			description: 'Standard colored circles'
-		},
-		{
-			value: 'pie-charts' as VisualizationType,
-			label: 'Pie Charts',
-			description: 'Pie charts showing prevalence data'
-		}
-	];
+	import { visualizationOptions } from '../store/visualizationOptions';
 
 	function handleChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
@@ -32,7 +13,7 @@
 	<label for="visualization-type" class="label">
 		<span class="label-text">Visualization Type</span>
 	</label>
-	<select 
+	<select
 		id="visualization-type"
 		bind:value={$visualizationType}
 		on:change={handleChange}
@@ -44,7 +25,7 @@
 			</option>
 		{/each}
 	</select>
-	
+
 	<!-- Show description for selected option -->
 	{#each visualizationOptions as option}
 		{#if option.value === $visualizationType}

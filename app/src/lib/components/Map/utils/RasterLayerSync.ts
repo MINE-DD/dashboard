@@ -1,6 +1,6 @@
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import type { RasterLayer } from '../store/types';
-import { fetchAndSetLayerBounds } from '../store';
+import type { RasterLayer } from '$lib/types';
+import { fetchAndSetLayerBounds } from '$lib/stores/raster.store';
 
 /**
  * Synchronize raster layers with the map
@@ -191,9 +191,9 @@ export function updateRasterLayerOpacity(
       try {
         const currentOpacity = map.getPaintProperty(layerId, 'raster-opacity') ?? 1;
         if (currentOpacity !== layer.opacity) {
-          console.log(`Map (Opacity): Attempting to set opacity for ${layerId} to ${layer.opacity}`);
+          // console.log(`Map (Opacity): Attempting to set opacity for ${layerId} to ${layer.opacity}`);
           map.setPaintProperty(layerId, 'raster-opacity', layer.opacity);
-          console.log(`Map (Opacity): Successfully set opacity for ${layerId}`);
+          // console.log(`Map (Opacity): Successfully set opacity for ${layerId}`);
         }
       } catch (error) {
         // Ignore errors if layer doesn't exist (might happen during transitions)

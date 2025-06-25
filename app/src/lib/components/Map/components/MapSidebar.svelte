@@ -23,20 +23,44 @@
 		initFilterRasterConnection,
 		autoVisibleRasterLayers,
 		// Import loadPointsData for reloading data
-		loadPointsData
+		loadPointsData,
+		// Import visualization type store
+		visualizationType,
+		switchVisualization,
+		type VisualizationType,
+		// Import bar thickness store
+		barThickness,
+		// Import new derived stores for filter option counts
+		pathogenCounts,
+		ageGroupCounts,
+		syndromeCounts
 	} from '../store';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	// Import URL parameter utilities
+	import { parseUrlFilters, serializeFiltersToUrl, debounce } from '../utils/urlParams';
+	// Import map update functions
+	import {
+		updateMapVisualization,
+		// triggerVisualizationUpdate, // Removed as part of refactor
+		handleMapContentChange
+	} from '../store';
+	import MaterialSymbolsSettingsOutlineRounded from '~icons/material-symbols/settings-outline-rounded';
 
 	const dispatch = createEventDispatcher();
 
 	// Import the filter-to-raster mappings to check which options have raster layers
 	import { filterToRasterMappings } from '../store/filterRasterMapping';
-	import type { FilterToRasterMapping } from '../store/types';
-	// Import URL parameter utilities
-	import { parseUrlFilters, serializeFiltersToUrl, debounce } from '../utils/urlParams';
+	import type { FilterToRasterMapping } from '$lib/types';
+
+	// Import localStorage utilities for settings persistence
+	import {
+		loadStoredSettings,
+		saveSettingsToStorage
+	} from '$lib/stores/visualizationSettings/localStorage';
+
 	let className: string | undefined = undefined; // class is a reserved keyword in JS, with initialization
 	export { className as class };
 	// Helper functions to check if an option has associated raster layers
@@ -75,6 +99,17 @@
 	// Define a constant for the data URL to ensure consistency
 	const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
 
+	// Visualization type options
+	import { visualizationOptions } from '../store/visualizationOptions';
+
+	async function handleVisualizationTypeChange(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		const newType = target.value as VisualizationType;
+
+		console.log('Visualization type change requested:', newType);
+		await updateVisualizationType(newType);
+	}
+
 	async function handleAddLayerClick() {
 		if (!cogUrlInput || isAddingLayer) return;
 
@@ -96,6 +131,7 @@
 
 	// Sidebar configuration
 	let collapsed = false;
+	let showSettingsModal = false;
 
 	// Stats for selected filters
 	$: visiblePoints = $filteredPointsData?.features?.length || 0;
@@ -105,6 +141,37 @@
 	$: selectedSyndromeCount = $selectedSyndromes?.size || 0; // Add null checks
 	$: hasActiveFilters =
 		selectedPathogenCount > 0 || selectedAgeGroupCount > 0 || selectedSyndromeCount > 0;
+
+	// Note: Map updates are now triggered automatically by the enhanced stores
+	// No need for reactive statements to trigger updates
+
+	// Action functions that update stores and trigger map updates
+	async function updatePathogenSelection(newSelection: Set<string>) {
+		console.log('Updating pathogen selection:', newSelection);
+		selectedPathogens.set(newSelection);
+		await handleMapContentChange();
+	}
+
+	async function updateAgeGroupSelection(newSelection: Set<string>) {
+		console.log('Updating age group selection:', newSelection);
+		selectedAgeGroups.set(newSelection);
+		await handleMapContentChange();
+	}
+
+	async function updateSyndromeSelection(newSelection: Set<string>) {
+		console.log('Updating syndrome selection:', newSelection);
+		selectedSyndromes.set(newSelection);
+		await handleMapContentChange();
+	}
+
+	async function updateVisualizationType(newType: VisualizationType) {
+		console.log('Requesting switch to visualization type:', newType); // Adjusted log for clarity
+		// visualizationType.set(newType); // Store update moved to switchVisualizationType
+		// Explicitly call the function to switch visualization mechanics
+		// Ensure switchVisualizationType is imported, likely from '../store' which re-exports it from mapVisualizationManager
+		const { switchVisualizationType } = await import('../store/mapVisualizationManager'); // Direct import for clarity
+		await switchVisualizationType(newType);
+	}
 
 	// Helper function to toggle a value in a Set
 	function toggleSelection(set: Set<string>, value: string): Set<string> {
@@ -126,19 +193,16 @@
 		}
 		clearFilterCache();
 
-		// Force reload data when all filters in a category are toggled
-		loadPointsData(POINTS_DATA_URL, true);
+		// The filteredPointsData store will automatically update due to the derived store
+		// No need to force reload data
 	}
 
 	// Clear all active filters
-	function clearAllFilters() {
-		$selectedPathogens = new Set();
-		$selectedAgeGroups = new Set();
-		$selectedSyndromes = new Set();
+	async function clearAllFilters() {
+		await updatePathogenSelection(new Set());
+		await updateAgeGroupSelection(new Set());
+		await updateSyndromeSelection(new Set());
 		clearFilterCache();
-
-		// Force reload data when filters are cleared
-		loadPointsData(POINTS_DATA_URL, true);
 
 		// Update URL by removing filter parameters
 		if (typeof window !== 'undefined') {
@@ -169,15 +233,15 @@
 		if (category === 'pathogens') {
 			const newSet = new Set<string>();
 			if (selectedValue) newSet.add(selectedValue);
-			$selectedPathogens = newSet;
+			await updatePathogenSelection(newSet);
 		} else if (category === 'ageGroups') {
 			const newSet = new Set<string>();
 			if (selectedValue) newSet.add(selectedValue);
-			$selectedAgeGroups = newSet;
+			await updateAgeGroupSelection(newSet);
 		} else if (category === 'syndromes') {
 			const newSet = new Set<string>();
 			if (selectedValue) newSet.add(selectedValue);
-			$selectedSyndromes = newSet;
+			await updateSyndromeSelection(newSet);
 		}
 
 		// Log the current state of filters
@@ -187,10 +251,8 @@
 			syndromes: Array.from($selectedSyndromes)
 		});
 
-		// Force reload data when filters are changed
-		await loadPointsData(POINTS_DATA_URL, true);
-
-		// Log the filtered data after reload
+		// The filteredPointsData store will automatically update due to the derived store
+		// No need to force reload data - just clear the cache to ensure fresh filtering
 		console.log(
 			`After filter change: ${$filteredPointsData.features.length} points visible out of ${$pointsData.features.length} total`
 		);
@@ -204,13 +266,23 @@
 		// Initialize the set of pathogens with raster layers
 		initPathogensWithRasterLayers();
 
-		// Parse URL parameters to set initial opacity
+		// Load stored settings from localStorage
+		const storedSettings = loadStoredSettings();
+
+		// Parse URL parameters to set initial opacity (URL takes precedence over localStorage)
 		const urlParams = parseUrlFilters();
 		if (urlParams.opacity !== undefined) {
 			globalOpacity = urlParams.opacity;
-			// Apply the opacity to all raster layers
-			updateAllRasterLayersOpacity(globalOpacity / 100);
+		} else {
+			// Use stored opacity if no URL parameter
+			globalOpacity = storedSettings.globalOpacity;
 		}
+
+		// Apply the opacity to all raster layers
+		updateAllRasterLayersOpacity(globalOpacity / 100);
+
+		// Update barThickness store with stored value
+		barThickness.set(storedSettings.barThickness);
 	});
 
 	// Clean up subscription when component is destroyed
@@ -227,35 +299,44 @@
 >
 	<!-- Sidebar header with toggle button -->
 	<div class="z-10 border-b border-white/30 bg-gradient-to-r from-white/40 to-white/20 p-4">
-		<button
-			class=" hidden w-full items-center justify-between sm:flex"
-			on:click={() => (collapsed = !collapsed)}
-		>
-			<h2 class="text-base-content m-0 text-xl font-semibold">Data Explorer</h2>
-			<span
-				class="btn btn-sm btn-ghost btn-square"
-				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="h-5 w-5"
+		<div class="hidden w-full items-center justify-between sm:flex">
+			<h2 class="text-base-content text-md m-0 mr-8 font-semibold">Data Explorer</h2>
+			<div class="flex items-center gap-1">
+				<!-- Settings button -->
+				<button
+					class="btn btn-sm btn-ghost btn-square"
+					title="Visualization Settings"
+					on:click={() => (showSettingsModal = true)}
 				>
-					{#if collapsed}
-						<polyline points="9 18 15 12 9 6"></polyline>
-					{:else}
-						<polyline points="6 9 12 15 18 9"></polyline>
-					{/if}
-				</svg>
-			</span>
-		</button>
+					<MaterialSymbolsSettingsOutlineRounded />
+				</button>
+				<!-- Collapse button -->
+				<button
+					class="btn btn-sm btn-ghost btn-square"
+					title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+					on:click={() => (collapsed = !collapsed)}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-5 w-5"
+					>
+						{#if collapsed}
+							<polyline points="9 18 15 12 9 6"></polyline>
+						{:else}
+							<polyline points="6 9 12 15 18 9"></polyline>
+						{/if}
+					</svg>
+				</button>
+			</div>
+		</div>
 
 		{#if !collapsed}
 			<!-- {#if $isLoading}
@@ -293,6 +374,35 @@
 		<div
 			class="flex h-full max-h-[calc(100vh-250px)] w-full flex-col space-y-4 overflow-y-auto p-1 pt-3 sm:max-h-[calc(100vh-250px)] sm:w-80 sm:p-4"
 		>
+			<!-- Visualization Type Selector -->
+			<div class="form-control w-full">
+				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
+					<label for="visualization-type" class="label px-0 py-1">
+						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
+							Visualization Type
+						</span>
+					</label>
+					<select
+						id="visualization-type"
+						value={$visualizationType}
+						on:change={handleVisualizationTypeChange}
+						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
+					>
+						{#each visualizationOptions as option}
+							<option value={option.value}>
+								{option.label}
+							</option>
+						{/each}
+					</select>
+					<!-- Show description for selected option -->
+					{#each visualizationOptions as option}
+						{#if option.value === $visualizationType}
+							<p class="text-base-content/70 mt-1 text-xs italic">{option.description}</p>
+						{/if}
+					{/each}
+				</div>
+			</div>
+
 			<!-- Filter Sections -->
 			<div class="form-control w-full">
 				<div class="text-base-content/70 mb-2 text-xs italic">
@@ -313,7 +423,11 @@
 						<option value="" selected={$selectedPathogens.size === 0}>Select Pathogen</option>
 						{#each Array.from($pathogens || []).sort() as pathogen}
 							<option value={pathogen} selected={$selectedPathogens?.has(pathogen)}>
-								{pathogen}{pathogensWithRasterLayers.has(pathogen) ? ' *' : ''}
+								{pathogen} ({$pathogenCounts.get(pathogen) || 0}){pathogensWithRasterLayers.has(
+									pathogen
+								)
+									? ' *'
+									: ''}
 							</option>
 						{/each}
 					</select>
@@ -336,7 +450,12 @@
 						<option value="" selected={$selectedAgeGroups.size === 0}>Select Age Group</option>
 						{#each Array.from($ageGroups || []).sort() as ageGroup}
 							<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
-								{ageGroup}{hasRasterLayers('ageGroup', ageGroup as string) ? ' *' : ''}
+								{ageGroup} ({$ageGroupCounts.get(ageGroup) || 0}){hasRasterLayers(
+									'ageGroup',
+									ageGroup as string
+								)
+									? ' *'
+									: ''}
 							</option>
 						{/each}
 					</select>
@@ -359,7 +478,12 @@
 						<option value="" selected={$selectedSyndromes.size === 0}>Select Syndrome</option>
 						{#each Array.from($syndromes || []).sort() as syndrome}
 							<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
-								{syndrome}{hasRasterLayers('syndrome', syndrome as string) ? ' *' : ''}
+								{syndrome} ({$syndromeCounts.get(syndrome) || 0}){hasRasterLayers(
+									'syndrome',
+									syndrome as string
+								)
+									? ' *'
+									: ''}
 							</option>
 						{/each}
 					</select>
@@ -388,7 +512,7 @@
 						</svg>
 						Active Raster Layers ({$autoVisibleRasterLayers.size})
 					</h3>
-					<div class="mb-3 max-h-[150px] overflow-y-auto rounded-md bg-white/70 p-2">
+					<!-- <div class="mb-3 max-h-[150px] overflow-y-auto rounded-md bg-white/70 p-2">
 						{#each Array.from($autoVisibleRasterLayers) as layerId}
 							{#if $rasterLayers.has(layerId)}
 								{@const layer = $rasterLayers.get(layerId)}
@@ -404,35 +528,7 @@
 								{/if}
 							{/if}
 						{/each}
-					</div>
-
-					<!-- Global Opacity Control -->
-					<div class="form-control">
-						<label class="label flex justify-between py-1">
-							<span class="label-text text-secondary-focus text-sm font-medium">
-								Global Opacity
-							</span>
-							<span class="label-text-alt text-secondary text-sm font-bold">{globalOpacity}%</span>
-						</label>
-						<div class="relative">
-							<input
-								type="range"
-								min="0"
-								max="100"
-								bind:value={globalOpacity}
-								on:input={() => {
-									// Update opacity for all layers
-									updateAllRasterLayersOpacity(globalOpacity / 100);
-
-									// Dispatch an event to notify parent component
-									dispatch('opacitychange', { opacity: globalOpacity });
-								}}
-								class="range range-xs from-secondary/30 to-primary/50 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gradient-to-r"
-							/>
-							<div class="text-secondary absolute -bottom-4 left-0 text-xs">0%</div>
-							<div class="text-secondary absolute -bottom-4 right-0 text-xs">100%</div>
-						</div>
-					</div>
+					</div> -->
 
 					<div class="text-secondary/80 mt-4 text-xs italic">
 						Raster layers are automatically shown based on your filter selections.
@@ -443,3 +539,102 @@
 		<!-- Closes tab content div -->
 	{/if}
 </div>
+
+<!-- Settings Modal -->
+{#if showSettingsModal}
+	<div class="modal modal-open">
+		<div class="modal-box">
+			<h3 class="mb-4 text-lg font-bold">Visualization Settings</h3>
+
+			<!-- Global Raster Opacity Control -->
+			<div class="form-control mb-4 w-full">
+				<label class="label">
+					<span class="label-text font-medium">Global Raster Opacity</span>
+					<span class="label-text-alt font-bold">{globalOpacity}%</span>
+				</label>
+				<div class="relative">
+					<input
+						type="range"
+						min="0"
+						max="100"
+						bind:value={globalOpacity}
+						on:input={() => {
+							// Update opacity for all layers
+							updateAllRasterLayersOpacity(globalOpacity / 100);
+
+							// Save to localStorage
+							saveSettingsToStorage({ globalOpacity });
+
+							// Dispatch an event to notify parent component
+							dispatch('opacitychange', { opacity: globalOpacity });
+						}}
+						class="range range-primary"
+					/>
+					<div class="mt-1 flex w-full justify-between px-2 text-xs">
+						<span>0%</span>
+						<span>100%</span>
+					</div>
+				</div>
+				<div class="mt-2">
+					<p class="text-base-content/70 text-sm">
+						Controls the transparency of all raster layers on the map.
+					</p>
+					<p class="text-base-content/60 mt-1 text-xs">
+						• 0% = Completely transparent (invisible)
+						<br />
+						• 100% = Completely opaque
+						<br />
+						• Applies to all active raster layers simultaneously
+					</p>
+				</div>
+			</div>
+
+			<!-- 3D Bar Settings (only show when 3D bars are selected) -->
+			{#if $visualizationType === '3d-bars'}
+				<div class="form-control mb-4 w-full">
+					<label class="label">
+						<span class="label-text font-medium">3D Bar Base Thickness</span>
+						<span class="label-text-alt font-bold">{Math.round($barThickness * 100)}km</span>
+					</label>
+					<input
+						type="range"
+						min="0.05"
+						max="0.5"
+						step="0.01"
+						bind:value={$barThickness}
+						on:input={async () => {
+							// Save to localStorage
+							saveSettingsToStorage({ barThickness: $barThickness });
+
+							// Trigger map update when thickness changes
+							await handleMapContentChange();
+						}}
+						class="range range-primary"
+					/>
+					<div class="mt-1 flex w-full justify-between px-2 text-xs">
+						<span>5km</span>
+						<span>50km</span>
+					</div>
+					<div class="mt-2">
+						<p class="text-base-content/70 text-sm">
+							<strong>Base thickness</strong>
+							- automatically scaled by sample size (like pie chart diameter)
+						</p>
+						<p class="text-base-content/60 mt-1 text-xs">
+							• Larger studies get thicker bars (more reliable data)
+							<br />
+							• Height represents prevalence values
+							<br />
+							• Color indicates study design type
+						</p>
+					</div>
+				</div>
+			{/if}
+
+			<div class="modal-action">
+				<button class="btn btn-primary" on:click={() => (showSettingsModal = false)}>Done</button>
+			</div>
+		</div>
+		<div class="modal-backdrop" on:click={() => (showSettingsModal = false)}></div>
+	</div>
+{/if}
