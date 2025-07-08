@@ -11,6 +11,7 @@ import uuid
 # import multiprocessing
 ### Our Backends
 from backend_llms import ChatSimple, ChatCSV, ChatBackend, get_llm_engine
+## from backend_llms import MineddBackend
 ChatEngine = TypeVar('ChatEngine')
 Chain = TypeVar('Chain')
 
@@ -57,6 +58,7 @@ class ChatSession(BaseModel):
 chat_sessions: Dict[str, ChatSession] = {}
 
 llm = get_llm_engine()
+print(f"Using: {llm} as the core LLM")
 
 # chat_backend = ChatCSV(llm, "Plan-EO_Dashboard_point_data.csv")
 # chat_backend = ChatSimple(llm)
@@ -66,9 +68,10 @@ chat_backend = ChatBackend(llm, csv_file="Plan-EO_Dashboard_point_data.csv", use
 #     embeddings_model="mxbai-embed-large:latest",
 #     model_name='llama3.2:latest',
 #     papers_directory="papers",
-#     embeddings_file="minedd-embeddings.pkl",
+#     embeddings_file="chat-backend/outputs/minedd-embeddings.pkl",
 #     )
 
+print(f"Using: {type(chat_backend)} as the ChatBackend")
 
 
 
@@ -109,7 +112,8 @@ async def send_message(session_id: str, message: ChatMessage):
         session.messages.append(user_message)
 
         # Generate AI response
-        ai_response_content = chat_backend.ask(message.content)
+        #ai_response_content = chat_backend.ask(message.content)
+        ai_response_content = await chat_backend.ask(message.content)
 
         ai_response = ChatResponse(
             id=str(uuid.uuid4()),

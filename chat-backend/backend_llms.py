@@ -1,8 +1,9 @@
 import os
+import pandas as pd
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, START, END
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_experimental.agents.agent_toolkits import create_csv_agent
+from langchain_experimental.agents.agent_toolkits import create_csv_agent, create_pandas_dataframe_agent
 ### Langchain Chats
 from langchain_ollama import ChatOllama
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -10,8 +11,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 ### Mine-dd Backend
 # from minedd.query import Query
 # from paperqa.settings import Settings, AgentSettings, ParsingSettings
-# import pandas as pd
 ### Other imports
+from langgraph.checkpoint.memory import MemorySaver
 from typing import Annotated, TypedDict
 from langchain_core.messages import HumanMessage, BaseMessage
 from langgraph.graph.message import add_messages
@@ -28,7 +29,7 @@ def get_llm_engine():
             base_url=os.getenv("OLLAMA_BASE_URL"),
             model=os.getenv("LOCAL_LLM_NAME"), 
             temperature=0.0, 
-            max_tokens=1024
+            max_tokens=4096
             )
     elif "mistral" in REMOTE_LLM_NAME.lower():
         # llm = ChatMistralAI(
@@ -49,6 +50,40 @@ def get_llm_engine():
     return llm
 
 
+def load_and_standardize_dataframe(filename):
+    def _extract_float(row):
+        try:
+            val = row.split()[0]
+            return float(val)
+        except:
+            return None
+    planeo_dtypes = {
+        'EST_ID':'string', 
+        'Pathogen': 'category', 
+        'Age_group': 'category', 
+        'Syndrome': 'category', 
+        'Design': 'category',
+        'Site_Location': 'string', 
+        'Prevalence': 'string', 
+        'Age_range': 'category', 
+        'Study': 'string', 
+        'Duration': 'string',
+        'Source': 'string', 
+        'Hyperlink': 'string', 
+        'CASES': 'float32', 
+        'SAMPLES': 'float32', 
+        'PREV': 'float32', 
+        'SE': 'float32', 
+        'SITE_LAT': 'float32',
+        'SITE_LONG': 'float32'
+    }
+    data = pd.read_csv(filename, dtype=planeo_dtypes)
+    data['CASES'] = data['CASES'].fillna(0).astype('int16')
+    data['SAMPLES'] = data['SAMPLES'].fillna(0).astype('int16')
+    data['Prevalence'] = data['Prevalence'].apply(_extract_float).astype('float32')
+
+    return data
+
 class ConversationState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
@@ -65,9 +100,10 @@ class ChatBackend:
         if use_simple_csv_agent:
             self.csv_agent = SimpleCSVAgent(self.llm, csv_file)
         else:
-            self.csv_agent = create_csv_agent(
+            df = load_and_standardize_dataframe(csv_file)
+            self.csv_agent = create_pandas_dataframe_agent(
                 self.llm, 
-                csv_file, 
+                df, 
                 agent_type="zero-shot-react-description",
                 verbose=True, 
                 allow_dangerous_code=True
@@ -100,8 +136,10 @@ class ChatBackend:
 
         graph.add_edge("general_chat", END)
         graph.add_edge("csv_agent", END)
-        
-        compiled_graph = graph.compile()
+
+        # Add memory
+        memory = MemorySaver()
+        compiled_graph = graph.compile(checkpointer=memory)
         return compiled_graph
 
 
@@ -111,7 +149,7 @@ class ChatBackend:
             return [{ "role": "user", "content": messages[-1].content}]
         for m in messages[-5:]:
             role = "user" if isinstance(m, HumanMessage) else "assistant"
-            last_messages.append({ "role": role, "content": m.content})
+            last_messages.append({"role": role, "content": m.content})
         return last_messages
 
 
@@ -119,18 +157,9 @@ class ChatBackend:
         """Enhanced CSV agent that uses reformulated queries with context."""
         
         query_to_use = state["messages"][-1].content
-        chat_history = [m.content for m in state["messages"]][:5]  # Get last 5 messages
         
         # Create a message object for the CSV agent
         query_message = {"role": "user", "content": query_to_use}
-        
-        # # Add context information to help the agent
-        context_info = f"""
-            Conversation History: {'\n-'.join(chat_history)}
-            
-            Considering the history, please answer the question:
-            """
-        query_message["content"] = context_info + query_to_use
         
         # Invoke CSV agent with the enhanced query
         response = self.csv_agent.invoke(query_message["content"])
@@ -140,19 +169,8 @@ class ChatBackend:
 
     def simple_csv_agent_node(self, state: ConversationState) -> ConversationState:
         query_to_use = state["messages"][-1].content
-        # Include context from the last 5 messages
-        chat_history = [m.content for m in state["messages"]][:5]  # Get last 5 messages
-        context_info = f"""
-            Conversation History: {'\n-'.join(chat_history)}
-            
-            Considering the history, please answer the question:
-
-            {query_to_use}
-            """
-        query_to_use = context_info + query_to_use
-        # Invoke CSV agent with the enhanced query
+        # Invoke CSV agent with the direct query (NO HISTORY!)
         response = self.csv_agent.ask(query_to_use)
-        
         return {"messages": [{"role": "assistant", "content": response}]}
 
 
@@ -163,43 +181,31 @@ class ChatBackend:
         
         message = state["messages"][-1].content.lower()
         
-        # Keywords that suggest data/CSV queries
-        data_keywords = ["csv", "data", "analyze", "chart", "graph", "table", 
-                        "statistics", "numbers", "calculate", "sum", "average",
-                        "filter", "group", "sort", "count", "mean", "median"]
-        
-        # Context-dependent phrases that need reformulation
-        context_phrases = ["that data", "those results", "the same", "also show",
-                        "compared to", "like before", "similar analysis",
-                        "from earlier", "previous", "again"]
-        
-        has_data_intent = any(keyword in message for keyword in data_keywords)
-        needs_context = any(phrase in message for phrase in context_phrases)
-        
-        if has_data_intent or needs_context:
+        if message.lower().startswith("csv:"):
             return {"next_node": "csv_agent"}
         else:
             return {"next_node": "general_chat"}
 
 
-    def ask(self, question: str):
+    async def ask(self, question: str):
         initial_state = {"messages": [{"role": "user", "content": question}]}
-        
-        final_state = self.graph.invoke(initial_state)
+        config = {"configurable": {"thread_id": "abc123"}}
+        final_state = self.graph.invoke(initial_state, config)
         # Extract response
         response = final_state["messages"][-1].content
         return response
 
 
     def general_chat_node(self, state: ConversationState) -> ConversationState:
+        print("CHECHEMIL", state["messages"])
         last_messages = self.get_chat_history(state["messages"], last_k=5)
-        messages = [
+        all_messages = [
             {"role": "system",
             "content": """You are a purely logical assistant. Focus only on facts and information.
-                Provide clear, concise answers based on logic and evidence."""
+                Provide clear, concise answers based on logic and evidence. Only give direct answers."""
             }] + last_messages
         # Input to Invoke Must be a PromptValue, str, or list of BaseMessages
-        response = self.llm.invoke(messages)
+        response = self.llm.invoke(all_messages)
         return {"messages": response}
 
 
@@ -208,7 +214,7 @@ class ChatCSV:
         self.llm = llm
         self.agent = create_csv_agent(self.llm, csv_file, verbose=True, allow_dangerous_code=True)
     
-    def ask(self, question:str):
+    async def ask(self, question:str):
         response = self.agent.run(question)
         return response
 
@@ -235,7 +241,7 @@ class ChatSimple:
         self.history = []
         
 
-    def ask(self, question: str):
+    async def ask(self, question: str):
         context = "\n".join(
             f"User: {q}\nAI: {a}" for q, a in self.history
         ) if self.history else "The conversation has just begun."
@@ -315,7 +321,7 @@ class ChatSimple:
 #         )
 #         self.query_engine.load_embeddings(embeddings_file)
 
-#     def ask(self, question: str):
+#     async def ask(self, question: str):
 #         result = self.query_engine.query_single(question, max_retries=3)
 #         answer = result['answer']
 #         return answer.strip()
