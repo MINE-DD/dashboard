@@ -8,10 +8,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Dict, TypeVar
 import uuid
-# import multiprocessing
-### Our Backends
-from backend_llms import ChatSimple, ChatCSV, ChatBackend, get_llm_engine
-## from backend_llms import MineddBackend
+from backend_llms import ChatBackend, get_llm_engine
 ChatEngine = TypeVar('ChatEngine')
 Chain = TypeVar('Chain')
 
@@ -60,18 +57,8 @@ chat_sessions: Dict[str, ChatSession] = {}
 llm = get_llm_engine()
 print(f"Using: {llm} as the core LLM")
 
-# chat_backend = ChatCSV(llm, "Plan-EO_Dashboard_point_data.csv")
-# chat_backend = ChatSimple(llm)
 chat_backend = ChatBackend(llm, csv_file="Plan-EO_Dashboard_point_data.csv", use_simple_csv_agent=False)
-
-# chat_backend = MineddBackend(
-#     embeddings_model="mxbai-embed-large:latest",
-#     model_name='llama3.2:latest',
-#     papers_directory="papers",
-#     embeddings_file="chat-backend/outputs/minedd-embeddings.pkl",
-#     )
-
-print(f"Using: {type(chat_backend)} as the ChatBackend")
+print(f"Using: {type(chat_backend)} as the Chat Backend")
 
 
 

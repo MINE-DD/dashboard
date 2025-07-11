@@ -8,9 +8,6 @@ from langchain_experimental.agents.agent_toolkits import create_csv_agent, creat
 from langchain_ollama import ChatOllama
 from langchain_google_genai import ChatGoogleGenerativeAI
 # from langchain_mistralai import ChatMistralAI
-### Mine-dd Backend
-# from minedd.query import Query
-# from paperqa.settings import Settings, AgentSettings, ParsingSettings
 ### Other imports
 from langgraph.checkpoint.memory import MemorySaver
 from typing import Annotated, TypedDict
@@ -55,33 +52,39 @@ def load_and_standardize_dataframe(filename):
         try:
             val = row.split()[0]
             return float(val)
-        except:
+        except Exception as e:
+            print(f"Error when extracting float from DataFrame column: {e}. Returning None")
             return None
-    planeo_dtypes = {
-        'EST_ID':'string', 
-        'Pathogen': 'category', 
-        'Age_group': 'category', 
-        'Syndrome': 'category', 
-        'Design': 'category',
-        'Site_Location': 'string', 
-        'Prevalence': 'string', 
-        'Age_range': 'category', 
-        'Study': 'string', 
-        'Duration': 'string',
-        'Source': 'string', 
-        'Hyperlink': 'string', 
-        'CASES': 'float32', 
-        'SAMPLES': 'float32', 
-        'PREV': 'float32', 
-        'SE': 'float32', 
-        'SITE_LAT': 'float32',
-        'SITE_LONG': 'float32'
-    }
-    data = pd.read_csv(filename, dtype=planeo_dtypes)
-    data['CASES'] = data['CASES'].fillna(0).astype('int16')
-    data['SAMPLES'] = data['SAMPLES'].fillna(0).astype('int16')
-    data['Prevalence'] = data['Prevalence'].apply(_extract_float).astype('float32')
-
+    try:
+        planeo_dtypes = {
+            'EST_ID':'string', 
+            'Pathogen': 'category', 
+            'Age_group': 'category', 
+            'Syndrome': 'category', 
+            'Design': 'category',
+            'Site_Location': 'string', 
+            'Prevalence': 'string', 
+            'Age_range': 'category', 
+            'Study': 'string', 
+            'Duration': 'string',
+            'Source': 'string', 
+            'Hyperlink': 'string', 
+            'CASES': 'float32', 
+            'SAMPLES': 'float32', 
+            'PREV': 'float32', 
+            'SE': 'float32', 
+            'SITE_LAT': 'float32',
+            'SITE_LONG': 'float32'
+        }
+        data = pd.read_csv(filename, dtype=planeo_dtypes)
+        data['CASES'] = data['CASES'].fillna(0).astype('int16')
+        data['SAMPLES'] = data['SAMPLES'].fillna(0).astype('int16')
+        data['Prevalence'] = data['Prevalence'].apply(_extract_float).astype('float32')
+    except Exception as e:
+        print("WARNING! The Dataframe is not the expected PlanEO format. So no preprocessing is done. Loading CSV file in DataFrame directly...")
+        print(e)
+        data = pd.read_csv(filename)
+    
     return data
 
 class ConversationState(TypedDict):
@@ -250,78 +253,3 @@ class ChatSimple:
         if len(self.history) > 5:
             self.history.pop(0)
         return response.text().strip()
-
-
-# # TODO: modify the mineDD package to allow for different settings when initializing the Query object
-# def custom_minedd_settings(model, embedding, papers_directory, chunk_size=2500, overlap=250):
-#     local_llm_config = {
-#         "model_list": [
-#             {
-#                 "model_name": model,
-#                 "litellm_params": {
-#                     "model": model,
-#                     # Uncomment if using a local server
-#                     # "api_base": "http://0.0.0.0:11434",
-#                 },
-#                 "answer": {
-#                     "evidence_k": 10,
-#                     "evidence_detailed_citations": True,
-#                     "evidence_summary_length": "about 100 words",
-#                     "answer_max_sources": 5,
-#                     "answer_length": "about 300 words, but can be longer",
-#                     "max_concurrent_requests": 10,
-#                     "answer_filter_extra_background": False
-#                 },
-#                 "parsing": {
-#                     "use_doc_details": True
-#                 },
-#                 "prompts" : {"use_json": False}
-#             }
-#         ]
-#     }
-
-#     query_settings = Settings(
-#         llm=model,
-#         llm_config=local_llm_config,
-#         summary_llm=model,
-#         summary_llm_config=local_llm_config,
-#         paper_directory=papers_directory,
-#         embedding=embedding,
-#         agent=AgentSettings(
-#             agent_llm=model,
-#             agent_llm_config=local_llm_config,
-#             return_paper_metadata=True
-#         ),
-#         parsing=ParsingSettings(
-#             chunk_size=chunk_size,
-#             overlap=overlap
-#         ),
-#         prompts={"use_json": False}
-#     )
-
-#     return query_settings
-
-# class MineddBackend:
-#     def __init__(self, 
-#                  embeddings_model: str, 
-#                  model_name: str,
-#                  papers_directory: str,
-#                  embeddings_file: str
-#                  ):
-#         # Load Query Engine
-#         self.query_engine = Query(
-#             model=f"ollama/{model_name}",
-#             paper_directory=papers_directory,
-#             output_dir='outputs/',
-#         )
-#         self.query_engine.settings = custom_minedd_settings(
-#             model=f"ollama/{model_name}",
-#             embedding=f"ollama/{embeddings_model}",
-#             papers_directory=papers_directory
-#         )
-#         self.query_engine.load_embeddings(embeddings_file)
-
-#     async def ask(self, question: str):
-#         result = self.query_engine.query_single(question, max_retries=3)
-#         answer = result['answer']
-#         return answer.strip()
