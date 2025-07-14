@@ -7,7 +7,7 @@ uvicorn[standard]==0.24.0
 pydantic==2.11.5
 python-multipart==0.0.18
 langchain==0.3.25
-langchain-core==0.3.58
+langchain-core==0.3.62
 langchain-ollama==0.3.2
 langchain-experimental==0.3.4
 langgraph==0.4.8
