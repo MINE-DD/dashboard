@@ -25,7 +25,6 @@ class LLMProvider(Enum):
     "Model providers try to be compatible with the langchain.chat_models.base.init_chat_model() method"
     OLLAMA = "ollama"
     GEMINI = "google_genai"
-    HUGGINGFACE = "huggingface"
 
 def get_llm_engine(config: dict):
     ### Extract Model Values
@@ -57,36 +56,6 @@ def get_llm_engine(config: dict):
             timeout=None,
             max_retries=2
         )
-    # elif model_provider == LLMProvider.HUGGINGFACE.value:
-    #     # Trying to optimize as much as possible the SMolLM3 model, enabling thinking
-    #     # And adopting recommended params in: https://huggingface.co/HuggingFaceTB/SmolLM3-3B 
-    #     if model_name == "HuggingFaceTB/SmolLM3-3B":
-    #         llm = HuggingFacePipeline.from_model_id(
-    #             model_id=model_name,
-    #             task="text-generation",
-    #             pipeline_kwargs={
-    #                 "max_new_tokens": 512,
-    #                 "temperature": 0.6,
-    #                 "top_p": 0.95,
-    #                 "enable_thinking": True
-    #             },
-    #             # model_kwargs={
-    #             #     "torch_dtype": torch.bfloat16,
-    #             #     "device_map": "auto"
-    #             # }
-    #         )
-    #     else: # "Neutral" loading of any HF model...
-    #         pipe = pipeline(
-    #             "text-generation",
-    #             tokenizer= AutoTokenizer.from_pretrained(model_name),
-    #             model=AutoModelForCausalLM.from_pretrained(
-    #                 model_name, 
-    #                 torch_dtype=torch.bfloat16, 
-    #                 device_map="auto"
-    #                 ),
-    #             max_new_tokens=512 # Set a default for max generated tokens
-    #         )
-    #         llm = HuggingFacePipeline(pipeline=pipe)
     else:
         raise ValueError(f"Unsupported LLM: {model_name}. Please make sure the 'llm_gen_default' field is in the form 'model_provider/model_name' where model_name is supported by the LLM provider.")
     return llm
