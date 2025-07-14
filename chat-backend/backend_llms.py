@@ -200,7 +200,6 @@ class ChatBackend:
 
 
     def general_chat_node(self, state: ConversationState) -> ConversationState:
-        print("CHECHEMIL", state["messages"])
         last_messages = self.get_chat_history(state["messages"], last_k=5)
         all_messages = [
             {"role": "system",

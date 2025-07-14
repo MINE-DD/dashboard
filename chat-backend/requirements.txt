@@ -1,16 +1,16 @@
 # FastAPI Chat Backend Dependencies
 # These are installed directly in docker-compose.yml for development
 
-fastapi[standard]==0.115.12
+# requirements.txt
+fastapi==0.115.12
 uvicorn[standard]==0.24.0
 pydantic==2.11.5
 python-multipart==0.0.18
 langchain==0.3.25
 langchain-core==0.3.58
 langchain-ollama==0.3.2
-llama_cpp_python==0.3.9
 langchain-experimental==0.3.4
 langgraph==0.4.8
 pandas==2.3.0
 tabulate==0.9.0
-paper-qa==5.20.0
+langchain-google-genai==2.1.5
