@@ -1,0 +1,9 @@
+{
+    "csv_datafile": "Plan-EO_Dashboard_point_data.csv",
+    "llm_gen_default": "ollama/llama3.2:latest",
+    "llm_gen_backends": [
+        "huggingface/HuggingFaceTB/SmolLM3-3B",
+        "ollama/llama3.2:latest",
+        "google_genai/gemini-2.5-flash-lite-preview-06-17"
+    ]
+}

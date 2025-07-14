@@ -6,13 +6,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List, Dict, TypeVar
 import uuid
+import json
 from backend_llms import ChatBackend, get_llm_engine
-ChatEngine = TypeVar('ChatEngine')
-Chain = TypeVar('Chain')
-
-
 
 
 app = FastAPI(
@@ -48,16 +44,23 @@ class ChatResponse(BaseModel):
 
 class ChatSession(BaseModel):
     session_id: str
-    messages: List[ChatResponse] = []
+    messages: list[ChatResponse] = []
 
 
 # In-memory storage for demo purposes
-chat_sessions: Dict[str, ChatSession] = {}
+chat_sessions: dict[str, ChatSession] = {}
 
-llm = get_llm_engine()
+
+with open('config-chat.json', 'r') as f:
+    config = json.load(f)
+llm = get_llm_engine(config)
 print(f"Using: {llm} as the core LLM")
 
-chat_backend = ChatBackend(llm, csv_file="Plan-EO_Dashboard_point_data.csv", use_simple_csv_agent=False)
+chat_backend = ChatBackend(
+    llm, 
+    csv_file=config.get('csv_datafile'), 
+    use_simple_csv_agent=False
+    )
 print(f"Using: {type(chat_backend)} as the Chat Backend")
 
 
@@ -116,7 +119,7 @@ async def send_message(session_id: str, message: ChatMessage):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
 
-@app.get("/chat/{session_id}/messages", response_model=List[ChatResponse])
+@app.get("/chat/{session_id}/messages", response_model=list[ChatResponse])
 async def get_messages(session_id: str):
     """
     Get all messages for a chat session.

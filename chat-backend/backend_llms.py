@@ -1,49 +1,94 @@
 import os
 import pandas as pd
 from dotenv import load_dotenv
-from langgraph.graph import StateGraph, START, END
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_experimental.agents.agent_toolkits import create_csv_agent, create_pandas_dataframe_agent
+from enum import Enum
+from typing import Annotated, TypedDict
 ### Langchain Chats
+# import torch
+# from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+# from langchain_huggingface.llms import HuggingFacePipeline
 from langchain_ollama import ChatOllama
 from langchain_google_genai import ChatGoogleGenerativeAI
-# from langchain_mistralai import ChatMistralAI
 ### Other imports
-from langgraph.checkpoint.memory import MemorySaver
-from typing import Annotated, TypedDict
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, BaseMessage
+from langchain_experimental.agents.agent_toolkits import create_csv_agent, create_pandas_dataframe_agent
+from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
+from langgraph.checkpoint.memory import MemorySaver
+
 from super_csv_agent import SimpleCSVAgent
 
-
 load_dotenv()
-USE_LOCAL_LLM = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
-REMOTE_LLM_NAME = os.getenv("REMOTE_LLM_NAME")
 
-def get_llm_engine():
-    if USE_LOCAL_LLM:
+class LLMProvider(Enum):
+    "Model providers try to be compatible with the langchain.chat_models.base.init_chat_model() method"
+    OLLAMA = "ollama"
+    GEMINI = "google_genai"
+    HUGGINGFACE = "huggingface"
+
+def get_llm_engine(config: dict):
+    ### Extract Model Values
+    model_fullname = config.get('llm_gen_default')
+    if model_fullname is None:
+        raise ValueError("Check that config-chat.json has a populated 'llm_gen_default' field!")
+    model_provider = model_fullname.split("/")[0]
+    model_name = "/".join(model_fullname.split("/")[1:])
+
+    if model_provider not in [member.value for member in LLMProvider]:
+        raise ValueError(
+            f"Invalid '{model_provider}' in the 'llm_gen_default' field in config.json. "
+            f"Allowed provider values are: {[member.value for member in LLMProvider]}"
+            "Double check that the modelname also exists for the given provider"
+        )
+    llm = None
+    if model_provider == LLMProvider.OLLAMA.value:
         llm = ChatOllama(
             base_url=os.getenv("OLLAMA_BASE_URL"),
-            model=os.getenv("LOCAL_LLM_NAME"), 
+            model=model_name, 
             temperature=0.0, 
             max_tokens=4096
             )
-    elif "mistral" in REMOTE_LLM_NAME.lower():
-        # llm = ChatMistralAI(
-        #     model=REMOTE_LLM_NAME,
-        #     temperature=0.0
-        # )
-        llm = None
-    elif "gemini" in REMOTE_LLM_NAME.lower():
+    elif model_provider == LLMProvider.GEMINI.value:
         llm = ChatGoogleGenerativeAI(
-            model=REMOTE_LLM_NAME,
+            model=model_name,
             temperature=0,
             max_tokens=None,
             timeout=None,
             max_retries=2
         )
+    # elif model_provider == LLMProvider.HUGGINGFACE.value:
+    #     # Trying to optimize as much as possible the SMolLM3 model, enabling thinking
+    #     # And adopting recommended params in: https://huggingface.co/HuggingFaceTB/SmolLM3-3B 
+    #     if model_name == "HuggingFaceTB/SmolLM3-3B":
+    #         llm = HuggingFacePipeline.from_model_id(
+    #             model_id=model_name,
+    #             task="text-generation",
+    #             pipeline_kwargs={
+    #                 "max_new_tokens": 512,
+    #                 "temperature": 0.6,
+    #                 "top_p": 0.95,
+    #                 "enable_thinking": True
+    #             },
+    #             # model_kwargs={
+    #             #     "torch_dtype": torch.bfloat16,
+    #             #     "device_map": "auto"
+    #             # }
+    #         )
+    #     else: # "Neutral" loading of any HF model...
+    #         pipe = pipeline(
+    #             "text-generation",
+    #             tokenizer= AutoTokenizer.from_pretrained(model_name),
+    #             model=AutoModelForCausalLM.from_pretrained(
+    #                 model_name, 
+    #                 torch_dtype=torch.bfloat16, 
+    #                 device_map="auto"
+    #                 ),
+    #             max_new_tokens=512 # Set a default for max generated tokens
+    #         )
+    #         llm = HuggingFacePipeline(pipeline=pipe)
     else:
-        raise ValueError(f"Unsupported LLM: {REMOTE_LLM_NAME}. Please set USE_LOCAL_LLM to true or use a supported remote LLM.")
+        raise ValueError(f"Unsupported LLM: {model_name}. Please make sure the 'llm_gen_default' field is in the form 'model_provider/model_name' where model_name is supported by the LLM provider.")
     return llm
 
 
@@ -100,10 +145,10 @@ class ChatBackend:
     def __init__(self, llm, csv_file:str, use_simple_csv_agent: bool = True):
         self.llm = llm
         self.use_simple_csv_agent = use_simple_csv_agent
+        df = self._validate_csv(csv_file)
         if use_simple_csv_agent:
             self.csv_agent = SimpleCSVAgent(self.llm, csv_file)
         else:
-            df = load_and_standardize_dataframe(csv_file)
             self.csv_agent = create_pandas_dataframe_agent(
                 self.llm, 
                 df, 
@@ -111,10 +156,18 @@ class ChatBackend:
                 verbose=True, 
                 allow_dangerous_code=True
                 )
-        # 
         self.graph = self.build_graph()
         self.state = {"messages": []}
     
+    def _validate_csv(self, csv_path):
+        if csv_path is None:
+            raise ValueError("The CSV path in the config-chat.json is not valid. The file must contain a 'csv_datafile' key with a valid filepath")
+        try:
+            df = load_and_standardize_dataframe(csv_path)
+        except Exception as e:
+            raise ValueError(f"ERROR {e}! The CSV filename {csv_path} could not be loaded as a DataFrame.")
+        return df
+
     def build_graph(self):
         graph = StateGraph(state_schema=ConversationState)
         
@@ -150,7 +203,7 @@ class ChatBackend:
         last_messages = []
         if last_k <=0:
             return [{ "role": "user", "content": messages[-1].content}]
-        for m in messages[-5:]:
+        for m in messages[-last_k:]:
             role = "user" if isinstance(m, HumanMessage) else "assistant"
             last_messages.append({"role": role, "content": m.content})
         return last_messages
