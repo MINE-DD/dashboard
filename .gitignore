@@ -1,13 +1,14 @@
 # Operating System Files
 .DS_Store
-
+.vscode/
 
 # Package managers
+**/__pycache__/
 node_modules/
 .env
 .env.*
+.venv*
 
 .clinerules
 /data
-chat-backend/__pycache__/
-
+outputs/
