@@ -8,6 +8,7 @@ node_modules/
 .env.*
 
 .clinerules
+.claude
 /data
 chat-backend/__pycache__/
 

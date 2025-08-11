@@ -8,7 +8,7 @@
 	import PasswordModal from '$components/ui/PasswordModal.svelte';
 	import ChatButton from '$components/ui/Chat/ChatButton.svelte';
 	import { isAuthenticated } from '$lib/stores/auth.store';
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	// import { env } from '$env/dynamic/public';
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -32,7 +32,7 @@
 <div
 	class="relative grid h-dvh w-dvw grid-rows-[auto_auto_1fr] overflow-clip sm:grid-rows-[auto_1fr]"
 >
-	{#if browser && !$isAuthenticated}
+	{#if browser && !dev && !$isAuthenticated}
 		<PasswordModal on:authenticated={handleAuthenticated} />
 		<div class="blur-md filter">
 			<Header />
