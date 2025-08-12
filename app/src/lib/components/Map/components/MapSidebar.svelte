@@ -74,6 +74,7 @@
 	let cogUrlInput = '';
 	let isAddingLayer = false;
 	export let globalOpacity = 80; // Default to 80%, now exposed as a prop
+	let rasterLayersVisible = true; // Track if raster layers are visible
 
 	let pathogensWithRasterLayers = new Set<string>();
 
@@ -97,6 +98,13 @@
 			if (type === 'syndrome') return mapping.syndrome === value;
 			return false;
 		});
+	}
+
+	// Handle toggling raster layer visibility
+	function toggleRasterLayerVisibility() {
+		rasterLayersVisible = !rasterLayersVisible;
+		const opacity = rasterLayersVisible ? globalOpacity / 100 : 0;
+		updateAllRasterLayersOpacity(opacity);
 	}
 	// Import the dynamic URL from MapInitializer
 	import { POINTS_DATA_URL } from '../utils/MapInitializer';
@@ -279,6 +287,9 @@
 
 		// Apply the opacity to all raster layers
 		updateAllRasterLayersOpacity(globalOpacity / 100);
+		
+		// Set initial checkbox state based on opacity
+		rasterLayersVisible = globalOpacity > 0;
 
 		// Update barThickness store with stored value
 		barThickness.set(storedSettings.barThickness);
@@ -470,23 +481,34 @@
 				<div
 					class="border-secondary/30 from-secondary/10 to-primary/10 rounded-lg border bg-gradient-to-r p-4 shadow-sm"
 				>
-					<h3 class="text-secondary-focus mb-3 flex items-center text-base font-medium">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="text-secondary mr-1 h-5 w-5"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+					<div class="mb-3 flex items-center justify-between">
+						<h3 class="text-secondary-focus flex items-center text-base font-medium">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="text-secondary mr-1 h-5 w-5"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+								/>
+							</svg>
+							Active Raster Layers ({$autoVisibleRasterLayers.size})
+						</h3>
+						<label class="label cursor-pointer gap-2 p-0">
+							<input 
+								type="checkbox" 
+								class="checkbox checkbox-primary checkbox-sm"
+								checked={rasterLayersVisible}
+								on:change={toggleRasterLayerVisibility}
+								title="Toggle raster layer visibility"
 							/>
-						</svg>
-						Active Raster Layers ({$autoVisibleRasterLayers.size})
-					</h3>
+						</label>
+					</div>
 					<!-- <div class="mb-3 max-h-[150px] overflow-y-auto rounded-md bg-white/70 p-2">
 						{#each Array.from($autoVisibleRasterLayers) as layerId}
 							{#if $rasterLayers.has(layerId)}
@@ -536,6 +558,9 @@
 						on:input={() => {
 							// Update opacity for all layers
 							updateAllRasterLayersOpacity(globalOpacity / 100);
+							
+							// Update checkbox state
+							rasterLayersVisible = globalOpacity > 0;
 
 							// Save to localStorage
 							saveSettingsToStorage({ globalOpacity });
