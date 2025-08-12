@@ -9,8 +9,8 @@ export const syndromes = writable<Set<string>>(new Set());
 
 // Selected filters stores
 export const selectedPathogens = writable<Set<string>>(new Set(['Campylobacter']));
-export const selectedAgeGroups = writable<Set<string>>(new Set());
-export const selectedSyndromes = writable<Set<string>>(new Set());
+export const selectedAgeGroups = writable<Set<string>>(new Set(['Pre-school age children (<5 years)']));
+export const selectedSyndromes = writable<Set<string>>(new Set(['Diarrhea (any severity)']));
 
 // Indices for fast filtering
 export const pathogenIndex = writable<FeatureIndex>(new Map());
