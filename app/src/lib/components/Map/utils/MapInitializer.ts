@@ -5,18 +5,20 @@ import { parseUrlFilters } from './urlParams';
 import { loadPointsData } from '../store';
 
 /**
- * Get the latest CSV file from the points data directory
- * Looks for files matching pattern: YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv
+ * Get the main CSV data file path
+ * The file uses semicolon (;) as delimiter and contains pathogen prevalence data.
+ * Note: Some pathogen names include markdown-style formatting (__name__) 
+ * for italic rendering of genus names (e.g., __Campylobacter__, __E. coli__).
+ * Files follow pattern: YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv
  */
 async function getLatestDataFile(): Promise<string> {
   const baseDir = 'data/01_Points/';
   
-  // For now, hardcode the latest file
-  // In production, this would come from a directory listing endpoint
-  const latestFile = '2025-07-31_Plan-EO_Dashboard_point_data.csv';
+  // Use the dated data file (newer format)
+  const dataFile = '2025-07-31_Plan-EO_Dashboard_point_data.csv';
   
-  console.log(`Loading data from: ${latestFile}`);
-  return baseDir + latestFile;
+  console.log(`Loading data from: ${dataFile}`);
+  return baseDir + dataFile;
 }
 
 // Export for consistency across the app

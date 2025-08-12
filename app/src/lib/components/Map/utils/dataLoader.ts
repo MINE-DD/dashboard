@@ -68,12 +68,9 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       dynamicTyping: true, // Convert numerical values
       transform: (value, field) => {
         if (typeof value === 'string') {
-          // Remove markdown formatting (e.g., __Shigella__ -> Shigella)
-          let cleaned = value.trim();
-          if (field === 'Pathogen') {
-            cleaned = cleaned.replace(/^__+|__+$/g, '');
-          }
-          return cleaned;
+          // Keep markdown formatting for display purposes
+          // The __ markers will be converted to italics in the UI
+          return value.trim();
         }
         return value;
       }
@@ -165,8 +162,9 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
 
       // Ensure Shigella and Campylobacter are always available as pathogen options
       // since we have raster layers for them
-      pathogenSet.add('Shigella');
-      pathogenSet.add('Campylobacter');
+      // Use the same format as in the data (with __ markers for italics)
+      pathogenSet.add('__Shigella__');
+      pathogenSet.add('__Campylobacter__');
 
       // Check if Campylobacter (without spp.) exists in the data
       const hasCampylobacter = Array.from(pathogenSet).some(p =>

@@ -177,8 +177,14 @@
 </div>
 
 <style>
-	/* Style for italic text within options */
-	:global(.dropdown-content em) {
+	/* Style for italic text in dropdown menu options */
+	:global(.menu em) {
+		font-style: italic;
+		color: inherit;
+	}
+	
+	/* Style for italic text in selected value display */
+	:global(summary em) {
 		font-style: italic;
 		color: inherit;
 	}

@@ -18,22 +18,22 @@ const baseR2url = 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/';
 export const filterToRasterMappings: FilterToRasterMapping[] = [
   // Shigella mappings
   // Age group 0-11 months
-  { pathogen: 'Shigella', ageGroup: '0-11 months', syndrome: 'Asymptomatic', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_0011_Asym_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '0-11 months', syndrome: 'Community detected diarrhea', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_0011_Comm_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '0-11 months', syndrome: 'Medically attended diarrhea - inpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_0011_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '0-11 months', syndrome: 'Medically attended diarrhea - outpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_0011_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '0-11 months', syndrome: 'Asymptomatic', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_0011_Asym_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '0-11 months', syndrome: 'Community detected diarrhea', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_0011_Comm_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '0-11 months', syndrome: 'Medically attended diarrhea - inpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_0011_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '0-11 months', syndrome: 'Medically attended diarrhea - outpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_0011_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
 
   // Age group 12-23 months
-  { pathogen: 'Shigella', ageGroup: '12-23 months', syndrome: 'Asymptomatic', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_1223_Asym_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '12-23 months', syndrome: 'Community detected diarrhea', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_1223_Comm_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '12-23 months', syndrome: 'Medically attended diarrhea - inpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_1223_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '12-23 months', syndrome: 'Medically attended diarrhea - outpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_1223_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '12-23 months', syndrome: 'Asymptomatic', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_1223_Asym_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '12-23 months', syndrome: 'Community detected diarrhea', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_1223_Comm_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '12-23 months', syndrome: 'Medically attended diarrhea - inpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_1223_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '12-23 months', syndrome: 'Medically attended diarrhea - outpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_1223_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
 
   // Age group 24-59 months
-  { pathogen: 'Shigella', ageGroup: '24-59 months', syndrome: 'Asymptomatic', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_2459_Asym_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '24-59 months', syndrome: 'Community detected diarrhea', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_2459_Comm_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '24-59 months', syndrome: 'Medically attended diarrhea - inpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_2459_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
-  { pathogen: 'Shigella', ageGroup: '24-59 months', syndrome: 'Medically attended diarrhea - outpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_2459_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '24-59 months', syndrome: 'Asymptomatic', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_2459_Asym_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '24-59 months', syndrome: 'Community detected diarrhea', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_2459_Comm_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '24-59 months', syndrome: 'Medically attended diarrhea - inpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_2459_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
+  { pathogen: '__Shigella__', ageGroup: '24-59 months', syndrome: 'Medically attended diarrhea - outpatient', layerId: `cog-${baseR2url}01_Pathogens-SHIG-SHIG_2459_Medi_Pr-tif`.replace(/[\/\.]/g, '-') },
 ];
 
 // Create a derived store that calculates which raster layers should be visible based on filter selections
