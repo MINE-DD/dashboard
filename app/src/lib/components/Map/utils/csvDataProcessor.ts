@@ -148,9 +148,9 @@ export async function processPathogenData(
     }
 
     // Extract data from the found PointProperties
-    // Ensure prevalenceValue and standardError are treated as decimals (0-1) before multiplying by 100
-    const prevalence = relevantPointProps.prevalenceValue * 100; // Convert to percentage
-    const standardError = relevantPointProps.standardError * 100; // Convert to percentage
+    // PREV values in CSV are already percentages (not decimals), so use them directly
+    const prevalence = relevantPointProps.prevalenceValue; // Already a percentage
+    const standardError = relevantPointProps.standardError; // Already a percentage
 
     const { lower, upper } = calculateConfidenceInterval(prevalence, standardError);
 
