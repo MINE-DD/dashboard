@@ -48,7 +48,8 @@
 		handleMapContentChange
 	} from '../store';
 	import MaterialSymbolsSettingsOutlineRounded from '~icons/material-symbols/settings-outline-rounded';
-	import { stripItalicMarkers } from '../utils/textFormatter';
+	import { stripItalicMarkers, sortByValField } from '../utils/textFormatter';
+	import FilterDropdown from './FilterDropdown.svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -292,7 +293,7 @@
 </script>
 
 <div
-	class={'grid max-h-[calc(100%-20px)] overflow-clip rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 backdrop-blur-md backdrop-filter transition-all duration-300 sm:shadow-lg ' +
+	class={'grid max-h-[calc(100%-20px)] overflow-visible rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 backdrop-blur-md backdrop-filter transition-all duration-300 sm:shadow-lg ' +
 		className}
 >
 	<!-- Sidebar header with toggle button -->
@@ -371,6 +372,7 @@
 		<!-- Content -->
 		<div
 			class="flex h-full max-h-[calc(100vh-250px)] w-full flex-col space-y-4 overflow-y-auto p-1 pt-3 sm:max-h-[calc(100vh-250px)] sm:w-80 sm:p-4"
+			style="overflow-x: visible;"
 		>
 			<!-- Visualization Type Selector -->
 			<div class="form-control w-full">
@@ -402,91 +404,67 @@
 			</div>
 
 			<!-- Filter Sections -->
-			<div class="form-control w-full">
-				<div class="text-base-content/70 mb-2 text-xs italic">
-					Options marked with <span class="text-primary">*</span>
-					have associated raster layers.
-				</div>
-				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
-					<label for="pathogen-select" class="label px-0 py-1">
-						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
-							Pathogens
-						</span>
-					</label>
-					<select
-						id="pathogen-select"
-						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
-						on:change={(e: Event) => handleSelectChange(e, 'pathogens')}
-					>
-						<option value="" selected={$selectedPathogens.size === 0}>Select Pathogen</option>
-						{#each Array.from($pathogens || []).sort() as pathogen}
-							<option value={pathogen} selected={$selectedPathogens?.has(pathogen)}>
-								{stripItalicMarkers(pathogen)} ({$pathogenCounts.get(pathogen) || 0}){pathogensWithRasterLayers.has(
-									pathogen
-								)
-									? ' *'
-									: ''}
-							</option>
-						{/each}
-					</select>
-				</div>
+			<div class="text-base-content/70 mb-2 text-xs italic">
+				Options marked with <span class="text-primary">*</span>
+				have associated raster layers.
 			</div>
+			
+			<!-- Pathogens Dropdown -->
+			<FilterDropdown
+				id="pathogen-select"
+				label="Pathogens"
+				placeholder="Select Pathogen"
+				options={Array.from($pathogens || []).sort().map(pathogen => ({
+					value: pathogen,
+					label: pathogen,
+					count: $pathogenCounts.get(pathogen) || 0,
+					hasRasterLayer: pathogensWithRasterLayers.has(pathogen)
+				}))}
+				selectedValue={Array.from($selectedPathogens)[0] || ''}
+				onSelect={(value) => {
+					const newSet = new Set<string>();
+					if (value) newSet.add(value);
+					updatePathogenSelection(newSet);
+				}}
+			/>
 
-			<!-- Age Groups -->
-			<div class="form-control w-full">
-				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
-					<label for="agegroup-select" class="label px-0 py-1">
-						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
-							Age Groups
-						</span>
-					</label>
-					<select
-						id="agegroup-select"
-						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
-						on:change={(e: Event) => handleSelectChange(e, 'ageGroups')}
-					>
-						<option value="" selected={$selectedAgeGroups.size === 0}>Select Age Group</option>
-						{#each Array.from($ageGroups || []) as ageGroup}
-							<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
-								{ageGroup} ({$ageGroupCounts.get(ageGroup) || 0}){hasRasterLayers(
-									'ageGroup',
-									ageGroup as string
-								)
-									? ' *'
-									: ''}
-							</option>
-						{/each}
-					</select>
-				</div>
-			</div>
+			<!-- Age Groups Dropdown -->
+			<FilterDropdown
+				id="agegroup-select"
+				label="Age Groups"
+				placeholder="Select Age Group"
+				options={Array.from($ageGroups || []).map(ageGroup => ({
+					value: ageGroup,
+					label: ageGroup,
+					count: $ageGroupCounts.get(ageGroup) || 0,
+					hasRasterLayer: hasRasterLayers('ageGroup', ageGroup as string)
+				}))}
+				selectedValue={Array.from($selectedAgeGroups)[0] || ''}
+				onSelect={(value) => {
+					const newSet = new Set<string>();
+					if (value) newSet.add(value);
+					updateAgeGroupSelection(newSet);
+				}}
+			/>
 
-			<!-- Syndromes -->
-			<div class="form-control w-full">
-				<div class="rounded-lg border border-white/50 bg-white/50 p-3 shadow-sm">
-					<label for="syndrome-select" class="label px-0 py-1">
-						<span class="label-text text-secondary-focus flex items-center text-base font-medium">
-							Syndromes
-						</span>
-					</label>
-					<select
-						id="syndrome-select"
-						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
-						on:change={(e: Event) => handleSelectChange(e, 'syndromes')}
-					>
-						<option value="" selected={$selectedSyndromes.size === 0}>Select Syndrome</option>
-						{#each Array.from($syndromes || []) as syndrome}
-							<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
-								{syndrome} ({$syndromeCounts.get(syndrome) || 0}){hasRasterLayers(
-									'syndrome',
-									syndrome as string
-								)
-									? ' *'
-									: ''}
-							</option>
-						{/each}
-					</select>
-				</div>
-			</div>
+			<!-- Syndromes Dropdown -->
+			<FilterDropdown
+				id="syndrome-select"
+				label="Syndromes"
+				placeholder="Select Syndrome"
+				options={Array.from($syndromes || []).map(syndrome => ({
+					value: syndrome,
+					label: syndrome,
+					count: $syndromeCounts.get(syndrome) || 0,
+					hasRasterLayer: hasRasterLayers('syndrome', syndrome as string)
+				}))}
+				selectedValue={Array.from($selectedSyndromes)[0] || ''}
+				onSelect={(value) => {
+					const newSet = new Set<string>();
+					if (value) newSet.add(value);
+					updateSyndromeSelection(newSet);
+				}}
+			/>
 
 			<!-- Active Raster Layers Info -->
 			{#if $autoVisibleRasterLayers.size > 0}
