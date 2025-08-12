@@ -103,12 +103,12 @@
 	// Visualization type options
 	import { visualizationOptions } from '../store/visualizationOptions';
 
-	async function handleVisualizationTypeChange(event: Event) {
+	function handleVisualizationTypeChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const newType = target.value as VisualizationType;
 
 		console.log('Visualization type change requested:', newType);
-		await updateVisualizationType(newType);
+		updateVisualizationType(newType);
 	}
 
 	async function handleAddLayerClick() {
@@ -165,13 +165,10 @@
 		await handleMapContentChange();
 	}
 
-	async function updateVisualizationType(newType: VisualizationType) {
-		console.log('Requesting switch to visualization type:', newType); // Adjusted log for clarity
-		// visualizationType.set(newType); // Store update moved to switchVisualizationType
-		// Explicitly call the function to switch visualization mechanics
-		// Ensure switchVisualizationType is imported, likely from '../store' which re-exports it from mapVisualizationManager
-		const { switchVisualizationType } = await import('../store/mapVisualizationManager'); // Direct import for clarity
-		await switchVisualizationType(newType);
+	function updateVisualizationType(newType: VisualizationType) {
+		console.log('Requesting switch to visualization type:', newType);
+		// Just update the store - the centralized handler will do the actual switch
+		visualizationType.set(newType);
 	}
 
 	// Helper function to toggle a value in a Set

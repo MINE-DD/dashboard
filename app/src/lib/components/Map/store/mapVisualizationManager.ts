@@ -47,7 +47,7 @@ export async function updateMapVisualization(
     return false;
   }
 
-  if (!map || !map.loaded()) {
+  if (!map || !map.isStyleLoaded()) {
     console.log('Skipping visualization update: map not ready', {
       mapExists: !!map,
       mapLoaded: map?.loaded()
@@ -188,7 +188,7 @@ export async function addInitialPointsToMap(
     return false;
   }
 
-  if (!map.loaded()) {
+  if (!map.isStyleLoaded()) {
     console.log('Map not loaded yet');
     return false;
   }
@@ -309,9 +309,9 @@ export async function switchVisualizationType(
   filteredData: PointFeatureCollection
 ): Promise<boolean> {
 
-  if (!map || !map.loaded() || currentType === newType) {
+  if (!map || !map.isStyleLoaded() || currentType === newType) {
     console.warn(
-      `Switch aborted or unnecessary: mapInstance exists: ${!!map}, map loaded: ${map ? map.loaded() : 'N/A'}, currentType: ${currentType}, newType: ${newType}, types are same: ${currentType === newType}`
+      `Switch aborted or unnecessary: mapInstance exists: ${!!map}, map loaded: ${map ? map.isStyleLoaded() : 'N/A'}, currentType: ${currentType}, newType: ${newType}, types are same: ${currentType === newType}`
     );
     return false;
   }

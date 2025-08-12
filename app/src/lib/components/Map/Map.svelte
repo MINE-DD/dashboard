@@ -50,7 +50,6 @@
 	let isStyleLoaded = false;
 
 	// References to child components
-	let mapLayerComponent: MapLayer;
 	let rasterLayerManager: RasterLayerManager;
 
 	// Popover state
@@ -64,12 +63,12 @@
 		map = event.detail.map;
 		isStyleLoaded = true;
 
-		setTimeout(() => {
-			clearFilterCache();
-			loadPointsData(pointDataUrl, true).then(() => {
-				// Optional: log data after reload
-			});
-		}, 800);
+		// Load data immediately when map is ready
+		clearFilterCache();
+		loadPointsData(pointDataUrl, true).then(() => {
+			// Data loaded successfully
+			console.log('Initial data loaded');
+		});
 
 		if (map && !map.getSource('country-boundaries')) {
 			map.addSource('country-boundaries', {
@@ -89,10 +88,8 @@
 					'line-width': 2
 				}
 			});
-
-			setTimeout(() => {
-				// Layer ordering handled by reactive statements
-			}, 500);
+			
+			// Layer ordering will be handled by reactive statements when data is ready
 		}
 	}
 
@@ -100,9 +97,10 @@
 	function handleStyleChange() {
 		isStyleLoaded = true;
 		if (map) {
-			setTimeout(() => {
+			// Use idle event to ensure map is ready for URL serialization
+			map.once('idle', () => {
 				serializeFiltersToUrl(map, globalOpacity);
-			}, 100);
+			});
 		}
 	}
 
@@ -161,10 +159,10 @@
 		}
 
 		const clickCoordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
-		const $currentRasterLayers = get(rasterLayers);
+		const currentRasterLayers = $rasterLayers;
 		const showRasterEstimationPopover = isClickOnVisibleRaster(
 			clickCoordinates,
-			$currentRasterLayers
+			currentRasterLayers
 		);
 
 		if (!showRasterEstimationPopover) {
@@ -175,13 +173,13 @@
 		isLoading.set(true);
 		try {
 			let pathogen: string;
-			const $currentSelectedPathogens = get(selectedPathogens);
+			const currentSelectedPathogens = $selectedPathogens;
 
-			if ($currentSelectedPathogens && $currentSelectedPathogens.size > 0) {
-				pathogen = $currentSelectedPathogens.values().next().value as string;
+			if (currentSelectedPathogens && currentSelectedPathogens.size > 0) {
+				pathogen = currentSelectedPathogens.values().next().value as string;
 			} else {
 				let inferredPathogenFromLayer = null;
-				for (const [, layerDetails] of $currentRasterLayers) {
+				for (const [, layerDetails] of currentRasterLayers) {
 					if (layerDetails.isVisible) {
 						const parts = layerDetails.name.split('_');
 						if (parts.length > 0) {
@@ -259,42 +257,13 @@
 		}
 	}
 
-	async function handleVisualizationChange(
+	function handleVisualizationChange(
 		event: CustomEvent<{ visualizationType: VisualizationType; timestamp: number }>
 	) {
 		const { visualizationType: newType } = event.detail;
 		console.log(`Map received visualization change event: ${newType}`);
-
-		const attemptSwitch = async () => {
-			if (mapLayerComponent && map && map.loaded()) {
-				try {
-					await mapLayerComponent.switchVisualizationType(newType);
-					return true;
-				} catch (error) {
-					console.error('Error during visualization switch:', error);
-					return false;
-				}
-			}
-			return false;
-		};
-
-		let success = await attemptSwitch();
-		if (!success) {
-			console.warn('Map or MapLayer not ready for visualization switch, retrying...');
-			const maxRetries = 5;
-			const baseDelay = 100;
-			for (let attempt = 1; attempt <= maxRetries && !success; attempt++) {
-				const delay = baseDelay * Math.pow(2, attempt - 1);
-				await new Promise((resolve) => setTimeout(resolve, delay));
-				console.log(`Retry attempt ${attempt}/${maxRetries} for visualization switch`);
-				success = await attemptSwitch();
-			}
-			if (success) {
-				console.log(`Visualization switch succeeded after retries`);
-			} else {
-				console.error(`Failed to switch visualization after ${maxRetries} attempts`);
-			}
-		}
+		// Visualization changes are now handled centrally by the store
+		// The store watches for visualizationType changes and updates accordingly
 	}
 
 	onMount(async () => {
@@ -318,38 +287,43 @@
 	});
 
 	$: if (map && isStyleLoaded) {
-		setTimeout(() => {
-			if (map) {
-				serializeFiltersToUrl(map, globalOpacity);
-			}
-		}, 100);
+		// Wait for map to be idle before serializing URL
+		if (map.loaded()) {
+			map.once('idle', () => {
+				if (map) {
+					serializeFiltersToUrl(map, globalOpacity);
+				}
+			});
+		}
 	}
 
 	$: if ($pointsAddedToMap && map && isStyleLoaded && rasterLayerManager) {
 		console.log('Map.svelte: pointsAddedToMap is true, ensuring layer order.');
-		setTimeout(() => {
+		// Use idle event to ensure map has finished rendering before adjusting layers
+		map.once('idle', () => {
 			if (rasterLayerManager && typeof rasterLayerManager.ensureCorrectLayerOrder === 'function') {
 				rasterLayerManager.ensureCorrectLayerOrder();
 			}
-		}, 250);
+		});
 	}
 
 	let previousVisibleRasterCount = 0;
 	$: {
 		if (map && isStyleLoaded && rasterLayerManager) {
-			const currentVisibleRasterCount = Array.from(get(rasterLayers).values()).filter(
+			const currentVisibleRasterCount = Array.from($rasterLayers.values()).filter(
 				(l) => l.isVisible && l.bounds
 			).length;
 			if (currentVisibleRasterCount !== previousVisibleRasterCount) {
 				console.log('Map.svelte: Visible raster count changed, ensuring layer order.');
-				setTimeout(() => {
+				// Use idle event to ensure map has finished rendering
+				map.once('idle', () => {
 					if (
 						rasterLayerManager &&
 						typeof rasterLayerManager.ensureCorrectLayerOrder === 'function'
 					) {
 						rasterLayerManager.ensureCorrectLayerOrder();
 					}
-				}, 100);
+				});
 			}
 			previousVisibleRasterCount = currentVisibleRasterCount;
 		}
@@ -376,7 +350,7 @@
 	{/if}
 
 	{#if map && isStyleLoaded}
-		<MapLayer {map} on:pointclick={handlePointClick} bind:this={mapLayerComponent} />
+		<MapLayer {map} on:pointclick={handlePointClick} />
 	{/if}
 
 	<div class="absolute left-6 top-16 z-10">

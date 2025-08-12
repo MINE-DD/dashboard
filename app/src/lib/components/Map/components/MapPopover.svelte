@@ -76,10 +76,11 @@
 			closePopup();
 		};
 
-		// Add the click listener to document with a slight delay to avoid immediate closure
-		setTimeout(() => {
+		// Use requestAnimationFrame to ensure the popup is rendered before adding click listener
+		// This prevents immediate closure on the same click that opened the popup
+		requestAnimationFrame(() => {
 			document.addEventListener('click', handleDocumentClick);
-		}, 100);
+		});
 
 		// Store the handler function so we can remove it later
 		overlayElement = { handleDocumentClick } as any;

@@ -49,11 +49,15 @@
 			} catch (e) {
 				console.error('RasterLayerManager: Error during ensureCorrectLayerOrder:', e);
 			} finally {
-				// Use a short timeout to ensure MapLibre processes the moveLayer operations
-				// before clearing the flag, as 'styledata' might fire immediately.
-				setTimeout(() => {
+				// Use idle event to ensure MapLibre has processed all layer operations
+				if (map.loaded()) {
+					map.once('idle', () => {
+						isAdjustingLayerOrder.set(false);
+					});
+				} else {
+					// Fallback if map is not loaded
 					isAdjustingLayerOrder.set(false);
-				}, 10); // Increased delay slightly
+				}
 			}
 		}
 	}

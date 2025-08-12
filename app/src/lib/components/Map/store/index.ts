@@ -72,7 +72,8 @@ export {
   isProgrammaticSwitching,
   isAdjustingLayerOrder,
   setMapInstance,
-  setPointsAddedToMap
+  setPointsAddedToMap,
+  setMapReady
 } from '$lib/stores/mapState.store';
 
 // Re-export map visualization functions

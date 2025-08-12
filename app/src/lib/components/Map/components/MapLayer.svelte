@@ -3,7 +3,7 @@
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import { filteredPointsData } from '$lib/stores/filter.store';
 	import { dataError } from '$lib/stores/data.store';
-	import { visualizationType, type VisualizationType } from '$lib/stores/map.store';
+	import { visualizationType } from '$lib/stores/map.store';
 	import {
 		mapInstance,
 		initializationState,
@@ -18,12 +18,9 @@
 		setMapInstance,
 		setInitializationState,
 		setPointsAddedToMap,
-		setMapError
+		setMapReady
 	} from '$lib/stores/mapState.store';
-	import {
-		addInitialPointsToMap,
-		switchVisualizationType as storeSwitchVisualizationType
-	} from '../store/mapVisualizationManager';
+	// Import removed - visualization switching handled by store
 
 	// Props
 	export let map: MaplibreMap | null = null;
@@ -33,6 +30,7 @@
 
 	// Local state for tracking initialization
 	let localMapSet = false;
+	let localEventHandlersSet = false;
 
 	// Set the map instance in the store when it becomes available
 	$: if (map && !localMapSet) {
@@ -40,12 +38,13 @@
 		setMapInstance(map);
 		localMapSet = true;
 
-		// Wait for map to be fully loaded and idle before allowing initialization
+		// Wait for map to be fully loaded and idle before marking as ready
 		if (map.loaded()) {
 			// Map is already loaded, wait for idle state
 			console.log('Map already loaded, waiting for idle state');
 			map.once('idle', () => {
-				console.log('Map is idle and ready');
+				console.log('Map is idle and ready - setting map as ready');
+				setMapReady(true);
 				setInitializationState('idle');
 			});
 		} else {
@@ -54,18 +53,28 @@
 			map.once('load', () => {
 				console.log('Map loaded, waiting for idle state');
 				map.once('idle', () => {
-					console.log('Map is idle and ready');
+					console.log('Map is idle and ready - setting map as ready');
+					setMapReady(true);
 					setInitializationState('idle');
 				});
 			});
 		}
+		
+		// Listen for source data events to track when layers are added
+		map.on('sourcedata', (e) => {
+			if (e.isSourceLoaded && e.sourceId === 'points-source' && e.source) {
+				console.log('Points source data loaded');
+				// Source has been added, setup event handlers
+				if ($initializationState === 'ready' && !localEventHandlersSet) {
+					setupEventHandlers();
+					localEventHandlersSet = true;
+				}
+			}
+		});
 	}
 
-	// Reactive statement to attempt initialization when conditions are met
-	$: if ($canInitializeMap) {
-		console.log('MapLayer: Conditions met for initialization');
-		initializeVisualization();
-	}
+	// The store will handle initialization automatically
+	// We just need to react to state changes for UI updates
 
 	// Log state changes for debugging
 	$: console.log('MapLayer state:', {
@@ -73,69 +82,18 @@
 		hasData: $hasData,
 		pointsAdded: $pointsAddedToMap,
 		initializationState: $initializationState,
-		canInit: $canInitializeMap
+		canInit: $canInitializeMap,
+		dataLength: $filteredPointsData?.features?.length || 0
 	});
 
-	// Function to initialize the map visualization (called once when ready)
-	async function initializeVisualization() {
-		if ($initializationState === 'initializing' || $initializationState === 'ready') {
-			return;
+	// React to successful initialization
+	$: if ($initializationState === 'ready' && map && !localEventHandlersSet) {
+		console.log('Initialization complete, setting up event handlers');
+		setupEventHandlers();
+		if (map) {
+			map.on('styledata', handleStyleChange);
 		}
-
-		if (!map) {
-			console.log('Cannot initialize: no map instance');
-			return;
-		}
-
-		if (!$mapLoaded) {
-			console.log('Cannot initialize: map not ready');
-			return;
-		}
-
-		if (!$hasData) {
-			console.log('Cannot initialize: no filtered data features available');
-			return;
-		}
-
-		// Check if source already exists to prevent duplicate initialization
-		let sourceExists = false;
-		try {
-			sourceExists = !!map.getSource('points-source');
-		} catch (e) {
-			sourceExists = false;
-		}
-
-		if (sourceExists) {
-			console.log('Points source already exists, skipping initialization');
-			setInitializationState('ready');
-			setPointsAddedToMap(true);
-			setupEventHandlers();
-			if (map) {
-				map.on('styledata', handleStyleChange);
-			}
-			return;
-		}
-
-		setInitializationState('initializing');
-		console.log(
-			'Initializing map visualization with',
-			$filteredPointsData.features.length,
-			'filtered data points'
-		);
-		const success = await addInitialPointsToMap(map, $filteredPointsData, $visualizationType, true);
-
-		if (success) {
-			console.log('✅ Map visualization initialized successfully');
-			setInitializationState('ready');
-			setupEventHandlers();
-			if (map) {
-				map.on('styledata', handleStyleChange);
-			}
-		} else {
-			console.log('❌ Failed to initialize map visualization');
-			setInitializationState('error');
-			setMapError('Failed to initialize map visualization');
-		}
+		localEventHandlersSet = true;
 	}
 
 	// Define event handlers
@@ -288,9 +246,9 @@
 		// Wait for map to be idle after style change
 		if (map && $hasData) {
 			map.once('idle', () => {
-				console.log('Map idle after style change, reinitializing');
+				console.log('Map idle after style change, setting ready state');
 				if (map.loaded()) {
-					initializeVisualization();
+					setMapReady(true);
 				}
 			});
 		}
@@ -305,28 +263,13 @@
 		if (map) {
 			removeEventHandlers();
 			map.off('styledata', handleStyleChange);
+			map.off('sourcedata'); // Remove sourcedata listener
 		}
 		setMapInstance(null);
 		setPointsAddedToMap(false);
 	});
 
-	// Export function for Map component to call
-	export async function switchVisualizationType(newType: VisualizationType): Promise<boolean> {
-		console.log(`MapLayer: Switching visualization to ${newType}`);
-		try {
-			const result = await storeSwitchVisualizationType(
-				map,
-				$visualizationType,
-				newType,
-				$filteredPointsData
-			);
-			console.log(`MapLayer: Visualization switch result:`, result);
-			return result;
-		} catch (error) {
-			console.error('MapLayer: Error switching visualization:', error);
-			return false;
-		}
-	}
+	// Visualization switching is now handled centrally by the store
 </script>
 
 {#if $dataError}
