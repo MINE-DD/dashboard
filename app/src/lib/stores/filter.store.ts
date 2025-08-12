@@ -8,7 +8,7 @@ export const ageGroups = writable<Set<string>>(new Set());
 export const syndromes = writable<Set<string>>(new Set());
 
 // Selected filters stores
-export const selectedPathogens = writable<Set<string>>(new Set(['Campylobacter spp.']));
+export const selectedPathogens = writable<Set<string>>(new Set(['Campylobacter']));
 export const selectedAgeGroups = writable<Set<string>>(new Set());
 export const selectedSyndromes = writable<Set<string>>(new Set());
 
@@ -69,23 +69,8 @@ function applyFilters(
     matchingIndices = new Set<number>();
     for (const pathogen of currentSelectedPathogens) {
       let indices: Set<number> | undefined;
-      // Special handling for 'Campylobacter spp.' due to potential variations in data
-      if (pathogen === 'Campylobacter spp.') {
-        if (pIndex.has('Campylobacter spp.')) {
-          indices = pIndex.get('Campylobacter spp.');
-        } else if (pIndex.has('Campylobacter')) {
-          indices = pIndex.get('Campylobacter');
-        } else {
-          const campyKey = Array.from(pIndex.keys()).find((k) =>
-            k.toLowerCase().includes('campylobacter')
-          );
-          if (campyKey) {
-            indices = pIndex.get(campyKey);
-          }
-        }
-      } else {
-        indices = pIndex.get(pathogen);
-      }
+      // Direct lookup since we've cleaned the pathogen names
+      indices = pIndex.get(pathogen);
       if (indices) {
         for (const idx of indices) {
           matchingIndices.add(idx);

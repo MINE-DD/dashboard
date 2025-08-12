@@ -12,15 +12,15 @@ export function extractLayerInfo(layerName: string): {
   ageGroup: string;
   syndrome: string;
 } {
-  // Default values
-  let pathogen = 'Shigella';
-  let ageGroup = '0-11 months';
-  let syndrome = 'Asymptomatic';
+  // Default values - empty strings indicate no match found
+  let pathogen = '';
+  let ageGroup = '';
+  let syndrome = '';
 
   // Example layer name: "SHIG 0-11 Asym Pr"
   // Parse the layer name to extract information
 
-  // Extract pathogen
+  // Extract pathogen - use cleaned data format without markdown
   if (layerName.includes('SHIG')) {
     pathogen = 'Shigella';
   } else if (layerName.includes('ROTA')) {

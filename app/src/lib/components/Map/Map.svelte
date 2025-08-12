@@ -13,6 +13,9 @@
 		filteredPointsData,
 		rasterLayers,
 		updateAllRasterLayersOpacity,
+		pathogens,
+		ageGroups,
+		syndromes,
 		selectedPathogens,
 		selectedAgeGroups,
 		selectedSyndromes,
@@ -201,12 +204,19 @@
 						if (inferredPathogenFromLayer) break;
 					}
 				}
-				pathogen = inferredPathogenFromLayer || 'Shigella';
+				// Use inferred pathogen, or first available pathogen from data, or null
+				if (!inferredPathogenFromLayer && $pathogens && $pathogens.size > 0) {
+					inferredPathogenFromLayer = Array.from($pathogens)[0];
+				}
+				pathogen = inferredPathogenFromLayer || '';
 			}
 
-			let ageGroup = '0-11 months';
+			// Use selected age group or first available from data
+			let ageGroup = '';
 			if ($selectedAgeGroups && $selectedAgeGroups.size > 0) {
 				ageGroup = $selectedAgeGroups.values().next().value as string;
+			} else if ($ageGroups && $ageGroups.size > 0) {
+				ageGroup = Array.from($ageGroups)[0];
 			}
 
 			const data = await processPathogenData(pathogen, clickCoordinates, ageGroup, '');
