@@ -1,23 +1,29 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-	import { get } from 'svelte/store';
 	import type { Map as MaplibreMap } from 'maplibre-gl';
+	import { filteredPointsData } from '$lib/stores/filter.store';
+	import { dataError } from '$lib/stores/data.store';
+	import { visualizationType, type VisualizationType } from '$lib/stores/map.store';
 	import {
-		// pointsData, // Not used directly, can be removed if not needed by other logic
-		filteredPointsData,
-		dataError,
+		mapInstance,
+		initializationState,
+		pointsAddedToMap,
+		isUpdatingVisualization,
+		isProgrammaticSwitching,
+		isAdjustingLayerOrder,
+		canInitializeMap,
+		mapLoaded,
+		hasData,
+		isProgrammaticOperation,
 		setMapInstance,
+		setInitializationState,
 		setPointsAddedToMap,
+		setMapError
+	} from '$lib/stores/mapState.store';
+	import {
 		addInitialPointsToMap,
-		// updateMapVisualization, // Not used directly
-		switchVisualizationType as storeSwitchVisualizationType,
-		// type VisualizationType // Already imported below
-		isAdjustingLayerOrder, // Import the new store
-		isUpdatingVisualization // Import this store as well
-	} from '../store'; // This imports from ../store/index.ts
-
-	import { isProgrammaticSwitching } from '../store/mapVisualizationManager'; // Correct path
-	import type { VisualizationType } from '$lib/stores/map.store'; // Corrected path for VisualizationType
+		switchVisualizationType as storeSwitchVisualizationType
+	} from '../store/mapVisualizationManager';
 
 	// Props
 	export let map: MaplibreMap | null = null;
@@ -25,55 +31,54 @@
 	// Event dispatcher for selected point
 	const dispatch = createEventDispatcher();
 
-	// Track if the map instance has been set in the store
-	let mapInstanceSet = false;
-	let initializationAttempted = false;
+	// Local state for tracking initialization
+	let localMapSet = false;
 
 	// Set the map instance in the store when it becomes available
-	$: if (map && !mapInstanceSet) {
+	$: if (map && !localMapSet) {
 		console.log('Setting map instance in store');
 		setMapInstance(map);
-		mapInstanceSet = true;
+		localMapSet = true;
 
-		// Wait for map to be fully loaded before attempting initialization
+		// Wait for map to be fully loaded and idle before allowing initialization
 		if (map.loaded()) {
-			// Map is already loaded
-			console.log('Map already loaded, will attempt initialization');
-			// Small delay to ensure everything is settled
-			setTimeout(() => {
-				if (get(filteredPointsData)?.features?.length > 0) {
-					console.log('Map already loaded and data ready, initializing...');
-					initializeVisualization();
-				}
-			}, 200);
+			// Map is already loaded, wait for idle state
+			console.log('Map already loaded, waiting for idle state');
+			map.once('idle', () => {
+				console.log('Map is idle and ready');
+				setInitializationState('idle');
+			});
 		} else {
-			// Wait for map load event
+			// Wait for map load event, then idle
 			console.log('Waiting for map to load...');
 			map.once('load', () => {
-				console.log('Map load event fired');
-				// Small delay to ensure everything is settled
-				setTimeout(() => {
-					if (get(filteredPointsData)?.features?.length > 0) {
-						console.log('Map loaded and data ready, initializing...');
-						initializeVisualization();
-					}
-				}, 200); // Increased delay
+				console.log('Map loaded, waiting for idle state');
+				map.once('idle', () => {
+					console.log('Map is idle and ready');
+					setInitializationState('idle');
+				});
 			});
 		}
 	}
 
-	// Simple reactive statement to attempt initialization when data becomes available
-	$: if (map && get(filteredPointsData)?.features?.length > 0 && !initializationAttempted) {
-		setTimeout(() => {
-			if (!initializationAttempted) {
-				initializeVisualization();
-			}
-		}, 50);
+	// Reactive statement to attempt initialization when conditions are met
+	$: if ($canInitializeMap) {
+		console.log('MapLayer: Conditions met for initialization');
+		initializeVisualization();
 	}
+
+	// Log state changes for debugging
+	$: console.log('MapLayer state:', {
+		mapLoaded: $mapLoaded,
+		hasData: $hasData,
+		pointsAdded: $pointsAddedToMap,
+		initializationState: $initializationState,
+		canInit: $canInitializeMap
+	});
 
 	// Function to initialize the map visualization (called once when ready)
 	async function initializeVisualization() {
-		if (initializationAttempted) {
+		if ($initializationState === 'initializing' || $initializationState === 'ready') {
 			return;
 		}
 
@@ -82,15 +87,12 @@
 			return;
 		}
 
-		// Check if map is ready - use multiple criteria
-		const mapReady = map.loaded() || map.isStyleLoaded() || map.getStyle();
-
-		if (!mapReady) {
+		if (!$mapLoaded) {
 			console.log('Cannot initialize: map not ready');
 			return;
 		}
 
-		if (!get(filteredPointsData)?.features?.length) {
+		if (!$hasData) {
 			console.log('Cannot initialize: no filtered data features available');
 			return;
 		}
@@ -105,7 +107,7 @@
 
 		if (sourceExists) {
 			console.log('Points source already exists, skipping initialization');
-			initializationAttempted = true;
+			setInitializationState('ready');
 			setPointsAddedToMap(true);
 			setupEventHandlers();
 			if (map) {
@@ -114,30 +116,34 @@
 			return;
 		}
 
-		initializationAttempted = true;
+		setInitializationState('initializing');
 		console.log(
 			'Initializing map visualization with',
-			get(filteredPointsData).features.length,
+			$filteredPointsData.features.length,
 			'filtered data points'
 		);
-		const success = await addInitialPointsToMap();
+		const success = await addInitialPointsToMap(map, $filteredPointsData, $visualizationType, true);
 
 		if (success) {
 			console.log('✅ Map visualization initialized successfully');
+			setInitializationState('ready');
 			setupEventHandlers();
 			if (map) {
 				map.on('styledata', handleStyleChange);
 			}
 		} else {
 			console.log('❌ Failed to initialize map visualization');
-			initializationAttempted = false;
+			setInitializationState('error');
+			setMapError('Failed to initialize map visualization');
 		}
 	}
 
 	// Define event handlers
 	function handlePointClick(e: any) {
+		console.log('Point clicked! Event:', e);
 		if (e.features && e.features.length > 0) {
 			const feature = e.features[0];
+			console.log('Feature found:', feature);
 			let coordinates;
 
 			// Handle different geometry types
@@ -163,6 +169,10 @@
 
 			const properties = feature.properties;
 
+			console.log('Dispatching pointclick event with:', {
+				coordinates,
+				properties
+			});
 			dispatch('pointclick', {
 				feature,
 				coordinates,
@@ -184,9 +194,12 @@
 		if (!map) return;
 
 		if (map.getLayer('points-layer')) {
+			console.log('Adding click listener to points-layer');
 			map.on('click', 'points-layer', handlePointClick);
 			map.on('mouseenter', 'points-layer', handleMouseEnter);
 			map.on('mouseleave', 'points-layer', handleMouseLeave);
+		} else {
+			console.log('points-layer not found when trying to add listeners');
 		}
 
 		const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
@@ -233,26 +246,54 @@
 		}
 	}
 
+	// Track the last visualization type to detect changes
+	let lastVisualizationType: string | null = null;
+	
+	// Watch for visualization type changes and re-attach handlers when needed
+	$: if (map && $mapLoaded && $initializationState === 'ready' && $visualizationType !== lastVisualizationType) {
+		// Only re-attach if visualization type actually changed and not the first time
+		if (lastVisualizationType !== null) {
+			// Check if any of our visualization layers exist
+			const hasPointsLayer = map.getLayer('points-layer');
+			const hasPieChartLayers = map.getLayer('pie-charts-large') || 
+										map.getLayer('pie-charts-medium') || 
+										map.getLayer('pie-charts-small');
+			const has3DBarsLayer = map.getLayer('3d-bars-layer');
+			
+			if (hasPointsLayer || hasPieChartLayers || has3DBarsLayer) {
+				// Wait for map to be idle after visualization change
+				console.log('Waiting for idle state to re-attach event handlers');
+				map.once('idle', () => {
+					console.log('Re-attaching event handlers after visualization change');
+					removeEventHandlers(); // Clean up any existing handlers first
+					setupEventHandlers();   // Attach fresh handlers
+				});
+			}
+		}
+		
+		lastVisualizationType = $visualizationType;
+	}
+
 	// Handle style changes
 	function handleStyleChange() {
-		if (
-			get(isProgrammaticSwitching) ||
-			get(isAdjustingLayerOrder) ||
-			get(isUpdatingVisualization)
-		) {
-			// console.log('Style change detected during programmatic switch, layer order adjustment, or visualization update, ignoring in MapLayer.');
+		if ($isProgrammaticOperation) {
+			// console.log('Style change detected during programmatic operation, ignoring in MapLayer.');
 			return;
 		}
 
 		console.log('Style change detected (external/unexpected), reinitializing visualization...');
 		setPointsAddedToMap(false);
-		initializationAttempted = false;
+		setInitializationState('idle');
 
-		setTimeout(() => {
-			if (map && map.loaded() && get(filteredPointsData)?.features?.length > 0) {
-				initializeVisualization();
-			}
-		}, 500);
+		// Wait for map to be idle after style change
+		if (map && $hasData) {
+			map.once('idle', () => {
+				console.log('Map idle after style change, reinitializing');
+				if (map.loaded()) {
+					initializeVisualization();
+				}
+			});
+		}
 	}
 
 	onMount(() => {
@@ -273,7 +314,12 @@
 	export async function switchVisualizationType(newType: VisualizationType): Promise<boolean> {
 		console.log(`MapLayer: Switching visualization to ${newType}`);
 		try {
-			const result = await storeSwitchVisualizationType(newType);
+			const result = await storeSwitchVisualizationType(
+				map,
+				$visualizationType,
+				newType,
+				$filteredPointsData
+			);
 			console.log(`MapLayer: Visualization switch result:`, result);
 			return result;
 		} catch (error) {
@@ -283,8 +329,8 @@
 	}
 </script>
 
-{#if get(dataError)}
+{#if $dataError}
 	<div class="map-error">
-		<p>Error loading data: {get(dataError)}</p>
+		<p>Error loading data: {$dataError}</p>
 	</div>
 {/if}

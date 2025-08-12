@@ -5,26 +5,30 @@ export enum Role {
   ADMIN = 'admin'
 }
 
-// Define the CSV row interface based on the provided structure
+// Define the CSV row interface for the new data structure
 export interface PointDataRow {
   EST_ID: string;
-  Pathogen: string;
-  Age_group: string;
-  Syndrome: string;
   Design: string;
-  Site_Location: string;
+  Pathogen: string;
+  AGE_VAL: string; // e.g., "01_Age_PSAC"
+  AGE_LAB: string; // e.g., "Pre-school age children (<5 years)"
+  SYNDROME_VAL: string; // e.g., "02_Synd_Diar"
+  SYNDROME_LAB: string; // e.g., "Diarrhea (any severity)"
+  Heading: string;
+  Subheading: string;
   Prevalence: string;
   Age_range: string;
-  Study: string;
+  Location: string;
   Duration: string;
   Source: string;
   Hyperlink: string;
+  Footnote: string;
   CASES: string;
   SAMPLES: string;
   PREV: string;
   SE: string;
   SITE_LAT: string;
-  SITE_LONG: string;
+  SITE_LON: string;
 }
 
 // Define the GeoJSON feature properties interface
@@ -32,12 +36,18 @@ export interface PointProperties {
   id: string;
   pathogen: string;
   ageGroup: string;
+  ageGroupVal: string; // For sorting
+  ageGroupLab: string; // Display label
   syndrome: string;
+  syndromeVal: string; // For sorting
+  syndromeLab: string; // Display label
   design: string;
   location: string;
+  heading: string;
+  subheading: string;
+  footnote: string;
   prevalence: string;
   ageRange: string;
-  study: string;
   duration: string;
   source: string;
   hyperlink: string;

@@ -48,6 +48,7 @@
 		handleMapContentChange
 	} from '../store';
 	import MaterialSymbolsSettingsOutlineRounded from '~icons/material-symbols/settings-outline-rounded';
+	import { stripItalicMarkers } from '../utils/textFormatter';
 
 	const dispatch = createEventDispatcher();
 
@@ -96,8 +97,8 @@
 			return false;
 		});
 	}
-	// Define a constant for the data URL to ensure consistency
-	const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
+	// Import the dynamic URL from MapInitializer
+	import { POINTS_DATA_URL } from '../utils/MapInitializer';
 
 	// Visualization type options
 	import { visualizationOptions } from '../store/visualizationOptions';
@@ -423,7 +424,7 @@
 						<option value="" selected={$selectedPathogens.size === 0}>Select Pathogen</option>
 						{#each Array.from($pathogens || []).sort() as pathogen}
 							<option value={pathogen} selected={$selectedPathogens?.has(pathogen)}>
-								{pathogen} ({$pathogenCounts.get(pathogen) || 0}){pathogensWithRasterLayers.has(
+								{stripItalicMarkers(pathogen)} ({$pathogenCounts.get(pathogen) || 0}){pathogensWithRasterLayers.has(
 									pathogen
 								)
 									? ' *'
@@ -448,7 +449,7 @@
 						on:change={(e: Event) => handleSelectChange(e, 'ageGroups')}
 					>
 						<option value="" selected={$selectedAgeGroups.size === 0}>Select Age Group</option>
-						{#each Array.from($ageGroups || []).sort() as ageGroup}
+						{#each Array.from($ageGroups || []) as ageGroup}
 							<option value={ageGroup} selected={$selectedAgeGroups?.has(ageGroup)}>
 								{ageGroup} ({$ageGroupCounts.get(ageGroup) || 0}){hasRasterLayers(
 									'ageGroup',
@@ -476,7 +477,7 @@
 						on:change={(e: Event) => handleSelectChange(e, 'syndromes')}
 					>
 						<option value="" selected={$selectedSyndromes.size === 0}>Select Syndrome</option>
-						{#each Array.from($syndromes || []).sort() as syndrome}
+						{#each Array.from($syndromes || []) as syndrome}
 							<option value={syndrome} selected={$selectedSyndromes?.has(syndrome)}>
 								{syndrome} ({$syndromeCounts.get(syndrome) || 0}){hasRasterLayers(
 									'syndrome',

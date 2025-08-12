@@ -12,12 +12,12 @@ export function convertCsvToGeoJson(csvData: PointDataRow[]): PointFeatureCollec
     .filter(row => {
       // Ensure coordinates are valid numbers
       const lat = parseFloat(row.SITE_LAT);
-      const long = parseFloat(row.SITE_LONG);
+      const long = parseFloat(row.SITE_LON);
       return !isNaN(lat) && !isNaN(long);
     })
     .map((row, index) => {
       const lat = parseFloat(row.SITE_LAT);
-      const long = parseFloat(row.SITE_LONG);
+      const long = parseFloat(row.SITE_LON);
 
       // Update indices
       const updateIndex = (map: Map<string, Set<number>>, key: string, idx: number) => {
@@ -28,8 +28,8 @@ export function convertCsvToGeoJson(csvData: PointDataRow[]): PointFeatureCollec
       };
 
       updateIndex(pathogenIdx, row.Pathogen, index);
-      updateIndex(ageGroupIdx, row.Age_group, index);
-      updateIndex(syndromeIdx, row.Syndrome, index);
+      updateIndex(ageGroupIdx, row.AGE_LAB, index);
+      updateIndex(syndromeIdx, row.SYNDROME_LAB, index);
 
       return {
         type: 'Feature',
@@ -39,18 +39,24 @@ export function convertCsvToGeoJson(csvData: PointDataRow[]): PointFeatureCollec
           coordinates: [long, lat] // GeoJSON uses [longitude, latitude]
         },
         properties: {
-          id: row.EST_ID,
-          pathogen: row.Pathogen,
-          ageGroup: row.Age_group,
-          syndrome: row.Syndrome,
-          design: row.Design,
-          location: row.Site_Location,
-          prevalence: row.Prevalence,
-          ageRange: row.Age_range,
-          study: row.Study,
-          duration: row.Duration,
-          source: row.Source,
-          hyperlink: row.Hyperlink,
+          id: row.EST_ID || '',
+          pathogen: row.Pathogen || '',
+          ageGroup: row.AGE_LAB || '',
+          ageGroupVal: row.AGE_VAL || '', // For sorting
+          ageGroupLab: row.AGE_LAB || '', // Display label
+          syndrome: row.SYNDROME_LAB || '',
+          syndromeVal: row.SYNDROME_VAL || '', // For sorting
+          syndromeLab: row.SYNDROME_LAB || '', // Display label
+          design: row.Design || '',
+          location: row.Location || '',
+          heading: row.Heading || '',
+          subheading: row.Subheading || '',
+          footnote: row.Footnote || '',
+          prevalence: row.Prevalence || '',
+          ageRange: row.Age_range || '',
+          duration: row.Duration || '',
+          source: row.Source || '',
+          hyperlink: row.Hyperlink || '',
           cases: parseInt(row.CASES) || 0,
           samples: parseInt(row.SAMPLES) || 0,
           prevalenceValue: parseFloat(row.PREV) || 0,

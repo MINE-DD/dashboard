@@ -4,7 +4,6 @@
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { getStyleById } from './MapStyles';
 	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
-	import { get } from 'svelte/store';
 	import {
 		loadPointsData,
 		isLoading,
@@ -23,6 +22,7 @@
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
 	import { processPathogenData } from './utils/csvDataProcessor';
 	import { isClickOnVisibleRaster } from './utils/rasterClickUtils';
+	import { preloadData } from './utils/MapInitializer';
 
 	// Import modularized components
 	import MapCore from './components/MapCore.svelte';
@@ -40,8 +40,7 @@
 	export let initialStyleId: string | null = null; // Optional style ID to use
 
 	// Define a constant for the data URL to ensure consistency
-	const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
-	export let pointDataUrl: string = POINTS_DATA_URL;
+	export let pointDataUrl: string = 'data/01_Points/2025-07-31_Plan-EO_Dashboard_point_data.csv';
 
 	// Track the global opacity value for raster layers
 	let globalOpacity = 80; // Default to 80%
@@ -59,19 +58,6 @@
 	let popoverCoordinates: [number, number] | null = null;
 	let popoverProperties: any = null;
 
-	// Function to preload data before map initialization
-	async function preloadData() {
-		// Parse URL parameters
-		const urlParams = parseUrlFilters();
-
-		// Clear filter cache before loading data to ensure fresh filtering
-		clearFilterCache();
-
-		// Always force reload on initial load to ensure data is fresh
-		await loadPointsData(POINTS_DATA_URL, true);
-
-		return urlParams;
-	}
 
 	// Handle map ready event
 	function handleMapReady(event: CustomEvent<{ map: MaplibreMap }>) {
@@ -80,7 +66,7 @@
 
 		setTimeout(() => {
 			clearFilterCache();
-			loadPointsData(POINTS_DATA_URL, true).then(() => {
+			loadPointsData(pointDataUrl, true).then(() => {
 				// Optional: log data after reload
 			});
 		}, 800);
@@ -220,10 +206,9 @@
 				pathogen = inferredPathogenFromLayer || 'Shigella';
 			}
 
-			const $currentSelectedAgeGroups = get(selectedAgeGroups);
 			let ageGroup = '0-11 months';
-			if ($currentSelectedAgeGroups && $currentSelectedAgeGroups.size > 0) {
-				ageGroup = $currentSelectedAgeGroups.values().next().value as string;
+			if ($selectedAgeGroups && $selectedAgeGroups.size > 0) {
+				ageGroup = $selectedAgeGroups.values().next().value as string;
 			}
 
 			const data = await processPathogenData(pathogen, clickCoordinates, ageGroup, '');
@@ -255,11 +240,13 @@
 	}
 
 	function handlePointClick(event: CustomEvent) {
+		console.log('Map.svelte: handlePointClick called with:', event.detail);
 		showPopover = false;
 		popoverCoordinates = null;
 		popoverProperties = null;
 
 		const { coordinates, properties } = event.detail;
+		console.log('Extracted properties:', properties);
 		popoverCoordinates = coordinates;
 		popoverProperties = properties;
 		showPopover = true;
@@ -428,7 +415,7 @@
 			<div class="error-container">
 				<div class="error-icon">⚠️</div>
 				<div class="error-message">Error: {$dataError}</div>
-				<button class="retry-button" on:click={() => loadPointsData(POINTS_DATA_URL, true)}>
+				<button class="retry-button" on:click={() => loadPointsData(pointDataUrl, true)}>
 					Retry
 				</button>
 			</div>

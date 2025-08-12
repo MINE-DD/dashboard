@@ -4,16 +4,36 @@ import type { MapStyle } from '../MapStyles';
 import { parseUrlFilters } from './urlParams';
 import { loadPointsData } from '../store';
 
-// Define the data URL to ensure consistency
-export const POINTS_DATA_URL = 'data/01_Points/Plan-EO_Dashboard_point_data.csv';
+/**
+ * Get the latest CSV file from the points data directory
+ * Looks for files matching pattern: YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv
+ */
+async function getLatestDataFile(): Promise<string> {
+  const baseDir = 'data/01_Points/';
+  
+  // For now, hardcode the latest file
+  // In production, this would come from a directory listing endpoint
+  const latestFile = '2025-07-31_Plan-EO_Dashboard_point_data.csv';
+  
+  console.log(`Loading data from: ${latestFile}`);
+  return baseDir + latestFile;
+}
+
+// Export for consistency across the app
+export let POINTS_DATA_URL = 'data/01_Points/2025-07-31_Plan-EO_Dashboard_point_data.csv';
 
 /**
  * Preload data before map initialization
  * @returns URL parameters
  */
 export async function preloadData() {
+  console.log('preloadData called');
   // Parse URL parameters
   const urlParams = parseUrlFilters();
+  
+  // Get the latest data file
+  POINTS_DATA_URL = await getLatestDataFile();
+  console.log('About to load data from:', POINTS_DATA_URL);
 
   // Load point data with forceReload if URL has filter parameters
   await loadPointsData(POINTS_DATA_URL, urlParams.hasFilters);

@@ -3,6 +3,7 @@
 	import type { Map } from 'maplibre-gl';
 	import { createEventDispatcher } from 'svelte';
 	import type { PointProperties } from '$lib/types';
+	import { formatItalicText } from '../utils/textFormatter';
 
 	// Props
 	export let map: Map | null = null;
@@ -102,73 +103,81 @@
 	}
 
 	function createPopupContent(props: PointProperties): string {
+		console.log('MapPopover: Creating popup content with properties:', props);
+		if (!props) {
+			console.error('MapPopover: No properties provided!');
+			return '<div class="popup-content">No data available</div>';
+		}
 		// Calculate prevalence percentage for display
 		const prevalencePercent = props.prevalenceValue * 100;
 		const prevalenceDisplay = prevalencePercent.toFixed(1) + '%';
 
 		// Determine prevalence color based on value
 		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);
+		
+		// Format pathogen name with italic support
+		const pathogenFormatted = formatItalicText(props.pathogen);
+		
+		// Use heading as title (with italic formatting)
+		const title = formatItalicText(props.heading);
+		const subtitle = formatItalicText(props.subheading);
 
 		return `
       <div class="popup-content">
         <h3 class="popup-title">
           <span class="pathogen-name">
-
-					${
-						props.syndrome
-							? `
-							${props.location}
-							`
-							: `${props.pathogen}`
-					}
-
-
-					</span>
-          <!-- <span class="prevalence-badge" style="background-color: ${prevalenceColor}">
-            ${prevalenceDisplay}
-          </span> -->
+            ${title}
+          </span>
         </h3>
+        ${subtitle && subtitle.trim() ? `<div class="popup-subtitle">${subtitle}</div>` : ''}
 
         <div class="popup-section">
-
-				<div class="info-row">
+          <div class="info-row">
+            <div class="info-label">Pathogen:</div>
+            <div class="info-value">${pathogenFormatted}</div>
+          </div>
+          <div class="info-row">
             <div class="info-label">Prevalence:</div>
             <div class="info-value">
-						<span class="prevalence-badge" style="background-color: ${prevalenceColor}">
-             ${prevalenceDisplay}
-          </span></div>
+              <span class="prevalence-badge" style="background-color: ${prevalenceColor}">
+                ${prevalenceDisplay}
+              </span>
+            </div>
           </div>
-				<div class="info-row">
+          <div class="info-row">
             <div class="info-label">Age Group:</div>
             <div class="info-value">${props.ageGroup}</div>
-						</div>
-
-						${
-							props.syndrome
-								? `
-						<div class="info-row">
-						<div class="info-label">Syndrome:</div>
-						<div class="info-value">${props.syndrome}</div>
-						</div>
-						`
-								: ''
-						}
+          </div>
+          <div class="info-row">
+            <div class="info-label">Syndrome:</div>
+            <div class="info-value">${props.syndrome}</div>
+          </div>
           <div class="info-row">
             <div class="info-label">Location:</div>
             <div class="info-value">${props.location}</div>
           </div>
+          <div class="info-row">
+            <div class="info-label">Age Range:</div>
+            <div class="info-value">${props.ageRange}</div>
+          </div>
         </div>
 
         <div class="popup-section">
           <div class="info-row">
-            <div class="info-label">Study:</div>
-            <div class="info-value">${props.study}</div>
-          </div>
-          <div class="info-row">
             <div class="info-label">Duration:</div>
             <div class="info-value">${props.duration}</div>
           </div>
+          <div class="info-row">
+            <div class="info-label">Design:</div>
+            <div class="info-value">${props.design}</div>
+          </div>
         </div>
+
+        ${props.footnote && props.footnote.trim() ? `
+        <div class="popup-footnote">
+          <small>${formatItalicText(props.footnote)}</small>
+        </div>
+        ` : ''}
 
         <div class="popup-footer">
           <a href="${props.hyperlink}" target="_blank" class="source-link">
@@ -225,6 +234,30 @@
 
 	:global(.pathogen-name) {
 		color: #333;
+	}
+	
+	:global(.pathogen-name em) {
+		font-style: italic;
+		font-weight: 500;
+	}
+	
+	:global(.popup-subtitle) {
+		font-size: 14px;
+		color: #666;
+		margin: -5px 0 10px 0;
+		font-style: italic;
+	}
+	
+	:global(.popup-footnote) {
+		margin-top: 10px;
+		padding-top: 8px;
+		border-top: 1px solid #eee;
+		color: #666;
+		font-size: 12px;
+	}
+	
+	:global(.popup-footnote em) {
+		font-style: italic;
 	}
 
 	:global(.prevalence-badge) {

@@ -64,19 +64,19 @@ export { generateColors } from '../utils/colorManager';
 // Re-export the maplibre helpers
 export { getMaplibreFilterExpression } from '../utils/maplibreHelpers';
 
-// Re-export the map visualization manager
+// Re-export map state stores from mapState.store.ts
 export {
   mapInstance,
   pointsAddedToMap,
   isUpdatingVisualization,
-  // visualizationUpdateTrigger, // Removed as part of refactor
-  // mapUpdateSignal, // Removed as part of refactor
-  autoUpdateEnabled, // Kept as it might be used by components
-  isAdjustingLayerOrder, // Add the new store here
-  // autoMapUpdater, // Removed as part of refactor
-  // triggerVisualizationUpdate, // Removed as part of refactor
+  isProgrammaticSwitching,
+  isAdjustingLayerOrder,
   setMapInstance,
-  setPointsAddedToMap,
+  setPointsAddedToMap
+} from '$lib/stores/mapState.store';
+
+// Re-export map visualization functions
+export {
   updateMapVisualization,
   forceVisualizationUpdate,
   handleMapContentChange,

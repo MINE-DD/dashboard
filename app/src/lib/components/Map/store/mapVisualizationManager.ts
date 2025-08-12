@@ -1,9 +1,17 @@
-import { writable, derived, get } from 'svelte/store';
+import { get } from 'svelte/store';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { PointFeatureCollection } from '$lib/types';
 import { visualizationType, type VisualizationType } from '$lib/stores/map.store';
 import { isLoading, loadingMessage } from '$lib/stores/data.store';
 import { filteredPointsData } from '$lib/stores/filter.store';
+import { 
+  mapInstance,
+  pointsAddedToMap,
+  isUpdatingVisualization,
+  isProgrammaticSwitching,
+  isAdjustingLayerOrder,
+  setPointsAddedToMap
+} from '$lib/stores/mapState.store';
 import {
   createPieChartImage,
   cleanupPieChartImages,
@@ -23,59 +31,33 @@ import {
 } from '../utils/barExtrusionUtils';
 import { debounce } from '../utils/urlParams'; // Assuming debounce is here
 
-// Store to track the current map instance
-export const mapInstance = writable<MaplibreMap | null>(null);
-
-// Store to track if points have been added to the map
-export const pointsAddedToMap = writable<boolean>(false);
-
-// Store to track if we're currently updating the visualization
-export const isUpdatingVisualization = writable<boolean>(false);
-
-// Store to track if a programmatic switch is in progress
-export const isProgrammaticSwitching = writable<boolean>(false);
-
-// Store to track if layer order is being programmatically adjusted
-export const isAdjustingLayerOrder = writable<boolean>(false);
-
-// Auto-update store (can be used by components if needed, but not for automatic map updates from here)
-export const autoUpdateEnabled = writable<boolean>(true);
-
-// Function to set the map instance
-export function setMapInstance(map: MaplibreMap | null) {
-  mapInstance.set(map);
-}
-
-// Function to mark points as added
-export function setPointsAddedToMap(added: boolean) {
-  pointsAddedToMap.set(added);
-}
+// Note: setMapInstance and setPointsAddedToMap are imported from mapState.store.ts
 
 // Main function to update the map visualization
-export async function updateMapVisualization(): Promise<boolean> {
-  const $isUpdating = get(isUpdatingVisualization);
-  const $map = get(mapInstance);
-  const $filteredData = get(filteredPointsData);
-  const $vizType = get(visualizationType);
-  const $pointsAdded = get(pointsAddedToMap);
+export async function updateMapVisualization(
+  map: MaplibreMap | null,
+  filteredData: PointFeatureCollection,
+  vizType: VisualizationType,
+  pointsAdded: boolean
+): Promise<boolean> {
 
   // Prevent concurrent updates
-  if ($isUpdating) {
+  if (get(isUpdatingVisualization)) {
     console.log('Skipping visualization update: already updating');
     return false;
   }
 
-  if (!$map || !$map.loaded()) {
+  if (!map || !map.loaded()) {
     console.log('Skipping visualization update: map not ready', {
-      mapExists: !!$map,
-      mapLoaded: $map?.loaded()
+      mapExists: !!map,
+      mapLoaded: map?.loaded()
     });
     return false;
   }
 
-  if (!$pointsAdded) {
+  if (!pointsAdded) {
     console.log('Skipping visualization update: points not yet added to map', {
-      pointsAdded: $pointsAdded
+      pointsAdded: pointsAdded
     });
     return false;
   }
@@ -83,12 +65,12 @@ export async function updateMapVisualization(): Promise<boolean> {
   isUpdatingVisualization.set(true);
 
   try {
-    console.log('Updating map visualization for', $vizType);
+    console.log('Updating map visualization for', vizType);
 
     // Check if source exists
     let sourceExists = false;
     try {
-      sourceExists = !!$map.getSource('points-source');
+      sourceExists = !!map.getSource('points-source');
     } catch (e) {
       console.warn('Source check failed:', e);
       sourceExists = false;
@@ -97,7 +79,7 @@ export async function updateMapVisualization(): Promise<boolean> {
     if (!sourceExists) {
       console.warn('Points source does not exist, attempting to recreate...');
       // Try to add initial points again
-      const success = await addInitialPointsToMap();
+      const success = await addInitialPointsToMap(map, filteredData, vizType);
       if (!success) {
         console.error('Failed to recreate points source');
         return false;
@@ -106,15 +88,15 @@ export async function updateMapVisualization(): Promise<boolean> {
     }
 
     // Prepare data based on visualization type
-    let dataToUpdate = $filteredData;
-    if ($vizType === 'pie-charts') {
-      dataToUpdate = getSeparatePieChartData($filteredData) as any;
-    } else if ($vizType === '3d-bars') {
-      dataToUpdate = convertPointsToPolygons($filteredData) as any;
+    let dataToUpdate = filteredData;
+    if (vizType === 'pie-charts') {
+      dataToUpdate = getSeparatePieChartData(filteredData) as any;
+    } else if (vizType === '3d-bars') {
+      dataToUpdate = convertPointsToPolygons(filteredData) as any;
     }
 
     // Update the source data
-    const source = $map.getSource('points-source') as maplibregl.GeoJSONSource;
+    const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
     if (source && source.setData) {
       source.setData(dataToUpdate);
       console.log('Updated map source with filtered data');
@@ -124,26 +106,26 @@ export async function updateMapVisualization(): Promise<boolean> {
     }
 
     // Handle pie chart specific updates
-    if ($vizType === 'pie-charts') {
+    if (vizType === 'pie-charts') {
       console.log('Updating pie chart visualization...');
 
       // Clean up existing pie chart images
-      cleanupPieChartImages($map);
+      cleanupPieChartImages(map);
 
       // Regenerate pie chart symbols for the new filtered data
-      await generatePieChartSymbols($map, $filteredData, (loading) => {
+      await generatePieChartSymbols(map, filteredData, (loading) => {
         isLoading.set(loading);
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
       // Update the layer's icon expression for each pie chart layer
       const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
-      const iconExpression = generatePieChartIconExpression($filteredData) as any;
+      const iconExpression = generatePieChartIconExpression(filteredData) as any;
 
       pieChartLayerIds.forEach(layerId => {
         try {
-          if ($map.getLayer(layerId)) {
-            $map.setLayoutProperty(layerId, 'icon-image', iconExpression);
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'icon-image', iconExpression);
           }
         } catch (e) {
           console.warn(`Failed to update icon expression for layer ${layerId}:`, e);
@@ -156,7 +138,7 @@ export async function updateMapVisualization(): Promise<boolean> {
     }
 
     // Ensure points are on top
-    ensurePointsOnTop($map);
+    ensurePointsOnTop(map);
 
     return true;
 
@@ -192,30 +174,32 @@ function ensurePointsOnTop(map: MaplibreMap) {
 }
 
 // Function to add initial points to map (called once when map is ready)
-export async function addInitialPointsToMap(): Promise<boolean> {
-  const $map = get(mapInstance);
-  const $filteredData = get(filteredPointsData);
-  const $vizType = get(visualizationType);
-  const $pointsAdded = get(pointsAddedToMap);
+export async function addInitialPointsToMap(
+  map: MaplibreMap | null,
+  filteredData: PointFeatureCollection,
+  vizType: VisualizationType,
+  checkPointsAdded: boolean = true
+): Promise<boolean> {
 
   console.log('Adding initial points to map...');
 
-  if (!$map) {
+  if (!map) {
     console.log('No map instance available');
     return false;
   }
 
-  if (!$map.loaded()) {
+  if (!map.loaded()) {
     console.log('Map not loaded yet');
     return false;
   }
 
-  if ($pointsAdded) {
+  // Check if we should verify points are not already added
+  if (checkPointsAdded && get(pointsAddedToMap)) {
     console.log('Points already added to map');
     return false;
   }
 
-  if ($filteredData.features.length === 0) {
+  if (filteredData.features.length === 0) {
     console.log('No filtered data features available');
     return false;
   }
@@ -224,7 +208,7 @@ export async function addInitialPointsToMap(): Promise<boolean> {
     // Check if source already exists
     let sourceExists = false;
     try {
-      sourceExists = !!$map.getSource('points-source');
+      sourceExists = !!map.getSource('points-source');
     } catch (e) {
       sourceExists = false;
     }
@@ -238,48 +222,51 @@ export async function addInitialPointsToMap(): Promise<boolean> {
     }
 
     // Prepare data based on visualization type
-    let dataToUse = $filteredData;
-    if ($vizType === 'pie-charts') {
-      dataToUse = getSeparatePieChartData($filteredData) as any;
+    let dataToUse = filteredData;
+    if (vizType === 'pie-charts') {
+      dataToUse = getSeparatePieChartData(filteredData) as any;
       console.log('📊 Using separate pie chart data:', dataToUse.features.length, 'features');
-    } else if ($vizType === '3d-bars') {
-      dataToUse = convertPointsToPolygons($filteredData) as any;
+    } else if (vizType === '3d-bars') {
+      dataToUse = convertPointsToPolygons(filteredData) as any;
       console.log('🏗️ Using 3D bar polygon data:', dataToUse.features.length, 'features');
     }
 
-    console.log('🎯 Adding source to map...');
+    console.log('🎯 Adding source to map with data:', {
+      features: dataToUse.features.length,
+      firstFeature: dataToUse.features[0]
+    });
     // Add the source
-    $map.addSource('points-source', {
+    map.addSource('points-source', {
       type: 'geojson',
       data: dataToUse
     });
 
-    console.log('🎨 Adding layers based on visualization type:', $vizType);
+    console.log('🎨 Adding layers based on visualization type:', vizType);
 
     // Add layers based on visualization type
-    if ($vizType === 'pie-charts') {
+    if (vizType === 'pie-charts') {
       // Generate pie chart symbols first
-      await generatePieChartSymbols($map, $filteredData, (loading) => {
+      await generatePieChartSymbols(map, filteredData, (loading) => {
         isLoading.set(loading);
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
       // Add symbol layers for pie charts
-      createPieChartLayers($map, $filteredData);
-    } else if ($vizType === '3d-bars') {
+      createPieChartLayers(map, filteredData);
+    } else if (vizType === '3d-bars') {
       // Add 3D bar extrusion layer
-      create3DBarLayer($map);
+      create3DBarLayer(map);
 
       // Set optimal camera angle for 3D viewing
       const cameraSettings = get3DCameraSettings();
-      $map.easeTo({
+      map.easeTo({
         pitch: cameraSettings.pitch,
         bearing: cameraSettings.bearing,
         duration: 1000
       });
     } else {
       // Add circle layer for dots
-      $map.addLayer({
+      map.addLayer({
         id: 'points-layer',
         type: 'circle',
         source: 'points-source',
@@ -315,18 +302,21 @@ export async function addInitialPointsToMap(): Promise<boolean> {
 }
 
 // Function to switch visualization type
-export async function switchVisualizationType(newType: VisualizationType): Promise<boolean> {
-  const $map = get(mapInstance);
-  const $currentType = get(visualizationType);
+export async function switchVisualizationType(
+  map: MaplibreMap | null,
+  currentType: VisualizationType,
+  newType: VisualizationType,
+  filteredData: PointFeatureCollection
+): Promise<boolean> {
 
-  if (!$map || !$map.loaded() || $currentType === newType) {
+  if (!map || !map.loaded() || currentType === newType) {
     console.warn(
-      `Switch aborted or unnecessary: mapInstance exists: ${!!$map}, map loaded: ${$map ? $map.loaded() : 'N/A'}, currentType: ${$currentType}, newType: ${newType}, types are same: ${$currentType === newType}`
+      `Switch aborted or unnecessary: mapInstance exists: ${!!map}, map loaded: ${map ? map.loaded() : 'N/A'}, currentType: ${currentType}, newType: ${newType}, types are same: ${currentType === newType}`
     );
     return false;
   }
 
-  console.log(`Switching visualization from ${$currentType} to ${newType}`);
+  console.log(`Switching visualization from ${currentType} to ${newType}`);
 
   isUpdatingVisualization.set(true);
   isProgrammaticSwitching.set(true); // Set flag
@@ -336,69 +326,68 @@ export async function switchVisualizationType(newType: VisualizationType): Promi
     visualizationType.set(newType);
 
     // Remove existing layers based on current type
-    if ($currentType === 'pie-charts') {
+    if (currentType === 'pie-charts') {
       // Remove pie chart layers
-      removePieChartLayers($map);
-      cleanupPieChartImages($map);
-    } else if ($currentType === '3d-bars') {
+      removePieChartLayers(map);
+      cleanupPieChartImages(map);
+    } else if (currentType === '3d-bars') {
       // Remove 3D bar layer
-      remove3DBarLayer($map);
+      remove3DBarLayer(map);
     } else {
       // Remove circle layer (dots)
-      if ($map.getLayer('points-layer')) {
-        $map.removeLayer('points-layer');
+      if (map.getLayer('points-layer')) {
+        map.removeLayer('points-layer');
       }
     }
 
     // Add new layers
-    const $filteredData = get(filteredPointsData);
-    let dataToUse = $filteredData;
+    let dataToUse = filteredData;
 
     if (newType === 'pie-charts') {
-      dataToUse = getSeparatePieChartData($filteredData) as any;
+      dataToUse = getSeparatePieChartData(filteredData) as any;
 
       // Update source data
-      const source = $map.getSource('points-source') as maplibregl.GeoJSONSource;
+      const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
       if (source) {
         source.setData(dataToUse);
       }
 
       // Generate pie chart symbols
-      await generatePieChartSymbols($map, $filteredData, (loading) => {
+      await generatePieChartSymbols(map, filteredData, (loading) => {
         isLoading.set(loading);
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
       // Add pie chart layers
-      createPieChartLayers($map, $filteredData);
+      createPieChartLayers(map, filteredData);
     } else if (newType === '3d-bars') {
-      dataToUse = convertPointsToPolygons($filteredData) as any;
+      dataToUse = convertPointsToPolygons(filteredData) as any;
 
       // Update source data
-      const source = $map.getSource('points-source') as maplibregl.GeoJSONSource;
+      const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
       if (source) {
         source.setData(dataToUse);
       }
 
       // Add 3D bar extrusion layer
-      create3DBarLayer($map);
+      create3DBarLayer(map);
 
       // Set optimal camera angle for 3D viewing
       const cameraSettings = get3DCameraSettings();
-      $map.easeTo({
+      map.easeTo({
         pitch: cameraSettings.pitch,
         bearing: cameraSettings.bearing,
         duration: 1000
       });
     } else {
       // Update source data for dots
-      const source = $map.getSource('points-source') as maplibregl.GeoJSONSource;
+      const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
       if (source) {
         source.setData(dataToUse);
       }
 
       // Add circle layer
-      $map.addLayer({
+      map.addLayer({
         id: 'points-layer',
         type: 'circle',
         source: 'points-source',
@@ -412,7 +401,7 @@ export async function switchVisualizationType(newType: VisualizationType): Promi
       });
     }
 
-    ensurePointsOnTop($map);
+    ensurePointsOnTop(map);
     console.log(`Successfully switched to ${newType} visualization`);
     return true;
 
@@ -426,58 +415,64 @@ export async function switchVisualizationType(newType: VisualizationType): Promi
 }
 
 // Function to force a visualization update (bypassing some checks)
-export async function forceVisualizationUpdate(): Promise<boolean> {
+export async function forceVisualizationUpdate(
+  map: MaplibreMap | null,
+  filteredData: PointFeatureCollection,
+  vizType: VisualizationType,
+  pointsAdded: boolean
+): Promise<boolean> {
   console.log('Forcing visualization update...');
 
-  // Temporarily disable auto-updates to prevent conflicts
-  const wasAutoEnabled = get(autoUpdateEnabled);
-  autoUpdateEnabled.set(false);
-
-  try {
-    const result = await updateMapVisualization();
-    // visualizationUpdateTrigger was removed, direct update is preferred
-    return result;
-  } finally {
-    // Re-enable auto-updates
-    autoUpdateEnabled.set(wasAutoEnabled);
-  }
+  const result = await updateMapVisualization(map, filteredData, vizType, pointsAdded);
+  return result;
 }
 
-// Centralized function to handle any map content change (filters, visualization type, etc.)
-// This function will now incorporate debouncing.
-const debouncedUpdate = debounce(async () => {
-  const $map = get(mapInstance);
-  const $pointsAdded = get(pointsAddedToMap);
+// Create a debounced update function that will be called with parameters
+let debouncedUpdateFunction: ((map: MaplibreMap, filteredData: PointFeatureCollection, vizType: VisualizationType, pointsAdded: boolean) => void) | null = null;
 
-  console.log('Debounced map content change detected:', {
-    mapReady: !!$map && $map.loaded(),
-    pointsAdded: $pointsAdded
-  });
-
-  if (!$pointsAdded) {
-    const initSuccess = await addInitialPointsToMap();
-    if (initSuccess) {
-      console.log('Debounced: Successfully initialized map with new content');
-    } else {
-      console.log('Debounced: Failed to initialize map with new content');
-    }
-    return; // Return after attempting init
+export async function handleMapContentChange(
+  map: MaplibreMap | null,
+  filteredData: PointFeatureCollection,
+  vizType: VisualizationType,
+  pointsAdded: boolean
+): Promise<boolean> {
+  console.log('handleMapContentChange called');
+  
+  if (!map || !filteredData) {
+    return false;
   }
 
-  // If points are already added, update the visualization
-  const updateSuccess = await updateMapVisualization();
-  console.log('Debounced: Map content update result:', updateSuccess);
-}, 150); // 150ms debounce time, adjust as needed
+  // Create debounced function if not exists
+  if (!debouncedUpdateFunction) {
+    debouncedUpdateFunction = debounce(async (
+      mapParam: MaplibreMap,
+      dataParam: PointFeatureCollection,
+      vizParam: VisualizationType,
+      pointsParam: boolean
+    ) => {
+      console.log('Debounced map content change detected:', {
+        mapReady: mapParam.loaded(),
+        pointsAdded: pointsParam
+      });
 
-export async function handleMapContentChange(): Promise<boolean> {
-  console.log('handleMapContentChange called, triggering debounced update.');
-  debouncedUpdate();
-  // Since debouncedUpdate is async and we're not awaiting it here,
-  // this function's boolean return type might not be immediately meaningful
-  // for the success of the debounced operation.
-  // Consider if this function still needs to return a Promise<boolean>
-  // or if its role is purely to trigger the debounced action.
-  // For now, returning true to indicate the trigger was initiated.
+      if (!pointsParam) {
+        const initSuccess = await addInitialPointsToMap(mapParam, dataParam, vizParam);
+        if (initSuccess) {
+          console.log('Debounced: Successfully initialized map with new content');
+        } else {
+          console.log('Debounced: Failed to initialize map with new content');
+        }
+        return;
+      }
+
+      // If points are already added, update the visualization
+      const updateSuccess = await updateMapVisualization(mapParam, dataParam, vizParam, pointsParam);
+      console.log('Debounced: Map content update result:', updateSuccess);
+    }, 150);
+  }
+
+  // Call the debounced function with parameters
+  debouncedUpdateFunction(map, filteredData, vizType, pointsAdded);
   return true;
 }
 
