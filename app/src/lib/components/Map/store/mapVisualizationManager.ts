@@ -29,6 +29,11 @@ import {
   remove3DBarLayer,
   get3DCameraSettings
 } from '../utils/barExtrusionUtils';
+import {
+  createHeatmapLayer,
+  removeHeatmapLayer,
+  isDataSuitableForHeatmap
+} from '../utils/heatmapUtils';
 import { debounce } from '../utils/urlParams'; // Assuming debounce is here
 
 // Note: setMapInstance and setPointsAddedToMap are imported from mapState.store.ts
@@ -94,6 +99,7 @@ export async function updateMapVisualization(
     } else if (vizType === '3d-bars') {
       dataToUpdate = convertPointsToPolygons(filteredData) as any;
     }
+    // Heatmap uses point data directly, no conversion needed
 
     // Update the source data
     const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
@@ -171,6 +177,11 @@ function ensurePointsOnTop(map: MaplibreMap) {
   if (map.getLayer('3d-bars-layer')) {
     map.moveLayer('3d-bars-layer');
   }
+
+  // For heatmap visualization
+  if (map.getLayer('heatmap-layer')) {
+    map.moveLayer('heatmap-layer');
+  }
 }
 
 // Function to add initial points to map (called once when map is ready)
@@ -229,6 +240,9 @@ export async function addInitialPointsToMap(
     } else if (vizType === '3d-bars') {
       dataToUse = convertPointsToPolygons(filteredData) as any;
       console.log('🏗️ Using 3D bar polygon data:', dataToUse.features.length, 'features');
+    } else if (vizType === 'heatmap') {
+      // Heatmap uses point data directly
+      console.log('🔥 Using point data for heatmap:', dataToUse.features.length, 'features');
     }
 
     console.log('🎯 Adding source to map with data:', {
@@ -264,6 +278,12 @@ export async function addInitialPointsToMap(
         bearing: cameraSettings.bearing,
         duration: 1000
       });
+    } else if (vizType === 'heatmap') {
+      // Add heatmap layer
+      createHeatmapLayer(map);
+
+      // Don't change the camera position for heatmap
+      // Heatmap should work at any zoom level
     } else {
       // Add circle layer for dots
       map.addLayer({
@@ -333,6 +353,9 @@ export async function switchVisualizationType(
     } else if (currentType === '3d-bars') {
       // Remove 3D bar layer
       remove3DBarLayer(map);
+    } else if (currentType === 'heatmap') {
+      // Remove heatmap layer
+      removeHeatmapLayer(map);
     } else {
       // Remove circle layer (dots)
       if (map.getLayer('points-layer')) {
@@ -379,6 +402,20 @@ export async function switchVisualizationType(
         bearing: cameraSettings.bearing,
         duration: 1000
       });
+    } else if (newType === 'heatmap') {
+      // Heatmap uses point data directly
+
+      // Update source data
+      const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
+      if (source) {
+        source.setData(dataToUse);
+      }
+
+      // Add heatmap layer
+      createHeatmapLayer(map);
+
+      // Don't change the camera position for heatmap
+      // Heatmap should work at any zoom level
     } else {
       // Update source data for dots
       const source = map.getSource('points-source') as maplibregl.GeoJSONSource;

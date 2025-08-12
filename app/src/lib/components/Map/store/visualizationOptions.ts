@@ -15,5 +15,10 @@ export const visualizationOptions = [
     value: '3d-bars' as VisualizationType,
     label: '3D Bar Extrusions',
     description: '3D extruded bars showing data height'
+  },
+  {
+    value: 'heatmap' as VisualizationType,
+    label: 'Heatmap',
+    description: 'Density-based heat visualization'
   }
 ];

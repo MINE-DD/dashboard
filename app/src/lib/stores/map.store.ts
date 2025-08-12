@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
 // Visualization type for map points
-export type VisualizationType = 'dots' | 'pie-charts' | '3d-bars';
+export type VisualizationType = 'dots' | 'pie-charts' | '3d-bars' | 'heatmap';
 
 // Create a persistent visualization type store with map updates
 function createVisualizationTypeStore() {

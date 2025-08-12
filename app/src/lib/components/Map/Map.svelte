@@ -163,6 +163,9 @@
 
 		const clickCoordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
 		const currentRasterLayers = $rasterLayers;
+		
+		// Only show raster popover if we're actually within raster bounds AND not on water
+		// This prevents showing the popover on ocean/water areas within raster bounds
 		const showRasterEstimationPopover = isClickOnVisibleRaster(
 			clickCoordinates,
 			currentRasterLayers
@@ -223,19 +226,24 @@
 			const formattedLng = clickCoordinates[0].toFixed(4);
 			const formattedLat = clickCoordinates[1].toFixed(4);
 
+			// Create properties that match the expected structure for MapPopover
 			popoverProperties = {
+				// Required fields for popup display
+				heading: `${pathogen} Prevalence Estimate`,
+				subheading: 'Raster-based approximation',
 				pathogen: pathogen,
-				prevalenceValue: data.prevalence / 100,
-				ageGroup: data.ageRange,
-				syndrome: '',
-				location: `Coordinates: ${formattedLng}, ${formattedLat}`,
-				cases: '-',
-				samples: '-',
-				standardError: (data.upperBound - data.lowerBound) / (2 * 1.96) / 100,
-				study: data.study,
-				duration: data.duration,
-				source: data.source,
-				hyperlink: data.sourceUrl
+				prevalenceValue: data.prevalence,  // Already a percentage from processPathogenData
+				ageGroup: data.ageRange || ageGroup || 'All ages',
+				ageRange: data.ageRange || ageGroup || 'All ages',
+				syndrome: 'Diarrhea',  // Default for raster data
+				location: `Estimated Location`,
+				
+				// Additional fields
+				duration: data.duration || '-',
+				design: 'Modeled estimate',  // Indicate this is from raster model
+				source: data.source || 'Raster Model',
+				hyperlink: data.sourceUrl || '#',
+				footnote: `Approximation at ${formattedLng}°, ${formattedLat}°. Values are interpolated from nearby data points.`
 			};
 
 			popoverCoordinates = clickCoordinates;
