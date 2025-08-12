@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatItalicText } from '../utils/textFormatter';
 	import { onMount } from 'svelte';
+	import MdiEarthBox from '~icons/mdi/earth-box';
 
 	interface Props {
 		id: string;
@@ -163,7 +164,7 @@
 										<span>({option.count})</span>
 									{/if}
 									{#if option.hasRasterLayer}
-										<span class="text-primary font-bold">*</span>
+										<MdiEarthBox class="h-4 w-4" aria-label="Has raster layer" />
 									{/if}
 								</span>
 							</button>

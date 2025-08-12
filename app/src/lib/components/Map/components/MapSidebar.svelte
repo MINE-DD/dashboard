@@ -405,8 +405,7 @@
 
 			<!-- Filter Sections -->
 			<div class="text-base-content/70 mb-2 text-xs italic">
-				Options marked with <span class="text-primary">*</span>
-				have associated raster layers.
+				Options with map icons have associated raster layers.
 			</div>
 			
 			<!-- Pathogens Dropdown -->
