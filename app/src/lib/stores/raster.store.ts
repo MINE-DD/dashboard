@@ -75,7 +75,7 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
   });
 
   try {
-    const { dataUrl, metadata, bounds } = await loadAndProcessGeoTIFF(url, {
+    const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(url, {
       rescale: DEFAULT_RESCALE
     });
     const finalLayer: RasterLayer = {
@@ -84,6 +84,9 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
       dataUrl: dataUrl,
       bounds: bounds as [number, number, number, number],
       metadata: metadata,
+      rasterData: rasterData,
+      width: width,
+      height: height,
       isLoading: false
     };
     rasterLayers.update((layers) => {
@@ -124,7 +127,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
   });
 
   try {
-    const { dataUrl, metadata, bounds } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
+    const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
       rescale: layer.rescale || DEFAULT_RESCALE
     });
     rasterLayers.update((currentLayers) => {
@@ -133,6 +136,9 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
         layerToUpdate.bounds = bounds as [number, number, number, number];
         layerToUpdate.dataUrl = dataUrl;
         layerToUpdate.metadata = metadata;
+        layerToUpdate.rasterData = rasterData;
+        layerToUpdate.width = width;
+        layerToUpdate.height = height;
         layerToUpdate.isLoading = false;
       }
       return currentLayers;

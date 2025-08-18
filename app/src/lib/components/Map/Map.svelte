@@ -26,6 +26,7 @@
 	import { processPathogenData } from './utils/csvDataProcessor';
 	import { isClickOnVisibleRaster } from './utils/rasterClickUtils';
 	import { preloadData } from './utils/MapInitializer';
+	import { getRasterValueAtCoordinate, findVisibleRasterLayerAtCoordinate } from './utils/rasterPixelQuery';
 
 	// Import modularized components
 	import MapCore from './components/MapCore.svelte';
@@ -164,92 +165,125 @@
 		const clickCoordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
 		const currentRasterLayers = $rasterLayers;
 		
-		// Only show raster popover if we're actually within raster bounds AND not on water
-		// This prevents showing the popover on ocean/water areas within raster bounds
-		const showRasterEstimationPopover = isClickOnVisibleRaster(
-			clickCoordinates,
-			currentRasterLayers
+		// Find the visible raster layer at this coordinate
+		const visibleRasterLayer = findVisibleRasterLayerAtCoordinate(
+			currentRasterLayers,
+			clickCoordinates[0],
+			clickCoordinates[1]
 		);
 
-		if (!showRasterEstimationPopover) {
+		if (!visibleRasterLayer) {
 			isLoading.set(false);
 			return;
 		}
 
 		isLoading.set(true);
 		try {
-			let pathogen: string;
-			const currentSelectedPathogens = $selectedPathogens;
+			// Get the actual raster value at this coordinate
+			const rasterValue = getRasterValueAtCoordinate(
+				visibleRasterLayer,
+				clickCoordinates[0],
+				clickCoordinates[1]
+			);
 
-			if (currentSelectedPathogens && currentSelectedPathogens.size > 0) {
-				pathogen = currentSelectedPathogens.values().next().value as string;
-			} else {
-				let inferredPathogenFromLayer = null;
-				for (const [, layerDetails] of currentRasterLayers) {
-					if (layerDetails.isVisible) {
-						const parts = layerDetails.name.split('_');
-						if (parts.length > 0) {
-							switch (parts[0].toUpperCase()) {
-								case 'SHIG':
-									inferredPathogenFromLayer = 'Shigella';
-									break;
-								case 'ROTA':
-									inferredPathogenFromLayer = 'Rotavirus';
-									break;
-								case 'NORO':
-									inferredPathogenFromLayer = 'Norovirus';
-									break;
-								case 'CAMP':
-									inferredPathogenFromLayer = 'Campylobacter';
-									break;
-							}
-						}
-						if (inferredPathogenFromLayer) break;
-					}
-				}
-				// Use inferred pathogen, or first available pathogen from data, or null
-				if (!inferredPathogenFromLayer && $pathogens && $pathogens.size > 0) {
-					inferredPathogenFromLayer = Array.from($pathogens)[0];
-				}
-				pathogen = inferredPathogenFromLayer || '';
+			if (rasterValue === null) {
+				// No data at this location (e.g., ocean)
+				isLoading.set(false);
+				return;
 			}
 
-			// Use selected age group or first available from data
+			// Infer pathogen and age group from the layer name
+			let pathogen = '';
 			let ageGroup = '';
-			if ($selectedAgeGroups && $selectedAgeGroups.size > 0) {
-				ageGroup = $selectedAgeGroups.values().next().value as string;
-			} else if ($ageGroups && $ageGroups.size > 0) {
-				ageGroup = Array.from($ageGroups)[0];
+			let syndrome = '';
+			
+			const layerName = visibleRasterLayer.name;
+			const parts = layerName.split(' ');
+			
+			// Parse pathogen from layer name (e.g., "SHIG 0-11 Asym Pr")
+			if (parts.length > 0) {
+				switch (parts[0].toUpperCase()) {
+					case 'SHIG':
+						pathogen = 'Shigella';
+						break;
+					case 'ROTA':
+						pathogen = 'Rotavirus';
+						break;
+					case 'NORO':
+						pathogen = 'Norovirus';
+						break;
+					case 'CAMP':
+						pathogen = 'Campylobacter';
+						break;
+					default:
+						pathogen = parts[0];
+				}
+			}
+			
+			// Parse age group from layer name (e.g., "0-11" -> "0-11 months")
+			if (parts.length > 1) {
+				const ageRangePart = parts[1];
+				if (ageRangePart === '0-11') {
+					ageGroup = '0-11 months';
+				} else if (ageRangePart === '12-23') {
+					ageGroup = '12-23 months';
+				} else if (ageRangePart === '24-59') {
+					ageGroup = '24-59 months';
+				} else {
+					ageGroup = ageRangePart;
+				}
+			}
+			
+			// Parse syndrome type from layer name (e.g., "Asym", "Comm", "Medi")
+			if (parts.length > 2) {
+				const syndromePart = parts[2];
+				switch (syndromePart) {
+					case 'Asym':
+						syndrome = 'Asymptomatic';
+						break;
+					case 'Comm':
+						syndrome = 'Community';
+						break;
+					case 'Medi':
+						syndrome = 'Medical';
+						break;
+					default:
+						syndrome = 'Diarrhea';
+				}
 			}
 
-			const data = await processPathogenData(pathogen, clickCoordinates, ageGroup, '');
 			const formattedLng = clickCoordinates[0].toFixed(4);
 			const formattedLat = clickCoordinates[1].toFixed(4);
+
+			// Convert raster value to percentage
+			// The raster values are in the 0-11 range based on the rescale parameter
+			// This represents prevalence percentage directly
+			const prevalencePercent = rasterValue;
 
 			// Create properties that match the expected structure for MapPopover
 			popoverProperties = {
 				// Required fields for popup display
-				heading: `${pathogen} Prevalence Estimate`,
-				subheading: 'Raster-based approximation',
+				heading: `${pathogen} Prevalence`,
+				subheading: 'Raster layer data',
 				pathogen: pathogen,
-				prevalenceValue: data.prevalence,  // Already a percentage from processPathogenData
-				ageGroup: data.ageRange || ageGroup || 'All ages',
-				ageRange: data.ageRange || ageGroup || 'All ages',
-				syndrome: 'Diarrhea',  // Default for raster data
-				location: `Estimated Location`,
+				prevalenceValue: prevalencePercent,  // Direct raster value as percentage
+				ageGroup: ageGroup || 'All ages',
+				ageRange: ageGroup || 'All ages',
+				syndrome: syndrome || 'Diarrhea',
+				location: `${formattedLat}°, ${formattedLng}°`,
 				
 				// Additional fields
-				duration: data.duration || '-',
-				design: 'Modeled estimate',  // Indicate this is from raster model
-				source: data.source || 'Raster Model',
-				hyperlink: data.sourceUrl || '#',
-				footnote: `Approximation at ${formattedLng}°, ${formattedLat}°. Values are interpolated from nearby data points.`
+				duration: '-',
+				design: 'Geospatial model',
+				source: 'Raster Layer',
+				hyperlink: '#',
+				footnote: `Exact prevalence value from raster layer "${layerName}" at coordinates ${formattedLng}°, ${formattedLat}°.`
 			};
 
 			popoverCoordinates = clickCoordinates;
 			showPopover = true;
 		} catch (error) {
-			console.error('Error processing data for popover:', error);
+			console.error('Error processing raster data for popover:', error);
 		} finally {
 			isLoading.set(false);
 		}

@@ -79,6 +79,9 @@ export interface RasterLayer {
   metadata?: any; // Store GeoTIFF metadata
   colormap?: string; // Store colormap name (e.g., 'viridis')
   rescale?: [number, number]; // Min/max values for rescaling
+  rasterData?: Float32Array; // Raw raster data values
+  width?: number; // Raster width in pixels
+  height?: number; // Raster height in pixels
 }
 
 // Mapping types for filter to raster layer connections

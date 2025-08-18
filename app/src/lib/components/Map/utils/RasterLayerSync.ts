@@ -114,7 +114,8 @@ export function syncRasterLayers(
               type: 'raster', // Still use raster layer type for rendering controls like opacity
               source: sourceId,
               paint: {
-                'raster-opacity': layer.opacity // Set initial opacity
+                'raster-opacity': layer.opacity, // Set initial opacity
+                'raster-resampling': 'nearest' // Use nearest neighbor resampling for sharp pixels
               },
               layout: {
                 visibility: 'visible' // Add as visible

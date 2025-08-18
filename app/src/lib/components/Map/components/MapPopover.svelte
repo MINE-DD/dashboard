@@ -110,8 +110,11 @@
 			return '<div class="popup-content">No data available</div>';
 		}
 		// Prevalence value is already a percentage from the CSV
-		const prevalencePercent = props.prevalenceValue;
-		const prevalenceDisplay = prevalencePercent.toFixed(1) + '%';
+		// Ensure it's a valid number and round to 2 decimal places
+		const prevalencePercent = typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue) 
+			? props.prevalenceValue 
+			: 0;
+		const prevalenceDisplay = prevalencePercent.toFixed(2) + '%';
 
 		// Determine prevalence color based on value (convert to decimal for color function)
 		const prevalenceColor = getPrevalenceColor(props.prevalenceValue / 100);

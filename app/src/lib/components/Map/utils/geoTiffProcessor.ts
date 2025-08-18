@@ -68,8 +68,8 @@ export async function loadGeoTIFF(url: string): Promise<{
       tiff = await window.GeoTIFF.fromUrl(url);
     } 
     // Fallback to try accessing it from the global scope
-    else if (typeof GeoTIFF !== 'undefined' && typeof GeoTIFF.fromUrl === 'function') {
-      tiff = await GeoTIFF.fromUrl(url);
+    else if (typeof (window as any).GeoTIFF !== 'undefined' && typeof (window as any).GeoTIFF.fromUrl === 'function') {
+      tiff = await (window as any).GeoTIFF.fromUrl(url);
     }
     // If neither approach works, try dynamic import as last resort
     else {
@@ -246,12 +246,12 @@ function getViridisColor(value: number): [number, number, number] {
 }
 
 /**
- * Process GeoTIFF data and return a data URL
+ * Process GeoTIFF data and return a data URL and raw data
  */
 export async function processGeoTIFF(
   image: any,
   options: ProcessingOptions = {}
-): Promise<string> {
+): Promise<{ dataUrl: string; rasterData: Float32Array; width: number; height: number }> {
   const width = image.getWidth();
   const height = image.getHeight();
 
@@ -274,10 +274,21 @@ export async function processGeoTIFF(
   let minValue = Infinity;
   let maxValue = -Infinity;
 
+  // Create a Float32Array copy of the raw data for storage
+  const rawDataCopy = new Float32Array(width * height);
+
   // Scan for min/max values and identify no-data areas
   for (let i = 0; i < width * height; i++) {
     const value = rasterData[0][i]; // First band
-    if (value !== 0 && !isNaN(value)) {
+    // Check for sentinel/no-data values (very large negative numbers, NaN, etc.)
+    if (isNaN(value) || value < -1e10 || value > 1e10) {
+      rawDataCopy[i] = 0; // Store 0 for no-data values
+    } else {
+      rawDataCopy[i] = value; // Store raw value
+    }
+    
+    // Only consider valid values for min/max calculation
+    if (value !== 0 && !isNaN(value) && value > -1e10 && value < 1e10) {
       minValue = Math.min(minValue, value);
       maxValue = Math.max(maxValue, value);
     }
@@ -318,7 +329,7 @@ export async function processGeoTIFF(
   const dataUrl = canvas.toDataURL('image/png');
   // console.log('GeoTIFF Processor: Created data URL');
 
-  return dataUrl;
+  return { dataUrl, rasterData: rawDataCopy, width, height };
 }
 
 /**
@@ -331,6 +342,9 @@ export async function loadAndProcessGeoTIFF(
   dataUrl: string;
   metadata: GeoTIFFMetadata;
   bounds: number[];
+  rasterData: Float32Array;
+  width: number;
+  height: number;
 }> {
   try {
     // Load the GeoTIFF
@@ -362,9 +376,9 @@ export async function loadAndProcessGeoTIFF(
     bounds = validateBounds(bounds, projectionInfo || undefined);
 
     // Process the GeoTIFF
-    const dataUrl = await processGeoTIFF(image, options);
+    const { dataUrl, rasterData, width, height } = await processGeoTIFF(image, options);
 
-    return { dataUrl, metadata, bounds };
+    return { dataUrl, metadata, bounds, rasterData, width, height };
   } catch (error) {
     console.error('GeoTIFF Processor: Error processing GeoTIFF:', error);
     throw error;
