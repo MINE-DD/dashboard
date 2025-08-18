@@ -4,6 +4,7 @@
 	import MaterialSymbolsSend from '~icons/material-symbols/send';
 	import MaterialSymbolsSmartToy from '~icons/material-symbols/smart-toy';
 	import MaterialSymbolsPerson from '~icons/material-symbols/person';
+	import MaterialSymbolsAdd from '~icons/material-symbols/add';
 	import { browser } from '$app/environment';
 
 	const dispatch = createEventDispatcher();
@@ -11,14 +12,35 @@
 	// Chat API configuration
 	const CHAT_API_URL = browser ? 'http://localhost:4040' : 'http://chat-backend:4040';
 
-	// Generate a session ID for this chat instance
-	const sessionId = crypto.randomUUID();
+	// Generate a session ID for this chat instance (persisted in localStorage)
+	const STORAGE_KEY = 'chatbot_session_id';
+	const MESSAGES_STORAGE_KEY = 'chatbot_messages';
+	
+	// Get or create session ID
+	const getOrCreateSessionId = () => {
+		if (!browser) return crypto.randomUUID();
+		let storedId = localStorage.getItem(STORAGE_KEY);
+		if (!storedId) {
+			storedId = crypto.randomUUID();
+			localStorage.setItem(STORAGE_KEY, storedId);
+		}
+		return storedId;
+	};
+	
+	const sessionId = getOrCreateSessionId();
 
 	let messageInput = $state('');
 	let messages = $state([]);
 	let isTyping = $state(false);
 	let chatContainer: HTMLElement;
 	let isLoading = $state(true);
+
+	// Save messages to localStorage whenever they change
+	$effect(() => {
+		if (browser && messages.length > 0) {
+			localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages));
+		}
+	});
 
 	// Load initial messages when component mounts
 	$effect(() => {
@@ -33,6 +55,19 @@
 
 	async function loadMessages() {
 		try {
+			// First, try to load from localStorage
+			const storedMessages = localStorage.getItem(MESSAGES_STORAGE_KEY);
+			if (storedMessages) {
+				const parsedMessages = JSON.parse(storedMessages);
+				messages = parsedMessages.map((msg: any) => ({
+					...msg,
+					timestamp: new Date(msg.timestamp)
+				}));
+				isLoading = false;
+				return; // Use stored messages and skip API call
+			}
+
+			// If no stored messages, try to load from API
 			const response = await fetch(`${CHAT_API_URL}/chat/${sessionId}/messages`);
 			if (response.ok) {
 				const apiMessages = await response.json();
@@ -42,18 +77,38 @@
 					content: msg.content,
 					timestamp: new Date(msg.timestamp)
 				}));
+			} else {
+				// If API fails, set default welcome message
+				messages = [
+					{
+						id: 'welcome-1',
+						type: 'bot',
+						content: "Hello! I'm your AI assistant. How can I help you today?",
+						timestamp: new Date()
+					}
+				];
 			}
 		} catch (error) {
 			console.error('Failed to load messages:', error);
-			// Fallback to default message if API is not available
-			messages = [
-				{
-					id: 'fallback-1',
-					type: 'bot',
-					content: "Hello! I'm your AI assistant. How can I help you today?",
-					timestamp: new Date()
-				}
-			];
+			// Check if we have stored messages as fallback
+			const storedMessages = localStorage.getItem(MESSAGES_STORAGE_KEY);
+			if (storedMessages) {
+				const parsedMessages = JSON.parse(storedMessages);
+				messages = parsedMessages.map((msg: any) => ({
+					...msg,
+					timestamp: new Date(msg.timestamp)
+				}));
+			} else {
+				// Fallback to default message if no stored messages and API fails
+				messages = [
+					{
+						id: 'fallback-1',
+						type: 'bot',
+						content: "Hello! I'm your AI assistant. How can I help you today?",
+						timestamp: new Date()
+					}
+				];
+			}
 		} finally {
 			isLoading = false;
 		}
@@ -141,6 +196,24 @@
 	function formatTime(date: Date) {
 		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
+
+	function clearConversation() {
+		if (browser) {
+			// Clear localStorage
+			localStorage.removeItem(MESSAGES_STORAGE_KEY);
+			localStorage.removeItem(STORAGE_KEY);
+			
+			// Reset messages to welcome message
+			messages = [
+				{
+					id: 'welcome-new',
+					type: 'bot',
+					content: "Hello! I'm your AI assistant. How can I help you today?",
+					timestamp: new Date()
+				}
+			];
+		}
+	}
 </script>
 
 <!-- Modal backdrop -->
@@ -161,13 +234,23 @@
 				<MaterialSymbolsSmartToy class="h-5 w-5" />
 				<span class="font-semibold">AI Assistant</span>
 			</div>
-			<button
-				class="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-focus"
-				on:click={closeModal}
-				aria-label="Close chat"
-			>
-				<MaterialSymbolsClose class="h-4 w-4" />
-			</button>
+			<div class="flex items-center gap-1">
+				<button
+					class="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-focus"
+					on:click={clearConversation}
+					aria-label="New conversation"
+					title="New conversation"
+				>
+					<MaterialSymbolsAdd class="h-4 w-4" />
+				</button>
+				<button
+					class="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-focus"
+					on:click={closeModal}
+					aria-label="Close chat"
+				>
+					<MaterialSymbolsClose class="h-4 w-4" />
+				</button>
+			</div>
 		</div>
 
 		<!-- Chat Messages -->
