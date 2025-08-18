@@ -67,3 +67,47 @@ export function getCleanLabel(valField?: string, labField?: string): string {
   
   return '';
 }
+
+/**
+ * Parses text with ^^ prefix for indentation and returns the formatted text
+ * @param text The text potentially containing ^^ prefix
+ * @returns Object with indented flag and cleaned text
+ */
+export function parseIndentationPrefix(text: string): { isIndented: boolean; text: string } {
+  if (!text) return { isIndented: false, text: '' };
+  
+  // Check if text starts with ^^
+  if (text.startsWith('^^')) {
+    return {
+      isIndented: true,
+      text: text.substring(2) // Remove the ^^ prefix
+    };
+  }
+  
+  return {
+    isIndented: false,
+    text
+  };
+}
+
+/**
+ * Formats text with indentation prefix (^^) and italic markers (__text__)
+ * @param text The text containing formatting markers
+ * @returns HTML string with proper formatting
+ */
+export function formatDropdownText(text: string): string {
+  if (!text) return '';
+  
+  // Parse indentation
+  const { isIndented, text: cleanText } = parseIndentationPrefix(text);
+  
+  // Apply italic formatting
+  const formattedText = formatItalicText(cleanText);
+  
+  // Add indentation if needed
+  if (isIndented) {
+    return `<span class="ml-4">${formattedText}</span>`;
+  }
+  
+  return formattedText;
+}

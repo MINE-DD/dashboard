@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatItalicText } from '../utils/textFormatter';
+	import { formatDropdownText } from '../utils/textFormatter';
 	import { onMount } from 'svelte';
 	import MdiEarthBox from '~icons/mdi/earth-box';
 
@@ -108,7 +108,7 @@
 			>
 				<span class="flex-1 truncate text-left">
 					{#if selectedValue}
-						{@html formatItalicText(displayText())}
+						{@html formatDropdownText(displayText())}
 					{:else}
 						<span class="text-base-content/60">{displayText()}</span>
 					{/if}
@@ -157,7 +157,7 @@
 								onclick={() => handleSelect(option.value)}
 							>
 								<span class="flex-1 text-left">
-									{@html formatItalicText(option.label)}
+									{@html formatDropdownText(option.label)}
 								</span>
 								<span class="text-base-content/70 flex items-center gap-1 text-sm">
 									{#if option.count !== undefined}
