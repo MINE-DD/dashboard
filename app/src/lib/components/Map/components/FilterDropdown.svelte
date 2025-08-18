@@ -148,12 +148,13 @@
 
 					<!-- Options -->
 					{#each options as option}
+						{@const isIndented = option.label.startsWith('^^')}
 						<li>
 							<button
 								class="hover:bg-base-200 flex items-center justify-between rounded px-3 py-2 {selectedValue ===
 								option.value
 									? 'bg-primary/10 font-medium'
-									: ''}"
+									: ''} {isIndented ? 'ml-6' : ''}"
 								onclick={() => handleSelect(option.value)}
 							>
 								<span class="flex-1 text-left">

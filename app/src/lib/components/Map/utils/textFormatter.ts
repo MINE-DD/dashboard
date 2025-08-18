@@ -98,16 +98,12 @@ export function parseIndentationPrefix(text: string): { isIndented: boolean; tex
 export function formatDropdownText(text: string): string {
   if (!text) return '';
   
-  // Parse indentation
-  const { isIndented, text: cleanText } = parseIndentationPrefix(text);
+  // Parse indentation - remove ^^ prefix if present
+  const { text: cleanText } = parseIndentationPrefix(text);
   
   // Apply italic formatting
   const formattedText = formatItalicText(cleanText);
   
-  // Add indentation if needed - using padding-left and a visual indicator
-  if (isIndented) {
-    return `<span style="padding-left: 1.5rem; display: block;">└─ ${formattedText}</span>`;
-  }
-  
+  // Return the formatted text (indentation is now handled by the parent button)
   return formattedText;
 }

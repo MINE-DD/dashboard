@@ -68,11 +68,12 @@
 		isStyleLoaded = true;
 
 		// Load data immediately when map is ready
-		clearFilterCache();
-		loadPointsData(pointDataUrl, true).then(() => {
-			// Data loaded successfully
-			console.log('Initial data loaded');
-		});
+		// DISABLED: Data is already loaded by preloadData in MapInitializer
+		// clearFilterCache();
+		// loadPointsData(pointDataUrl, true).then(() => {
+		// 	// Data loaded successfully
+		// 	console.log('Initial data loaded');
+		// });
 
 		if (map && !map.getSource('country-boundaries')) {
 			map.addSource('country-boundaries', {

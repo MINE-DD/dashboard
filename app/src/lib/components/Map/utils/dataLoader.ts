@@ -102,6 +102,9 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       const ageGroupMap = new Map<string, string>(); // label -> val for sorting
       const syndromeMap = new Map<string, string>(); // label -> val for sorting
 
+      // Debug: Log first few rows to see actual data (disabled)
+      // console.log('First 3 rows of CSV data:', result.data.slice(0, 3));
+
       // Validate data before adding to sets
       result.data.forEach((row: any) => {
         // Check if this is actually CSV data (has expected fields)
@@ -185,11 +188,11 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       // console.log('Added syndromes for raster layers. Current syndromes:', Array.from(syndromeSet));
 
       // Update stores
-      console.log('Setting stores with:', {
-        pathogens: Array.from(pathogenSet),
-        ageGroups: Array.from(ageGroupSet),
-        syndromes: Array.from(syndromeSet)
-      });
+      // console.log('Setting stores with:', {
+      //   pathogens: Array.from(pathogenSet),
+      //   ageGroups: Array.from(ageGroupSet),
+      //   syndromes: Array.from(syndromeSet)
+      // });
       pathogens.set(pathogenSet);
       ageGroups.set(ageGroupSet);
       syndromes.set(syndromeSet);
