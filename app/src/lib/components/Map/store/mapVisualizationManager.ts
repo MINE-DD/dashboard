@@ -35,6 +35,7 @@ import {
   isDataSuitableForHeatmap
 } from '../utils/heatmapUtils';
 import { debounce } from '../utils/urlParams'; // Assuming debounce is here
+import { dataPointsVisible, applyDataPointsVisibility } from '$lib/stores/dataPointsVisibility.store';
 
 // Note: setMapInstance and setPointsAddedToMap are imported from mapState.store.ts
 
@@ -301,6 +302,11 @@ export async function addInitialPointsToMap(
     }
 
     setPointsAddedToMap(true);
+    
+    // Apply visibility setting from store
+    const visible = get(dataPointsVisible);
+    applyDataPointsVisibility(map, visible);
+    
     console.log('✅ Successfully added initial points to map');
     return true;
 
@@ -439,6 +445,11 @@ export async function switchVisualizationType(
     }
 
     ensurePointsOnTop(map);
+    
+    // Apply visibility setting from store after switching
+    const visible = get(dataPointsVisible);
+    applyDataPointsVisibility(map, visible);
+    
     console.log(`Successfully switched to ${newType} visualization`);
     return true;
 

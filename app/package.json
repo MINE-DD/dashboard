@@ -15,7 +15,8 @@
     "postbuild": "vite build --mode preview",
     "seed:dev": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql",
     "seed:clean": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql",
-    "seed:docker": "docker compose exec postgres psql -U postgres -d plan-eo -f /seed-database/seed.sql"
+    "seed:docker": "docker compose exec postgres psql -U postgres -d plan-eo -f /seed-database/seed.sql",
+    "update-data-manifest": "node scripts/generate-data-manifest.js"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.8",

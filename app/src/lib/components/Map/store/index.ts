@@ -85,3 +85,11 @@ export {
   addInitialPointsToMap,
   switchVisualizationType
 } from './mapVisualizationManager';
+
+// Re-export data points visibility functions
+export {
+  dataPointsVisible,
+  toggleDataPointsVisibility,
+  updateDataPointsVisibility,
+  applyDataPointsVisibility
+} from '$lib/stores/dataPointsVisibility.store';

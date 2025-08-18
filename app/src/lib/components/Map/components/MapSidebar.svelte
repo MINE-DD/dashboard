@@ -47,7 +47,8 @@
 	import {
 		updateMapVisualization,
 		// triggerVisualizationUpdate, // Removed as part of refactor
-		handleMapContentChange
+		handleMapContentChange,
+		mapInstance
 	} from '../store';
 	import MaterialSymbolsSettingsOutlineRounded from '~icons/material-symbols/settings-outline-rounded';
 	import { stripItalicMarkers, sortByValField } from '../utils/textFormatter';
@@ -64,6 +65,13 @@
 		loadStoredSettings,
 		saveSettingsToStorage
 	} from '$lib/stores/visualizationSettings/localStorage';
+	
+	// Import data points visibility store and functions
+	import {
+		dataPointsVisible as dataPointsVisibleStore,
+		toggleDataPointsVisibility as toggleDataPoints,
+		applyDataPointsVisibility
+	} from '$lib/stores/dataPointsVisibility.store';
 
 	let className: string | undefined = undefined; // class is a reserved keyword in JS, with initialization
 	export { className as class };
@@ -77,6 +85,7 @@
 	let isAddingLayer = false;
 	export let globalOpacity = 80; // Default to 80%, now exposed as a prop
 	let rasterLayersVisible = true; // Track if raster layers are visible
+	let dataPointsVisible = true; // Track if data points are visible
 
 	let pathogensWithRasterLayers = new Set<string>();
 
@@ -107,6 +116,16 @@
 		rasterLayersVisible = !rasterLayersVisible;
 		const opacity = rasterLayersVisible ? globalOpacity / 100 : 0;
 		updateAllRasterLayersOpacity(opacity);
+	}
+	
+	// Handle toggling data points visibility
+	function toggleDataPointsVisibility() {
+		dataPointsVisible = !dataPointsVisible;
+		dataPointsVisibleStore.set(dataPointsVisible);
+		applyDataPointsVisibility($mapInstance, dataPointsVisible);
+		
+		// Save to localStorage
+		saveSettingsToStorage({ dataPointsVisible });
 	}
 	// Import the dynamic URL from MapInitializer
 	import { POINTS_DATA_URL } from '../utils/MapInitializer';
@@ -308,6 +327,10 @@
 		
 		// Set initial checkbox state based on opacity
 		rasterLayersVisible = globalOpacity > 0;
+		
+		// Load data points visibility setting
+		dataPointsVisible = storedSettings.dataPointsVisible;
+		dataPointsVisibleStore.set(dataPointsVisible);
 
 		// Update barThickness store with stored value
 		barThickness.set(storedSettings.barThickness);
@@ -534,6 +557,35 @@
 							/>
 						</label>
 					</div>
+					
+					<!-- Data Points visibility toggle -->
+					<div class="mt-3 flex items-center justify-between">
+						<h3 class="text-secondary-focus flex items-center text-base font-medium">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="text-secondary mr-1 h-5 w-5"
+								fill="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<circle cx="5" cy="12" r="2"/>
+								<circle cx="12" cy="5" r="2"/>
+								<circle cx="19" cy="12" r="2"/>
+								<circle cx="12" cy="19" r="2"/>
+								<circle cx="12" cy="12" r="2"/>
+							</svg>
+							Data Points
+						</h3>
+						<label class="label cursor-pointer gap-2 p-0">
+							<input 
+								type="checkbox" 
+								class="checkbox checkbox-primary checkbox-sm"
+								checked={dataPointsVisible}
+								on:change={toggleDataPointsVisibility}
+								title="Toggle data points visibility"
+							/>
+						</label>
+					</div>
+					
 					<!-- <div class="mb-3 max-h-[150px] overflow-y-auto rounded-md bg-white/70 p-2">
 						{#each Array.from($autoVisibleRasterLayers) as layerId}
 							{#if $rasterLayers.has(layerId)}

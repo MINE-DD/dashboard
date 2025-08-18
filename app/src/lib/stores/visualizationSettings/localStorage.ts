@@ -5,11 +5,13 @@ const STORAGE_KEY = 'visualizationSettings';
 export interface VisualizationSettings {
   globalOpacity: number;
   barThickness: number;
+  dataPointsVisible: boolean;
 }
 
 const defaultSettings: VisualizationSettings = {
   globalOpacity: 80,
-  barThickness: 0.2
+  barThickness: 0.2,
+  dataPointsVisible: true
 };
 
 export function loadStoredSettings(): VisualizationSettings {
@@ -24,7 +26,8 @@ export function loadStoredSettings(): VisualizationSettings {
     // Validate and merge with defaults to handle missing properties
     return {
       globalOpacity: typeof parsed.globalOpacity === 'number' ? parsed.globalOpacity : defaultSettings.globalOpacity,
-      barThickness: typeof parsed.barThickness === 'number' ? parsed.barThickness : defaultSettings.barThickness
+      barThickness: typeof parsed.barThickness === 'number' ? parsed.barThickness : defaultSettings.barThickness,
+      dataPointsVisible: typeof parsed.dataPointsVisible === 'boolean' ? parsed.dataPointsVisible : defaultSettings.dataPointsVisible
     };
   } catch (error) {
     console.warn('Failed to load visualization settings from localStorage:', error);
