@@ -104,9 +104,12 @@
 			return pathogensWithRasterLayers.has(value);
 		}
 
+		// Strip ^^ prefix if present for comparison with raster mappings
+		const cleanValue = value.startsWith('^^') ? value.substring(2) : value;
+
 		return filterToRasterMappings.some((mapping: FilterToRasterMapping) => {
-			if (type === 'ageGroup') return mapping.ageGroup === value;
-			if (type === 'syndrome') return mapping.syndrome === value;
+			if (type === 'ageGroup') return mapping.ageGroup === cleanValue;
+			if (type === 'syndrome') return mapping.syndrome === cleanValue;
 			return false;
 		});
 	}

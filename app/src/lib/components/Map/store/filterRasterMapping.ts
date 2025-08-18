@@ -51,8 +51,14 @@ export const autoVisibleRasterLayers = derived(
     // Check each mapping against the current filter selections
     filterToRasterMappings.forEach(mapping => {
       const pathogenMatch = $selectedPathogens.has(mapping.pathogen);
-      const ageGroupMatch = $selectedAgeGroups.has(mapping.ageGroup);
-      const syndromeMatch = $selectedSyndromes.has(mapping.syndrome);
+      
+      // Check for age group match - handle ^^ prefix
+      const ageGroupMatch = $selectedAgeGroups.has(mapping.ageGroup) || 
+                           $selectedAgeGroups.has('^^' + mapping.ageGroup);
+      
+      // Check for syndrome match - handle ^^ prefix
+      const syndromeMatch = $selectedSyndromes.has(mapping.syndrome) || 
+                           $selectedSyndromes.has('^^' + mapping.syndrome);
 
       // A layer should be visible if all of its corresponding filters are selected
       if (pathogenMatch && ageGroupMatch && syndromeMatch) {
