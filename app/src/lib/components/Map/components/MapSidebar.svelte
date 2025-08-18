@@ -33,7 +33,9 @@
 		// Import new derived stores for filter option counts
 		pathogenCounts,
 		ageGroupCounts,
-		syndromeCounts
+		syndromeCounts,
+		// Import data update date
+		dataUpdateDate
 	} from '../store';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
@@ -142,6 +144,22 @@
 	// Sidebar configuration
 	let collapsed = false;
 	let showSettingsModal = false;
+	
+	// Format date for display
+	function formatDataDate(dateString: string | null): string {
+		if (!dateString) return '';
+		
+		const [year, month, day] = dateString.split('-');
+		const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+		
+		// Format as "Month DD, YYYY"
+		const options: Intl.DateTimeFormatOptions = { 
+			year: 'numeric', 
+			month: 'long', 
+			day: 'numeric' 
+		};
+		return date.toLocaleDateString('en-US', options);
+	}
 
 	// Stats for selected filters
 	$: visiblePoints = $filteredPointsData?.features?.length || 0;
@@ -310,7 +328,14 @@
 	<!-- Sidebar header with toggle button -->
 	<div class="z-10 border-b border-white/30 bg-gradient-to-r from-white/40 to-white/20 p-4">
 		<div class="hidden w-full items-center justify-between sm:flex">
-			<h2 class="text-base-content text-md m-0 mr-8 font-semibold">Data Explorer</h2>
+			<div class="flex flex-col">
+				<h2 class="text-base-content text-md m-0 font-semibold">Data Explorer</h2>
+				{#if $dataUpdateDate}
+					<span class="text-base-content/60 text-xs mt-0.5">
+						Data updated: {formatDataDate($dataUpdateDate)}
+					</span>
+				{/if}
+			</div>
 			<div class="flex items-center gap-1">
 				<!-- Settings button -->
 				<button

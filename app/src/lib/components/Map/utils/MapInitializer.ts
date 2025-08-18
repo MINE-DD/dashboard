@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl';
 import type { MapStyle } from '../MapStyles';
 import { parseUrlFilters } from './urlParams';
 import { loadPointsData } from '../store';
+import { dataUpdateDate } from '$lib/stores/data.store';
 
 /**
  * Get the main CSV data file path
@@ -14,15 +15,60 @@ import { loadPointsData } from '../store';
 async function getLatestDataFile(): Promise<string> {
   const baseDir = 'data/01_Points/';
   
-  // Use the dated data file (newer format)
-  const dataFile = '2025-07-31_Plan-EO_Dashboard_point_data.csv';
-  
-  console.log(`Loading data from: ${dataFile}`);
-  return baseDir + dataFile;
+  try {
+    // Fetch the directory listing from the server
+    const response = await fetch(baseDir);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch directory listing');
+    }
+    
+    const html = await response.text();
+    
+    // Parse the HTML to extract CSV file links
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const links = doc.querySelectorAll('a');
+    
+    const csvFiles: string[] = [];
+    links.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href && href.match(/^\d{4}-\d{2}-\d{2}_Plan-EO_Dashboard_point_data\.csv$/)) {
+        csvFiles.push(href);
+      }
+    });
+    
+    if (csvFiles.length === 0) {
+      // Fallback to a known file if directory listing fails
+      const fallbackFile = '2025-08-18_Plan-EO_Dashboard_point_data.csv';
+      dataUpdateDate.set('2025-08-18');
+      return baseDir + fallbackFile;
+    }
+    
+    // Sort files to get the latest (they're already in YYYY-MM-DD format which sorts correctly)
+    const latestFile = csvFiles.sort().reverse()[0];
+    
+    // Extract date from filename (YYYY-MM-DD format)
+    const dateMatch = latestFile.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (dateMatch) {
+      dataUpdateDate.set(dateMatch[1]);
+    }
+    
+    console.log(`Loading data from: ${latestFile}`);
+    return baseDir + latestFile;
+    
+  } catch (error) {
+    console.error('Error fetching directory listing:', error);
+    // Fallback to the latest known file
+    const fallbackFile = '2025-08-18_Plan-EO_Dashboard_point_data.csv';
+    dataUpdateDate.set('2025-08-18');
+    console.log(`Using fallback file: ${fallbackFile}`);
+    return baseDir + fallbackFile;
+  }
 }
 
 // Export for consistency across the app
-export let POINTS_DATA_URL = 'data/01_Points/2025-07-31_Plan-EO_Dashboard_point_data.csv';
+export let POINTS_DATA_URL = 'data/01_Points/2025-08-18_Plan-EO_Dashboard_point_data.csv';
 
 /**
  * Preload data before map initialization

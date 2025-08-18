@@ -7,7 +7,8 @@ export {
   isLoading,
   loadingMessage,
   dataError,
-  pathogenColors
+  pathogenColors,
+  dataUpdateDate
 } from '$lib/stores/data.store';
 export {
   pathogenIndex,

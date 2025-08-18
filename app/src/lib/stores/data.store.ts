@@ -14,3 +14,6 @@ export const dataError = writable<string | null>(null);
 
 // Color mapping for pathogens
 export const pathogenColors = writable<Map<string, string>>(new Map());
+
+// Data update date (extracted from filename)
+export const dataUpdateDate = writable<string | null>(null);
