@@ -104,9 +104,9 @@ export function formatDropdownText(text: string): string {
   // Apply italic formatting
   const formattedText = formatItalicText(cleanText);
   
-  // Add indentation if needed
+  // Add indentation if needed - using padding-left and a visual indicator
   if (isIndented) {
-    return `<span class="ml-4">${formattedText}</span>`;
+    return `<span style="padding-left: 1.5rem; display: block;">└─ ${formattedText}</span>`;
   }
   
   return formattedText;
