@@ -6,6 +6,8 @@
 	import MaterialSymbolsPerson from '~icons/material-symbols/person';
 	import MaterialSymbolsAdd from '~icons/material-symbols/add';
 	import { browser } from '$app/environment';
+	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
 
 	const dispatch = createEventDispatcher();
 
@@ -78,12 +80,34 @@
 					timestamp: new Date(msg.timestamp)
 				}));
 			} else {
-				// If API fails, set default welcome message
+				// If API fails, set default welcome message with markdown example
 				messages = [
 					{
 						id: 'welcome-1',
 						type: 'bot',
-						content: "Hello! I'm your AI assistant. How can I help you today?",
+						content: `# Welcome! 👋
+
+I'm your **AI assistant**. Here's what I can help you with:
+
+## Features
+- **Data Analysis** - Analyze CSV files and datasets
+- **Visualization** - Create charts and graphs
+- **Mapping** - Work with geographic data
+
+### Quick Examples
+1. Upload a \`CSV file\` to get started
+2. Ask me to create visualizations
+3. Request data insights
+
+\`\`\`python
+# Example code
+data = pd.read_csv('file.csv')
+print(data.head())
+\`\`\`
+
+> **Tip:** You can ask me anything about your data!
+
+Need help? Just type your question below.`,
 						timestamp: new Date()
 					}
 				];
@@ -99,12 +123,34 @@
 					timestamp: new Date(msg.timestamp)
 				}));
 			} else {
-				// Fallback to default message if no stored messages and API fails
+				// Fallback to default message with markdown example if no stored messages and API fails
 				messages = [
 					{
 						id: 'fallback-1',
 						type: 'bot',
-						content: "Hello! I'm your AI assistant. How can I help you today?",
+						content: `# Welcome! 👋
+
+I'm your **AI assistant**. Here's what I can help you with:
+
+## Features
+- **Data Analysis** - Analyze CSV files and datasets
+- **Visualization** - Create charts and graphs
+- **Mapping** - Work with geographic data
+
+### Quick Examples
+1. Upload a \`CSV file\` to get started
+2. Ask me to create visualizations
+3. Request data insights
+
+\`\`\`python
+# Example code
+data = pd.read_csv('file.csv')
+print(data.head())
+\`\`\`
+
+> **Tip:** You can ask me anything about your data!
+
+Need help? Just type your question below.`,
 						timestamp: new Date()
 					}
 				];
@@ -197,18 +243,52 @@
 		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
 
+	function renderMarkdown(content: string): string {
+		if (!browser) return content;
+		// Configure marked options for better formatting
+		marked.setOptions({
+			breaks: true,
+			gfm: true
+		});
+		const html = marked(content);
+		// Sanitize HTML to prevent XSS attacks
+		return DOMPurify.sanitize(html);
+	}
+
 	function clearConversation() {
 		if (browser) {
 			// Clear localStorage
 			localStorage.removeItem(MESSAGES_STORAGE_KEY);
 			localStorage.removeItem(STORAGE_KEY);
 			
-			// Reset messages to welcome message
+			// Reset messages to welcome message with markdown example
 			messages = [
 				{
 					id: 'welcome-new',
 					type: 'bot',
-					content: "Hello! I'm your AI assistant. How can I help you today?",
+					content: `# Welcome! 👋
+
+I'm your **AI assistant**. Here's what I can help you with:
+
+## Features
+- **Data Analysis** - Analyze CSV files and datasets
+- **Visualization** - Create charts and graphs
+- **Mapping** - Work with geographic data
+
+### Quick Examples
+1. Upload a \`CSV file\` to get started
+2. Ask me to create visualizations
+3. Request data insights
+
+\`\`\`python
+# Example code
+data = pd.read_csv('file.csv')
+print(data.head())
+\`\`\`
+
+> **Tip:** You can ask me anything about your data!
+
+Need help? Just type your question below.`,
 					timestamp: new Date()
 				}
 			];
@@ -226,7 +306,7 @@
 ></div>
 
 <!-- Chat Modal -->
-<div class="fixed bottom-6 right-6 z-50 w-96 max-w-[calc(100vw-3rem)]">
+<div class="fixed bottom-6 right-6 z-50 w-[48rem] max-w-[calc(100vw-3rem)]">
 	<div class="bg-base-100 border-base-300 overflow-hidden rounded-lg border shadow-2xl">
 		<!-- Header -->
 		<div class="bg-primary text-primary-content flex items-center justify-between px-4 py-3">
@@ -254,7 +334,7 @@
 		</div>
 
 		<!-- Chat Messages -->
-		<div bind:this={chatContainer} class="h-96 space-y-4 overflow-y-auto p-4">
+		<div bind:this={chatContainer} class="h-[40rem] space-y-4 overflow-y-auto p-4">
 			{#each messages as message (message.id)}
 				<div class="flex gap-3" class:flex-row-reverse={message.type === 'user'}>
 					<!-- Avatar -->
@@ -275,7 +355,7 @@
 					</div>
 
 					<!-- Message Bubble -->
-					<div class="max-w-xs flex-1">
+					<div class="max-w-lg flex-1">
 						<div
 							class="rounded-lg px-3 py-2 text-sm"
 							class:bg-primary={message.type === 'bot'}
@@ -283,7 +363,13 @@
 							class:bg-secondary={message.type === 'user'}
 							class:text-secondary-content={message.type === 'user'}
 						>
-							{message.content}
+							{#if message.type === 'bot'}
+								<div class="markdown-content prose prose-sm max-w-none">
+									{@html renderMarkdown(message.content)}
+								</div>
+							{:else}
+								{message.content}
+							{/if}
 						</div>
 						<div class="mt-1 text-xs opacity-60" class:text-right={message.type === 'user'}>
 							{formatTime(message.timestamp)}
@@ -302,7 +388,7 @@
 							<MaterialSymbolsSmartToy class="h-4 w-4" />
 						</div>
 					</div>
-					<div class="max-w-xs flex-1">
+					<div class="max-w-sm flex-1">
 						<div class="bg-primary text-primary-content rounded-lg px-3 py-2 text-sm">
 							<div class="flex gap-1">
 								<div class="h-2 w-2 animate-bounce rounded-full bg-current"></div>
@@ -359,5 +445,129 @@
 
 	.animate-bounce {
 		animation: bounce 1.4s ease-in-out infinite;
+	}
+
+	/* Markdown content styling */
+	:global(.markdown-content) {
+		color: inherit !important;
+	}
+
+	:global(.markdown-content *) {
+		color: inherit !important;
+	}
+
+	:global(.markdown-content h1,
+	.markdown-content h2,
+	.markdown-content h3,
+	.markdown-content h4,
+	.markdown-content h5,
+	.markdown-content h6) {
+		color: inherit !important;
+		font-weight: 600;
+		margin-top: 0.5em;
+		margin-bottom: 0.25em;
+	}
+
+	:global(.markdown-content p) {
+		color: inherit !important;
+		margin-top: 0.5em;
+		margin-bottom: 0.5em;
+	}
+
+	:global(.markdown-content ul,
+	.markdown-content ol) {
+		color: inherit !important;
+		margin-left: 1.5em;
+		margin-top: 0.5em;
+		margin-bottom: 0.5em;
+	}
+
+	:global(.markdown-content li) {
+		color: inherit !important;
+		margin-top: 0.25em;
+		margin-bottom: 0.25em;
+	}
+
+	:global(.markdown-content code) {
+		color: inherit !important;
+		background-color: rgba(0, 0, 0, 0.2);
+		padding: 0.125em 0.25em;
+		border-radius: 0.25em;
+		font-size: 0.875em;
+	}
+
+	:global(.markdown-content pre) {
+		color: inherit !important;
+		background-color: rgba(0, 0, 0, 0.3);
+		padding: 0.75em;
+		border-radius: 0.375em;
+		overflow-x: auto;
+		margin-top: 0.5em;
+		margin-bottom: 0.5em;
+	}
+
+	:global(.markdown-content pre code) {
+		color: inherit !important;
+		background-color: transparent;
+		padding: 0;
+	}
+
+	:global(.markdown-content blockquote) {
+		color: inherit !important;
+		border-left: 3px solid currentColor;
+		padding-left: 1em;
+		margin-left: 0;
+		opacity: 0.8;
+		font-style: italic;
+	}
+
+	:global(.markdown-content blockquote *) {
+		color: inherit !important;
+	}
+
+	:global(.markdown-content a) {
+		color: inherit !important;
+		text-decoration: underline;
+		opacity: 0.9;
+	}
+
+	:global(.markdown-content a:hover) {
+		opacity: 1;
+	}
+
+	:global(.markdown-content strong) {
+		color: inherit !important;
+		font-weight: 600;
+	}
+
+	:global(.markdown-content em) {
+		color: inherit !important;
+		font-style: italic;
+	}
+
+	:global(.markdown-content hr) {
+		border: none;
+		border-top: 1px solid currentColor;
+		opacity: 0.3;
+		margin: 1em 0;
+	}
+
+	:global(.markdown-content table) {
+		width: 100%;
+		border-collapse: collapse;
+		margin: 0.5em 0;
+	}
+
+	:global(.markdown-content th,
+	.markdown-content td) {
+		color: inherit !important;
+		padding: 0.5em;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		text-align: left;
+	}
+
+	:global(.markdown-content th) {
+		background-color: rgba(0, 0, 0, 0.2);
+		font-weight: 600;
 	}
 </style>
