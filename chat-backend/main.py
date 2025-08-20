@@ -29,7 +29,7 @@ app.add_middleware(
 # Pydantic models
 class ChatMessage(BaseModel):
     content: str
-    timestamp: datetime = None
+    timestamp: datetime = None #type: ignore
 
     def __init__(self, **data):
         if data.get('timestamp') is None:

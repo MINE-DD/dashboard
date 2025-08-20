@@ -45,14 +45,14 @@ def get_llm_engine(config: dict):
         llm = ChatOllama(
             base_url=os.getenv("OLLAMA_BASE_URL"),
             model=model_name, 
-            temperature=0.0, 
-            max_tokens=4096
+            temperature=0.5, 
+            #max_tokens=4096 # type: ignore
             )
     elif model_provider == LLMProvider.GEMINI.value:
         llm = ChatGoogleGenerativeAI(
             model=model_name,
-            temperature=0,
-            max_tokens=None,
+            temperature=0.5,
+            #max_tokens=4096,
             timeout=None,
             max_retries=2
         )
@@ -60,46 +60,6 @@ def get_llm_engine(config: dict):
         raise ValueError(f"Unsupported LLM: {model_name}. Please make sure the 'llm_gen_default' field is in the form 'model_provider/model_name' where model_name is supported by the LLM provider.")
     return llm
 
-
-def load_and_standardize_dataframe(filename):
-    def _extract_float(row):
-        try:
-            val = row.split()[0]
-            return float(val)
-        except Exception as e:
-            print(f"Error when extracting float from DataFrame column: {e}. Returning None")
-            return None
-    try:
-        planeo_dtypes = {
-            'EST_ID':'string', 
-            'Pathogen': 'category', 
-            'Age_group': 'category', 
-            'Syndrome': 'category', 
-            'Design': 'category',
-            'Site_Location': 'string', 
-            'Prevalence': 'string', 
-            'Age_range': 'category', 
-            'Study': 'string', 
-            'Duration': 'string',
-            'Source': 'string', 
-            'Hyperlink': 'string', 
-            'CASES': 'float32', 
-            'SAMPLES': 'float32', 
-            'PREV': 'float32', 
-            'SE': 'float32', 
-            'SITE_LAT': 'float32',
-            'SITE_LONG': 'float32'
-        }
-        data = pd.read_csv(filename, dtype=planeo_dtypes)
-        data['CASES'] = data['CASES'].fillna(0).astype('int16')
-        data['SAMPLES'] = data['SAMPLES'].fillna(0).astype('int16')
-        data['Prevalence'] = data['Prevalence'].apply(_extract_float).astype('float32')
-    except Exception as e:
-        print("WARNING! The Dataframe is not the expected PlanEO format. So no preprocessing is done. Loading CSV file in DataFrame directly...")
-        print(e)
-        data = pd.read_csv(filename)
-    
-    return data
 
 class ConversationState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
@@ -116,14 +76,13 @@ class ChatBackend:
         self.use_simple_csv_agent = use_simple_csv_agent
         df = self._validate_csv(csv_file)
         if use_simple_csv_agent:
-            self.csv_agent = SimpleCSVAgent(self.llm, csv_file)
+            self.csv_agent = SimpleCSVAgent(self.llm, df)
         else:
             self.csv_agent = create_pandas_dataframe_agent(
                 self.llm, 
-                df, 
-                agent_type="zero-shot-react-description",
+                df,
                 verbose=True, 
-                allow_dangerous_code=True
+                allow_dangerous_code=True,
                 )
         self.graph = self.build_graph()
         self.state = {"messages": []}
@@ -132,7 +91,7 @@ class ChatBackend:
         if csv_path is None:
             raise ValueError("The CSV path in the config-chat.json is not valid. The file must contain a 'csv_datafile' key with a valid filepath")
         try:
-            df = load_and_standardize_dataframe(csv_path)
+            df = pd.read_csv(csv_path)
         except Exception as e:
             raise ValueError(f"ERROR {e}! The CSV filename {csv_path} could not be loaded as a DataFrame.")
         return df
@@ -187,16 +146,16 @@ class ChatBackend:
         query_message = {"role": "user", "content": query_to_use}
         
         # Invoke CSV agent with the enhanced query
-        response = self.csv_agent.invoke(query_message["content"])
+        response = self.csv_agent.invoke(query_message["content"]) # type: ignore
         
-        return { "messages": [{"role": "assistant", "content": response['output']}]}
+        return { "messages": [{"role": "assistant", "content": response['output']}]} # type: ignore
 
 
     def simple_csv_agent_node(self, state: ConversationState) -> ConversationState:
         query_to_use = state["messages"][-1].content
         # Invoke CSV agent with the direct query (NO HISTORY!)
-        response = self.csv_agent.ask(query_to_use)
-        return {"messages": [{"role": "assistant", "content": response}]}
+        response = self.csv_agent.ask(query_to_use) # type: ignore
+        return {"messages": [{"role": "assistant", "content": response}]} # type: ignore
 
 
     def context_aware_router(self, state: ConversationState) -> str:
@@ -204,18 +163,18 @@ class ChatBackend:
         Routes queries based on whether they need context-aware reformulation.
         """
         
-        message = state["messages"][-1].content.lower()
+        message = state["messages"][-1].content.lower() # type: ignore
         
         if message.lower().startswith("csv:"):
-            return {"next_node": "csv_agent"}
+            return {"next_node": "csv_agent"} # type: ignore
         else:
-            return {"next_node": "general_chat"}
+            return {"next_node": "general_chat"} # type: ignore
 
 
     async def ask(self, question: str):
         initial_state = {"messages": [{"role": "user", "content": question}]}
         config = {"configurable": {"thread_id": "abc123"}}
-        final_state = self.graph.invoke(initial_state, config)
+        final_state = self.graph.invoke(initial_state, config) # type: ignore
         # Extract response
         response = final_state["messages"][-1].content
         return response
