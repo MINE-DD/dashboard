@@ -9,9 +9,11 @@ load_dotenv()
 
 
 class SimpleCSVAgent:
-    def __init__(self, llm: ChatOllama, csv_path: str):
-        self.csv_path = csv_path
-        self.df = pd.read_csv(csv_path)
+    def __init__(self, llm: ChatOllama, dataframe: pd.DataFrame | str):
+        if isinstance(dataframe, str):
+            self.df = pd.read_csv(dataframe)
+        else:
+            self.df = dataframe
         self.llm = llm
     
     def ask(self, query: str) -> str:
@@ -59,7 +61,7 @@ class SimpleCSVAgent:
         """
         
         response = self.llm.invoke(prompt)
-        generated_code = response.content.strip()
+        generated_code = response.content.strip() # type: ignore
         
         # Clean up any markdown formatting
         if "```python" in generated_code:
@@ -118,7 +120,7 @@ class SimpleCSVAgent:
 # Usage example
 def main_example(llm, save_output=True):
     # Initialize the agent
-    csv_agent = SimpleCSVAgent(llm, csv_path="chat-backend/Plan-EO_Dashboard_point_data.csv")
+    csv_agent = SimpleCSVAgent(llm, dataframe="chat-backend/Plan-EO_Dashboard_point_data.csv")
 
     # Ask questions
     questions = [
