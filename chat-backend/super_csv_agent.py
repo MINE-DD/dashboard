@@ -1,10 +1,12 @@
+from langchain_google_genai import ChatGoogleGenerativeAI
 import pandas as pd
 from langchain_ollama import ChatOllama
-from langchain.agents import Tool, AgentExecutor, create_react_agent
-from langchain.prompts import PromptTemplate
 import io
 import time
 from contextlib import redirect_stdout, redirect_stderr
+from dotenv import load_dotenv
+load_dotenv()
+
 
 class SimpleCSVAgent:
     def __init__(self, llm: ChatOllama, csv_path: str):
@@ -113,201 +115,11 @@ class SimpleCSVAgent:
             return f"Execution error: {str(e)}"
 
 
-class CSVCodeReactAgent:
-    def __init__(self, llm: ChatOllama, csv_path: str):
-        self.csv_path = csv_path
-        self.df = pd.read_csv(csv_path)
-        self.llm = llm
-        
-        # Create tools
-        self.tools = [
-            Tool(
-                name="generate_and_execute_pandas_code",
-                func=self.generate_and_execute_code,
-                description="""
-                Generate and execute Python pandas code to answer questions about the CSV data.
-                Input should be a natural language question about the data.
-                The CSV is already loaded as 'df' variable.
-                """
-            ),
-            Tool(
-                name="show_dataframe_info",
-                func=self.show_df_info,
-                description="Show basic information about the loaded DataFrame including columns, shape, and data types."
-            )
-        ]
-        
-        # Create the agent
-        self.agent = self._create_agent()
-    
-    def generate_and_execute_code(self, question: str) -> str:
-        """Generate Python pandas code based on the question and execute it"""
-        
-        # Get DataFrame info for context
-        df_info = f"""
-        DataFrame shape: {self.df.shape}
-        Columns: {list(self.df.columns)}
-        Data types: {self.df.dtypes.to_dict()}
-        First few rows:
-        {self.df.head().to_string()}
-        """
-        
-        # Create a prompt for code generation
-        code_prompt = f"""
-        You are a Python pandas expert. Given the following DataFrame information and user question, 
-        generate Python code that answers the question.
-        
-        DataFrame Info:
-        {df_info}
-        
-        User Question: {question}
-        
-        Requirements:
-        - Use only pandas operations
-        - Break the question into simpler steps until you arrive to the final answer
-        - The DataFrame is available as 'df'
-        - Return only the Python code, no explanations
-        - Make sure the code prints or returns the final result as a statement
-        - Handle potential errors gracefully
-        
-        Python Code:
-        """
-        
-        # Generate code using LLM
-        response = self.llm.invoke(code_prompt)
-        generated_code = response.content.strip()
-        
-        # Clean up the code (remove markdown formatting if present)
-        if "```python" in generated_code:
-            generated_code = generated_code.split("```python")[1].lstrip()
-            if "```" in generated_code:
-                generated_code = generated_code.split("```")[0].strip()
-        
-        # Execute the code
-        return self._execute_code(generated_code)
-    
-    def _execute_code(self, code: str) -> str:
-        """Safely execute the generated Python code"""
-        try:
-            # Create a local namespace with the DataFrame
-            local_namespace = {
-                'df': self.df.copy(),
-                'pd': pd,
-                'numpy': __import__('numpy'),
-                'np': __import__('numpy')
-            }
-            
-            # Capture output
-            output_buffer = io.StringIO()
-            error_buffer = io.StringIO()
-            
-            with redirect_stdout(output_buffer), redirect_stderr(error_buffer):
-                exec(code, {"__builtins__": __builtins__}, local_namespace)
-            
-            # Get the output
-            stdout_output = output_buffer.getvalue()
-            stderr_output = error_buffer.getvalue()
-            
-            if stderr_output:
-                return f"Error executing code:\n{stderr_output}"
-            
-            if stdout_output:
-                return f"Code executed successfully:\n{stdout_output}"
-            else:
-                # If no print output, try to get the last expression result
-                lines = code.strip().split('\n')
-                last_line = lines[-1].strip()
-                if not last_line.startswith(('print', 'df.to_', 'plt.')):
-                    try:
-                        result = eval(last_line, {"__builtins__": __builtins__}, local_namespace)
-                        return f"Result: {result}"
-                    except:
-                        return "Code executed successfully (no output)"
-                
-                return "Code executed successfully (no output)"
-                
-        except Exception as e:
-            return f"Error executing code: {str(e)}"
-    
-    def show_df_info(self, _: str = "") -> str:
-        """Show basic information about the DataFrame"""
-        info_str = f"""
-        DataFrame Information:
-        - Shape: {self.df.shape}
-        - Columns: {list(self.df.columns)}
-        - Data Types:
-        {self.df.dtypes.to_string()}
-        
-        First 5 rows:
-        {self.df.head().to_string()}
-        
-        Basic Statistics:
-        {self.df.describe().to_string()}
-        """
-        return info_str
-    
-    def _create_agent(self):
-        """Create the ReAct agent"""
-        prompt_template = """
-        You are a data analysis assistant that can generate and execute Python pandas code.
-        You have access to a CSV file loaded as a pandas DataFrame.
-        
-        Answer the user's question by using the available tools to generate and execute appropriate pandas code.
-        
-        Available tools:
-        {tools}
-        
-        Use the following format:
-        
-        Question: the input question you must answer
-        Thought: you should always think about what to do
-        Action: the action to take, should be one of [{tool_names}]
-        Action Input: the input to the action
-        Observation: the result of the action
-        ... (this Thought/Action/Action Input/Observation can repeat N times)
-        Thought: I now know the final answer
-        Final Answer: the final answer to the original input question
-        
-        Question: {input}
-        Thought: {agent_scratchpad}
-        """
-        
-        prompt = PromptTemplate.from_template(prompt_template)
-        
-        agent = create_react_agent(
-            llm=self.llm,
-            tools=self.tools,
-            prompt=prompt
-        )
-        
-        return AgentExecutor(
-            agent=agent,
-            tools=self.tools,
-            verbose=True,
-            handle_parsing_errors=True
-        )
-    
-    def ask(self, question: str) -> str:
-        """Ask a question about the CSV data"""
-        try:
-            result = self.agent.invoke({"input": question})
-            return result["output"]
-        except Exception as e:
-            return f"Error processing question: {str(e)}"
-
-
 # Usage example
-def main_example(save_output=True):
-    # Init LLM
-    llm = ChatOllama(
-            #base_url=ollama_url,
-            model="llama3.2:latest", 
-            temperature=0.0, 
-            max_tokens=512
-            )
+def main_example(llm, save_output=True):
     # Initialize the agent
     csv_agent = SimpleCSVAgent(llm, csv_path="chat-backend/Plan-EO_Dashboard_point_data.csv")
-    
+
     # Ask questions
     questions = [
         "How many records are there?",
@@ -363,4 +175,18 @@ def planeo_evaluate(outputs):
 
 # Comment to only use the agent as a module
 if __name__ == "__main__":
-    main_example()
+        # Init LLM
+    llm = ChatOllama(
+            #base_url=ollama_url,
+            model="llama3.2:latest", 
+            temperature=0.0
+            )
+    # llm = ChatGoogleGenerativeAI(
+    #         model="gemini-2.5-flash-lite-preview-06-17",
+    #         temperature=0.1,
+    #         #max_tokens=4096,
+    #         max_retries=2
+    #     )
+    outputs = main_example(llm)
+    for output in outputs:
+        print(f"Question: {output[0]}\nAnswer: {output[1]}\nTime: {output[2]:.4f} seconds\n")
