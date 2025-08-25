@@ -150,30 +150,30 @@
           </div>
           <div class="info-row">
             <div class="info-label">Age Group:</div>
-            <div class="info-value">${props.ageGroup}</div>
+            <div class="info-value">${formatItalicText(props.ageGroup)}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Syndrome:</div>
-            <div class="info-value">${props.syndrome}</div>
+            <div class="info-value">${formatItalicText(props.syndrome)}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Location:</div>
-            <div class="info-value">${props.location}</div>
+            <div class="info-value">${formatItalicText(props.location)}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Age Range:</div>
-            <div class="info-value">${props.ageRange}</div>
+            <div class="info-value">${formatItalicText(props.ageRange)}</div>
           </div>
         </div>
 
         <div class="popup-section">
           <div class="info-row">
             <div class="info-label">Duration:</div>
-            <div class="info-value">${props.duration}</div>
+            <div class="info-value">${formatItalicText(props.duration)}</div>
           </div>
           <div class="info-row">
             <div class="info-label">Design:</div>
-            <div class="info-value">${props.design}</div>
+            <div class="info-value">${formatItalicText(props.design)}</div>
           </div>
         </div>
 
