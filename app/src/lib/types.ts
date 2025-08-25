@@ -10,6 +10,7 @@ export interface PointDataRow {
   EST_ID: string;
   Design: string;
   Pathogen: string;
+  Indicator?: string; // e.g., "Prevalence (%)"
   AGE_VAL: string; // e.g., "01_Age_PSAC"
   AGE_LAB: string; // e.g., "Pre-school age children (<5 years)"
   SYNDROME_VAL: string; // e.g., "02_Synd_Diar"

@@ -1,3 +1,4 @@
+import { get } from 'svelte/store';
 import { isLoading, dataError, pointsData, pathogenColors } from '$lib/stores/data.store';
 import {
   pathogens,
@@ -5,7 +6,11 @@ import {
   syndromes,
   selectedPathogens,
   selectedAgeGroups,
-  selectedSyndromes
+  selectedSyndromes,
+  ageGroupValToLab,
+  ageGroupLabToVal,
+  syndromeValToLab,
+  syndromeLabToVal
 } from '$lib/stores/filter.store';
 import { convertCsvToGeoJson } from './geoJsonConverter';
 import { generateColors } from './colorManager';
@@ -97,10 +102,16 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       pointsData.set(geoData);
       dataCache = geoData; // Cache the data
 
-      // Extract unique filter values with validation and sorting info
+      // Extract unique filter values and create mappings
       const pathogenSet = new Set<string>();
-      const ageGroupMap = new Map<string, string>(); // label -> val for sorting
-      const syndromeMap = new Map<string, string>(); // label -> val for sorting
+      const ageGroupValSet = new Set<string>();  // Store VAL values
+      const syndromeValSet = new Set<string>();  // Store VAL values
+      
+      // Create mappings between VAL and LAB
+      const ageValToLab = new Map<string, string>();
+      const ageLabToVal = new Map<string, string>();
+      const synValToLab = new Map<string, string>();
+      const synLabToVal = new Map<string, string>();
 
       // Debug: Log first few rows to see actual data (disabled)
       // console.log('First 3 rows of CSV data:', result.data.slice(0, 3));
@@ -115,50 +126,53 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
             pathogenSet.add(row.Pathogen);
           }
 
-          // Extract age group with sorting value
-          if (row.AGE_LAB && typeof row.AGE_LAB === 'string') {
-            ageGroupMap.set(row.AGE_LAB, row.AGE_VAL || '');
+          // Extract age group VAL and create mappings
+          if (row.AGE_VAL && row.AGE_LAB) {
+            const val = row.AGE_VAL as string;
+            const lab = row.AGE_LAB as string;
+            ageGroupValSet.add(val);
+            ageValToLab.set(val, lab);
+            ageLabToVal.set(lab, val);
           }
 
-          // Extract syndrome with sorting value
-          if (row.SYNDROME_LAB && typeof row.SYNDROME_LAB === 'string') {
-            syndromeMap.set(row.SYNDROME_LAB, row.SYNDROME_VAL || '');
+          // Extract syndrome VAL and create mappings
+          if (row.SYNDROME_VAL && row.SYNDROME_LAB) {
+            const val = row.SYNDROME_VAL as string;
+            const lab = row.SYNDROME_LAB as string;
+            syndromeValSet.add(val);
+            synValToLab.set(val, lab);
+            synLabToVal.set(lab, val);
           }
         }
       });
       
-      // Sort age groups and syndromes based on VAL field
-      const sortByVal = (map: Map<string, string>): Set<string> => {
-        const sorted = Array.from(map.entries()).sort((a, b) => {
-          const valA = a[1]; // VAL field
-          const valB = b[1];
-          
+      // Sort VAL values based on their numeric prefix
+      const sortValSet = (valSet: Set<string>): string[] => {
+        return Array.from(valSet).sort((a, b) => {
           // Extract numeric prefix if present (e.g., "01" from "01_Age_PSAC")
-          const numA = valA ? parseInt(valA.split('_')[0]) || 999 : 999;
-          const numB = valB ? parseInt(valB.split('_')[0]) || 999 : 999;
+          const numA = parseInt(a.split('_')[0]) || 999;
+          const numB = parseInt(b.split('_')[0]) || 999;
           
           if (numA !== numB) {
             return numA - numB;
           }
           
-          // If no VAL fields or equal, sort alphabetically by label
-          return a[0].localeCompare(b[0]);
+          // If numbers are equal or not present, sort alphabetically
+          return a.localeCompare(b);
         });
-        
-        return new Set(sorted.map(entry => entry[0]));
       };
       
-      const ageGroupSet = sortByVal(ageGroupMap);
-      const syndromeSet = sortByVal(syndromeMap);
+      const sortedAgeVals = sortValSet(ageGroupValSet);
+      const sortedSyndromeVals = sortValSet(syndromeValSet);
 
       // console.log('Extracted unique values from data:', {
       //   pathogens: Array.from(pathogenSet),
-      //   ageGroups: Array.from(ageGroupSet),
-      //   syndromes: Array.from(syndromeSet)
+      //   ageGroupVals: sortedAgeVals,
+      //   syndromeVals: sortedSyndromeVals
       // });
 
       // If we have no valid data, the CSV parsing is probably not working correctly
-      if (pathogenSet.size === 0 && ageGroupSet.size === 0 && syndromeSet.size === 0) {
+      if (pathogenSet.size === 0 && ageGroupValSet.size === 0 && syndromeValSet.size === 0) {
         console.error('No valid data found in parsed CSV. Parser may have misinterpreted the file format.');
         throw new Error('Failed to parse valid data from CSV file');
       }
@@ -181,21 +195,81 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       // console.log('Added Shigella spp. and Campylobacter spp. to pathogens set. Current pathogens:', Array.from(pathogenSet));
 
       // Don't add duplicate age groups, we'll handle this in the UI
-      // console.log('Current age groups from data:', Array.from(ageGroupSet));
+      // console.log('Current age groups from data:', sortedAgeVals);
 
-      // Ensure syndromes needed for raster layers are available
-      syndromeSet.add('Asymptomatic');
-      // console.log('Added syndromes for raster layers. Current syndromes:', Array.from(syndromeSet));
+      // Ensure syndromes needed for raster layers are available - need to add the VAL
+      // Find if we have Asymptomatic in the LAB values and get its VAL
+      let asymptomaticVal: string | undefined;
+      for (const [val, lab] of synValToLab.entries()) {
+        if (lab === 'Asymptomatic') {
+          asymptomaticVal = val;
+          break;
+        }
+      }
+      // If not found, we might need to add it manually
+      // console.log('Added syndromes for raster layers. Current syndromes:', sortedSyndromeVals);
 
-      // Update stores
+      // Update stores with VAL values and mappings
       // console.log('Setting stores with:', {
       //   pathogens: Array.from(pathogenSet),
-      //   ageGroups: Array.from(ageGroupSet),
-      //   syndromes: Array.from(syndromeSet)
+      //   ageGroupVals: sortedAgeVals,
+      //   syndromeVals: sortedSyndromeVals
       // });
       pathogens.set(pathogenSet);
-      ageGroups.set(ageGroupSet);
-      syndromes.set(syndromeSet);
+      ageGroups.set(new Set(sortedAgeVals));  // Store VAL values
+      syndromes.set(new Set(sortedSyndromeVals));  // Store VAL values
+      
+      // Store the mappings
+      ageGroupValToLab.set(ageValToLab);
+      ageGroupLabToVal.set(ageLabToVal);
+      syndromeValToLab.set(synValToLab);
+      syndromeLabToVal.set(synLabToVal);
+      
+      // Set default selections if nothing is selected
+      const selectedPathogensValue = get(selectedPathogens);
+      const selectedAgeGroupsValue = get(selectedAgeGroups);
+      const selectedSyndromesValue = get(selectedSyndromes);
+      
+      if (selectedPathogensValue.size === 0 && selectedAgeGroupsValue.size === 0 && selectedSyndromesValue.size === 0) {
+        // Set default selections
+        const defaultPathogen = Array.from(pathogenSet).find(p => p.includes('Campylobacter')) || Array.from(pathogenSet)[0];
+        
+        // Find default age group VAL for "<5 years"
+        let defaultAgeVal: string | undefined;
+        for (const [val, lab] of ageValToLab.entries()) {
+          if (lab.includes('<5 years')) {
+            defaultAgeVal = val;
+            break;
+          }
+        }
+        if (!defaultAgeVal) defaultAgeVal = sortedAgeVals[0];
+        
+        // Find default syndrome VAL for "Diarrhea (any severity)"
+        let defaultSyndromeVal: string | undefined;
+        for (const [val, lab] of synValToLab.entries()) {
+          if (lab.includes('Diarrhea (any severity)')) {
+            defaultSyndromeVal = val;
+            break;
+          }
+        }
+        if (!defaultSyndromeVal) defaultSyndromeVal = sortedSyndromeVals[0];
+        
+        if (defaultPathogen) selectedPathogens.set(new Set([defaultPathogen]));
+        if (defaultAgeVal) selectedAgeGroups.set(new Set([defaultAgeVal]));
+        if (defaultSyndromeVal) selectedSyndromes.set(new Set([defaultSyndromeVal]));
+        
+        console.log('Set default filters:', {
+          pathogen: defaultPathogen,
+          ageGroup: defaultAgeVal + ' (' + ageValToLab.get(defaultAgeVal) + ')',
+          syndrome: defaultSyndromeVal + ' (' + synValToLab.get(defaultSyndromeVal) + ')'
+        });
+      } else {
+        console.log('Filters already set from URL:', {
+          pathogens: Array.from(selectedPathogensValue),
+          ageGroups: Array.from(selectedAgeGroupsValue),
+          syndromes: Array.from(selectedSyndromesValue)
+        });
+      }
 
       // Generate colors for pathogens
       const colorMap = generateColors(pathogenSet);

@@ -12,6 +12,10 @@
 		clearFilterCache,
 		filteredPointsData, // Uncommented to use for point counting
 		pointsData, // Added for total points count
+		ageGroupValToLab,
+		ageGroupLabToVal,
+		syndromeValToLab,
+		syndromeLabToVal,
 		// Import new raster stores and functions
 		rasterLayers,
 		addRasterLayerFromUrl,
@@ -494,16 +498,16 @@
 				id="agegroup-select"
 				label="Age Groups"
 				placeholder="Select Age Group"
-				options={Array.from($ageGroups || []).map(ageGroup => ({
-					value: ageGroup,
-					label: ageGroup,
-					count: $ageGroupCounts.get(ageGroup) || 0,
-					hasRasterLayer: hasRasterLayers('ageGroup', ageGroup as string)
+				options={Array.from($ageGroups || []).map(ageGroupVal => ({
+					value: ageGroupVal,  // VAL for filtering
+					label: $ageGroupValToLab.get(ageGroupVal) || ageGroupVal,  // LAB for display
+					count: $ageGroupCounts.get(ageGroupVal) || 0,
+					hasRasterLayer: hasRasterLayers('ageGroup', $ageGroupValToLab.get(ageGroupVal)?.replace('^^', '') || ageGroupVal)
 				}))}
 				selectedValue={Array.from($selectedAgeGroups)[0] || ''}
 				onSelect={(value) => {
 					const newSet = new Set<string>();
-					if (value) newSet.add(value);
+					if (value) newSet.add(value);  // value is already VAL
 					updateAgeGroupSelection(newSet);
 				}}
 			/>
@@ -513,16 +517,16 @@
 				id="syndrome-select"
 				label="Syndromes"
 				placeholder="Select Syndrome"
-				options={Array.from($syndromes || []).map(syndrome => ({
-					value: syndrome,
-					label: syndrome,
-					count: $syndromeCounts.get(syndrome) || 0,
-					hasRasterLayer: hasRasterLayers('syndrome', syndrome as string)
+				options={Array.from($syndromes || []).map(syndromeVal => ({
+					value: syndromeVal,  // VAL for filtering
+					label: $syndromeValToLab.get(syndromeVal) || syndromeVal,  // LAB for display
+					count: $syndromeCounts.get(syndromeVal) || 0,
+					hasRasterLayer: hasRasterLayers('syndrome', $syndromeValToLab.get(syndromeVal)?.replace('^^', '') || syndromeVal)
 				}))}
 				selectedValue={Array.from($selectedSyndromes)[0] || ''}
 				onSelect={(value) => {
 					const newSet = new Set<string>();
-					if (value) newSet.add(value);
+					if (value) newSet.add(value);  // value is already VAL
 					updateSyndromeSelection(newSet);
 				}}
 			/>

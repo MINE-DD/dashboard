@@ -3,7 +3,9 @@ import type { FilterToRasterMapping } from '$lib/types';
 import {
   selectedPathogens,
   selectedAgeGroups,
-  selectedSyndromes
+  selectedSyndromes,
+  ageGroupValToLab,
+  syndromeValToLab
 } from '$lib/stores/filter.store';
 import {
   rasterLayers,
@@ -38,8 +40,8 @@ export const filterToRasterMappings: FilterToRasterMapping[] = [
 
 // Create a derived store that calculates which raster layers should be visible based on filter selections
 export const autoVisibleRasterLayers = derived(
-  [selectedPathogens, selectedAgeGroups, selectedSyndromes, rasterLayers],
-  ([$selectedPathogens, $selectedAgeGroups, $selectedSyndromes, $rasterLayers]) => {
+  [selectedPathogens, selectedAgeGroups, selectedSyndromes, rasterLayers, ageGroupValToLab, syndromeValToLab],
+  ([$selectedPathogens, $selectedAgeGroups, $selectedSyndromes, $rasterLayers, $ageGroupValToLab, $syndromeValToLab]) => {
     // If no filters are selected, no layers should be auto-shown
     if ($selectedPathogens.size === 0 && $selectedAgeGroups.size === 0 && $selectedSyndromes.size === 0) {
       return new Set<string>();
@@ -48,17 +50,34 @@ export const autoVisibleRasterLayers = derived(
     // Find all layer IDs that match the current filter selections
     const matchingLayerIds = new Set<string>();
 
+    // Convert selected VAL values to LAB values for comparison
+    const selectedAgeGroupLabs = new Set<string>();
+    $selectedAgeGroups.forEach(val => {
+      const lab = $ageGroupValToLab.get(val);
+      if (lab) {
+        // Remove ^^ prefix if present for comparison
+        selectedAgeGroupLabs.add(lab.replace('^^', ''));
+      }
+    });
+
+    const selectedSyndromeLabs = new Set<string>();
+    $selectedSyndromes.forEach(val => {
+      const lab = $syndromeValToLab.get(val);
+      if (lab) {
+        // Remove ^^ prefix if present for comparison
+        selectedSyndromeLabs.add(lab.replace('^^', ''));
+      }
+    });
+
     // Check each mapping against the current filter selections
     filterToRasterMappings.forEach(mapping => {
       const pathogenMatch = $selectedPathogens.has(mapping.pathogen);
       
-      // Check for age group match - handle ^^ prefix
-      const ageGroupMatch = $selectedAgeGroups.has(mapping.ageGroup) || 
-                           $selectedAgeGroups.has('^^' + mapping.ageGroup);
+      // Check for age group match using LAB values
+      const ageGroupMatch = selectedAgeGroupLabs.has(mapping.ageGroup);
       
-      // Check for syndrome match - handle ^^ prefix
-      const syndromeMatch = $selectedSyndromes.has(mapping.syndrome) || 
-                           $selectedSyndromes.has('^^' + mapping.syndrome);
+      // Check for syndrome match using LAB values
+      const syndromeMatch = selectedSyndromeLabs.has(mapping.syndrome);
 
       // A layer should be visible if all of its corresponding filters are selected
       if (pathogenMatch && ageGroupMatch && syndromeMatch) {

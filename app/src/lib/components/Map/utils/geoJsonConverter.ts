@@ -28,8 +28,8 @@ export function convertCsvToGeoJson(csvData: PointDataRow[]): PointFeatureCollec
       };
 
       updateIndex(pathogenIdx, row.Pathogen, index);
-      updateIndex(ageGroupIdx, row.AGE_LAB, index);
-      updateIndex(syndromeIdx, row.SYNDROME_LAB, index);
+      updateIndex(ageGroupIdx, row.AGE_VAL, index);  // Index by VAL for filtering
+      updateIndex(syndromeIdx, row.SYNDROME_VAL, index);  // Index by VAL for filtering
 
       return {
         type: 'Feature',
@@ -72,6 +72,16 @@ export function convertCsvToGeoJson(csvData: PointDataRow[]): PointFeatureCollec
   pathogenIndex.set(pathogenIdx);
   ageGroupIndex.set(ageGroupIdx);
   syndromeIndex.set(syndromeIdx);
+  
+  // Debug log to verify indices
+  console.log('Index Debug:', {
+    pathogenKeys: Array.from(pathogenIdx.keys()).slice(0, 3),
+    ageGroupKeys: Array.from(ageGroupIdx.keys()).slice(0, 10),
+    syndromeKeys: Array.from(syndromeIdx.keys()).slice(0, 10),
+    totalFeatures: features.length,
+    sampleAgeVal: features[0]?.properties?.ageGroupVal,
+    sampleSyndromeVal: features[0]?.properties?.syndromeVal
+  });
 
   return {
     type: 'FeatureCollection',

@@ -2,15 +2,21 @@ import { derived, writable, get } from 'svelte/store';
 import { pointsData } from '$lib/stores/data.store';
 import type { FeatureIndex, PointFeatureCollection } from '$lib/types';
 
-// Filter options stores
+// Filter options stores - these store VAL values
 export const pathogens = writable<Set<string>>(new Set());
-export const ageGroups = writable<Set<string>>(new Set());
-export const syndromes = writable<Set<string>>(new Set());
+export const ageGroups = writable<Set<string>>(new Set());  // Will store AGE_VAL values
+export const syndromes = writable<Set<string>>(new Set());  // Will store SYNDROME_VAL values
 
-// Selected filters stores
-export const selectedPathogens = writable<Set<string>>(new Set(['__Campylobacter__']));
-export const selectedAgeGroups = writable<Set<string>>(new Set(['Pre-school age children (<5 years)']));
-export const selectedSyndromes = writable<Set<string>>(new Set(['Diarrhea (any severity)']));
+// Mappings between VAL and LAB for display purposes
+export const ageGroupValToLab = writable<Map<string, string>>(new Map());
+export const ageGroupLabToVal = writable<Map<string, string>>(new Map());
+export const syndromeValToLab = writable<Map<string, string>>(new Map());
+export const syndromeLabToVal = writable<Map<string, string>>(new Map());
+
+// Selected filters stores - these store VAL values for age/syndrome, pathogen names for pathogens
+export const selectedPathogens = writable<Set<string>>(new Set());
+export const selectedAgeGroups = writable<Set<string>>(new Set());  // Stores AGE_VAL values
+export const selectedSyndromes = writable<Set<string>>(new Set());  // Stores SYNDROME_VAL values
 
 // Indices for fast filtering
 export const pathogenIndex = writable<FeatureIndex>(new Map());
@@ -79,11 +85,11 @@ function applyFilters(
     }
   }
 
-  // Apply age group filter
+  // Apply age group filter (now using VAL values)
   if (!noAgeGroupFilter) {
     const ageGroupMatches = new Set<number>();
     for (const ageGroup of currentSelectedAgeGroups) {
-      const indices = aIndex.get(ageGroup);
+      const indices = aIndex.get(ageGroup);  // ageGroup is now a VAL value
       if (indices) {
         for (const idx of indices) {
           ageGroupMatches.add(idx);
@@ -97,11 +103,11 @@ function applyFilters(
     }
   }
 
-  // Apply syndrome filter
+  // Apply syndrome filter (now using VAL values)
   if (!noSyndromeFilter) {
     const syndromeMatches = new Set<number>();
     for (const syndrome of currentSelectedSyndromes) {
-      const indices = sIndex.get(syndrome);
+      const indices = sIndex.get(syndrome);  // syndrome is now a VAL value
       if (indices) {
         for (const idx of indices) {
           syndromeMatches.add(idx);
@@ -119,14 +125,15 @@ function applyFilters(
 
 // Filtered indices based on selections
 export const filteredIndices = derived(
-  [selectedPathogens, selectedAgeGroups, selectedSyndromes, pathogenIndex, ageGroupIndex, syndromeIndex],
+  [selectedPathogens, selectedAgeGroups, selectedSyndromes, pathogenIndex, ageGroupIndex, syndromeIndex, pointsData],
   ([
     $selectedPathogens,
     $selectedAgeGroups,
     $selectedSyndromes,
     $pathogenIndex,
     $ageGroupIndex,
-    $syndromeIndex
+    $syndromeIndex,
+    $pointsData
   ]) => {
     const noPathogenFilter = $selectedPathogens.size === 0;
     const noAgeGroupFilter = $selectedAgeGroups.size === 0;
@@ -136,8 +143,15 @@ export const filteredIndices = derived(
       return null; // Null means "all features"
     }
 
+    // Don't use cache if indices are not yet populated
+    // This ensures we recalculate after data loads
+    const indicesReady = $pathogenIndex.size > 0 || $ageGroupIndex.size > 0 || $syndromeIndex.size > 0;
+    
+    // Also check if we have actual data loaded
+    const hasData = $pointsData && $pointsData.features && $pointsData.features.length > 0;
+    
     const cacheKey = getFilterCacheKey($selectedPathogens, $selectedAgeGroups, $selectedSyndromes);
-    if (filterCache.has(cacheKey)) {
+    if (indicesReady && hasData && filterCache.has(cacheKey)) {
       // logCacheStatus('HIT', cacheKey, true);
       return filterCache.get(cacheKey)!;
     }
@@ -154,7 +168,23 @@ export const filteredIndices = derived(
     );
 
     const result = resultIndicesSet ? Array.from(resultIndicesSet) : [];
-    filterCache.set(cacheKey, result);
+    
+    // Debug log
+    console.log('Filter Debug:', {
+      selectedPathogens: Array.from($selectedPathogens),
+      selectedAgeGroups: Array.from($selectedAgeGroups),
+      selectedSyndromes: Array.from($selectedSyndromes),
+      ageIndexKeys: Array.from($ageGroupIndex.keys()).slice(0, 5),
+      syndromeIndexKeys: Array.from($syndromeIndex.keys()).slice(0, 5),
+      ageIndexSize: $ageGroupIndex.size,
+      syndromeIndexSize: $syndromeIndex.size,
+      matchingCount: result.length
+    });
+    
+    // Only cache if indices are ready and we have data
+    if (indicesReady && hasData) {
+      filterCache.set(cacheKey, result);
+    }
     // logCacheStatus('SET', cacheKey);
     return result;
   }

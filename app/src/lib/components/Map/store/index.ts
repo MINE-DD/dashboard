@@ -19,7 +19,11 @@ export {
   syndromes,
   selectedPathogens,
   selectedAgeGroups,
-  selectedSyndromes
+  selectedSyndromes,
+  ageGroupValToLab,
+  ageGroupLabToVal,
+  syndromeValToLab,
+  syndromeLabToVal
 } from '$lib/stores/filter.store';
 export {
   visualizationType,
