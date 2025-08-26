@@ -11,8 +11,10 @@
 	const designColors = [
 		{ label: 'Surveillance', color: '#FFE5B4' }, // Pastel Orange (matches map dot)
 		{ label: 'Intervention Trial', color: '#B7EFC5' }, // Pastel Green (matches map dot)
-		{ label: 'Case control', color: '#FFB3C6' }, // Pastel Red (matches map dot)
-		{ label: 'Cohort', color: '#9197FF' } // Pastel Blue (matches map dot)
+		{ label: 'Case-Control', color: '#FFB3C6' }, // Pastel Red (matches map dot)
+		{ label: 'Cohort', color: '#9197FF' }, // Pastel Blue (matches map dot)
+		{ label: 'Cross-Sectional', color: '#E6B3FF' }, // Pastel Purple
+		{ label: 'Other: Mixed Design', color: '#C0C0C0' } // Light Gray
 	];
 </script>
 

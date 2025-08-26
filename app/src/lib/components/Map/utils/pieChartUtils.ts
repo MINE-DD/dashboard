@@ -10,7 +10,13 @@ const DESIGN_COLORS: { [key: string]: string } = {
   'Case-Control': '#FFB3C690',               // Pastel Red
   'Case-Control_dark': '#5A1E2960',          // Even Darker Pastel Red
   'Cohort': '#9197FF90',                     // Pastel Blue
-  'Cohort_dark': '#10163A60'                 // Even Darker Pastel Blue
+  'Cohort_dark': '#10163A60',                // Even Darker Pastel Blue
+  'Cross-Sectional': '#E6B3FF90',            // Pastel Purple
+  'Cross-Sectional_dark': '#4A1A5C60',       // Dark Purple
+  'Other: Cohort': '#9197FF90',              // Same as Cohort
+  'Other: Cohort_dark': '#10163A60',         // Same as Cohort dark
+  'Other: Mixed Design': '#C0C0C090',        // Light Gray
+  'Other: Mixed Design_dark': '#40404060'    // Dark Gray
 };
 
 const DEFAULT_COLOR = '#808080';
