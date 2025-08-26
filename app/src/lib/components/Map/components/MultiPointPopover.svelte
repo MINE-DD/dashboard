@@ -129,7 +129,7 @@
 						</span>
 					</div>
 					<div class="item-details">
-						<span class="detail-chip">${formatDropdownText(props.ageGroup)}</span>
+						<span class="detail-chip">${formatDropdownText(props.ageRange)}</span>
 						<span class="detail-chip">${formatDropdownText(props.syndrome)}</span>
 					</div>
 				</div>
@@ -214,43 +214,94 @@
 	}
 
 	function createDetailedContent(props: PointProperties): string {
-		const prevalence = (props.prevalenceValue * 100).toFixed(1) + '%';
-		const color = getPrevalenceColor(props.prevalenceValue);
+		// Convert prevalence value to percentage for display
+		const prevalencePercent = typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue) 
+			? props.prevalenceValue * 100
+			: 0;
+		const prevalenceDisplay = prevalencePercent.toFixed(2) + '%';
+		
+		// Determine prevalence color based on decimal value
+		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);
+		
+		// Format pathogen name with italic support
+		const pathogenFormatted = formatItalicText(props.pathogen);
+		
+		// Use heading as title (with italic formatting)
+		const title = formatItalicText(props.heading);
+		const subtitle = formatItalicText(props.subheading);
 
 		return `
-			<div class="study-point-content">
+			<div class="popup-content">
 				<button class="back-button" onclick="window.__multiPointPopover && window.__multiPointPopover.goBack()">
 					← Back to list
 				</button>
-				<h3 class="pathogen-title">${formatItalicText(props.pathogen)}</h3>
-				<div class="prevalence-display">
-					<span class="prevalence-value" style="background-color: ${color}">
-						${prevalence}
+				<h3 class="popup-title">
+					<span class="pathogen-name">
+						${title}
 					</span>
+				</h3>
+				${subtitle && subtitle.trim() ? `<div class="popup-subtitle">${subtitle}</div>` : ''}
+
+				<div class="popup-section">
+					<div class="info-row">
+						<div class="info-label">Pathogen:</div>
+						<div class="info-value">${pathogenFormatted}</div>
+					</div>
+					<div class="info-row">
+						<div class="info-label">Prevalence:</div>
+						<div class="info-value">
+							<span class="prevalence-badge" style="background-color: ${prevalenceColor}">
+								${prevalenceDisplay}
+							</span>
+						</div>
+					</div>
+					<div class="info-row">
+						<div class="info-label">Age Group:</div>
+						<div class="info-value">${formatItalicText(props.ageGroup)}</div>
+					</div>
+					<div class="info-row">
+						<div class="info-label">Syndrome:</div>
+						<div class="info-value">${formatItalicText(props.syndrome)}</div>
+					</div>
+					<div class="info-row">
+						<div class="info-label">Location:</div>
+						<div class="info-value">${formatItalicText(props.location)}</div>
+					</div>
+					<div class="info-row">
+						<div class="info-label">Age Range:</div>
+						<div class="info-value">${formatItalicText(props.ageRange)}</div>
+					</div>
 				</div>
-				<div class="details-grid">
-					<div class="detail-row">
-						<span class="detail-label">Age Group:</span>
-						<span class="detail-value">${props.ageGroup}</span>
+
+				<div class="popup-section">
+					<div class="info-row">
+						<div class="info-label">Duration:</div>
+						<div class="info-value">${formatItalicText(props.duration)}</div>
 					</div>
-					<div class="detail-row">
-						<span class="detail-label">Syndrome:</span>
-						<span class="detail-value">${props.syndrome}</span>
+					<div class="info-row">
+						<div class="info-label">Design:</div>
+						<div class="info-value">${formatItalicText(props.design)}</div>
 					</div>
-					<div class="detail-row">
-						<span class="detail-label">District:</span>
-						<span class="detail-value">${props.district}</span>
-					</div>
-					<div class="detail-row">
-						<span class="detail-label">Sample Size:</span>
-						<span class="detail-value">${props.n}</span>
-					</div>
+				</div>
+
+				${props.footnote && props.footnote.trim() ? `
+				<div class="popup-footnote">
+					<small>${formatItalicText(props.footnote)}</small>
+				</div>
+				` : ''}
+
+				<div class="popup-footer">
+					<a href="${props.hyperlink}" target="_blank" class="source-link">
+						${props.source}
+						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+							<polyline points="15 3 21 3 21 9"></polyline>
+							<line x1="10" y1="14" x2="21" y2="3"></line>
+						</svg>
+					</a>
 				</div>
 			</div>
 			<style>
-				.study-point-content {
-					padding: 12px;
-				}
 				.back-button {
 					background: none;
 					border: none;
@@ -263,36 +314,81 @@
 				.back-button:hover {
 					text-decoration: underline;
 				}
-				.pathogen-title {
-					font-size: 16px;
-					font-weight: 600;
-					margin: 0 0 8px 0;
-				}
-				.prevalence-display {
-					margin-bottom: 12px;
-				}
-				.prevalence-value {
-					font-size: 14px;
-					font-weight: 600;
-					color: white;
-					padding: 4px 8px;
-					border-radius: 4px;
-				}
-				.details-grid {
-					display: flex;
-					flex-direction: column;
-					gap: 6px;
-				}
-				.detail-row {
+				.popup-title {
 					display: flex;
 					justify-content: space-between;
+					align-items: center;
+					margin: 0 0 10px 0;
+					padding-bottom: 8px;
+					border-bottom: 1px solid #eee;
+					font-size: 16px;
+					font-weight: 600;
+				}
+				.pathogen-name {
+					color: #333;
+				}
+				.pathogen-name em {
+					font-style: italic;
+					font-weight: 500;
+				}
+				.popup-subtitle {
+					font-size: 14px;
+					color: #666;
+					margin: -5px 0 10px 0;
+					font-style: italic;
+				}
+				.popup-footnote {
+					margin-top: 10px;
+					padding-top: 8px;
+					border-top: 1px solid #eee;
+					color: #666;
+					font-size: 12px;
+				}
+				.popup-footnote em {
+					font-style: italic;
+				}
+				.prevalence-badge {
+					display: inline-block;
+					padding: 2px 8px;
+					margin-right: 10px;
+					border-radius: 12px;
+					color: white;
+					font-size: 13px;
+					font-weight: 600;
+				}
+				.popup-section {
+					margin-bottom: 12px;
+				}
+				.info-row {
+					display: flex;
+					margin-bottom: 6px;
+					font-size: 14px;
+				}
+				.info-label {
+					flex: 0 0 100px;
+					font-weight: 500;
+					color: #666;
+				}
+				.info-value {
+					flex: 1;
+					color: #333;
+				}
+				.popup-footer {
+					padding-top: 8px;
+					margin-top: 8px;
+					border-top: 1px solid #eee;
 					font-size: 13px;
 				}
-				.detail-label {
-					color: #6b7280;
+				.source-link {
+					display: flex;
+					align-items: center;
+					gap: 4px;
+					color: #0066cc;
+					text-decoration: none;
+					font-size: 13px;
 				}
-				.detail-value {
-					font-weight: 500;
+				.source-link:hover {
+					text-decoration: underline;
 				}
 			</style>
 		`;
