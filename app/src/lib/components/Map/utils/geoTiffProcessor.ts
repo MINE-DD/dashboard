@@ -124,7 +124,9 @@ export function mercatorToLatLng(mercatorX: number, mercatorY: number): [number,
 
   // Clamp to valid lat/lng range
   const clampedLng = Math.max(-180, Math.min(180, lng));
-  const clampedLat = Math.max(-85.051129, Math.min(85.051129, lat));
+  // Web Mercator mathematically limits at ±85.051129°, but we'll allow up to ±90° for bounds
+  // to ensure click detection works at extreme latitudes
+  const clampedLat = Math.max(-90, Math.min(90, lat));
 
   return [clampedLng, clampedLat];
 }
@@ -138,7 +140,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
   // Initialize bounds with a default value to avoid null issues
   if (!bounds || bounds.length !== 4) {
     console.warn('GeoTIFF Processor: Missing or invalid bounds, using global bounds');
-    return [-180, -85, 180, 85]; // Use global bounds with latitude limits
+    return [-180, -90, 180, 90]; // Use full global bounds
   }
 
   // Check if projection is Web Mercator or if coordinates are outside WGS84 range
@@ -169,7 +171,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
 
   if (isWebMercatorGlobalBounds) {
     // console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84 bounds with latitude limits');
-    return [-180, -85, 180, 85]; // Use global bounds with latitude limits
+    return [-180, -90, 180, 90]; // Use full global bounds
   }
 
   // Check for invalid coordinates in WGS84
@@ -181,10 +183,10 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     bounds[3] < -90 || bounds[3] > 90     // north
   ) {
     // console.warn('GeoTIFF Processor: Invalid or out-of-range bounds, using global bounds:', bounds);
-    return [-180, -85, 180, 85]; // Use global bounds with latitude limits
+    return [-180, -90, 180, 90]; // Use full global bounds
   }
 
-  // For any bounds that are close to global, use slightly smaller bounds to avoid issues
+  // For any bounds that are close to global, use full global bounds
   const isNearGlobalBounds =
     Math.abs(bounds[0] + 180) < 10 &&
     Math.abs(bounds[1] + 90) < 10 &&
@@ -192,21 +194,23 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     Math.abs(bounds[3] - 90) < 10;
 
   if (isNearGlobalBounds) {
-    // console.log('GeoTIFF Processor: Bounds are close to global, using slightly smaller bounds');
-    return [-179.9, -89.9, 179.9, 89.9]; // Use slightly smaller bounds to avoid issues
+    // console.log('GeoTIFF Processor: Bounds are close to global, using full global bounds');
+    return [-180, -90, 180, 90]; // Use full global bounds for proper coverage
   }
 
   // For non-global bounds, check if latitudes are too extreme and limit them if needed
   let [west, south, east, north] = bounds;
 
-  // Limit extreme latitudes to avoid projection issues
-  if (north > 85) {
-    // console.log(`GeoTIFF Processor: Limiting north latitude from ${north} to 85`);
-    north = 85;
+  // Allow full latitude range for proper click detection
+  // Note: Web Mercator projection naturally limits at ±85.051129°,
+  // but we use ±90° for bounds to ensure clicks work everywhere
+  if (north > 90) {
+    // console.log(`GeoTIFF Processor: Limiting north latitude from ${north} to 90`);
+    north = 90;
   }
-  if (south < -85) {
-    // console.log(`GeoTIFF Processor: Limiting south latitude from ${south} to -85`);
-    south = -85;
+  if (south < -90) {
+    // console.log(`GeoTIFF Processor: Limiting south latitude from ${south} to -90`);
+    south = -90;
   }
 
   // console.log('GeoTIFF Processor: Using bounds:', [west, south, east, north]);
@@ -369,7 +373,7 @@ export async function loadAndProcessGeoTIFF(
     }
 
     // Initialize bounds with a default value to avoid null issues
-    let bounds = (metadata.bounds as number[]) || [-20, -35, 55, 40]; // Default to Africa if null
+    let bounds = (metadata.bounds as number[]) || [-180, -90, 180, 90]; // Default to global bounds if null
     // console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
 
     // Validate and adjust bounds, passing projection info

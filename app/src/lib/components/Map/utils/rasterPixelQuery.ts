@@ -67,13 +67,19 @@ export function findVisibleRasterLayerAtCoordinate(
   lng: number,
   lat: number
 ): RasterLayer | null {
+  console.log(`Finding raster layer at lng: ${lng}, lat: ${lat}`);
   for (const [, layer] of rasterLayers) {
     if (layer.isVisible && layer.bounds && !layer.isLoading && !layer.error) {
       const [west, south, east, north] = layer.bounds;
+      console.log(`Checking layer ${layer.name}: bounds [${west}, ${south}, ${east}, ${north}]`);
+      console.log(`  Longitude check: ${lng} >= ${west} && ${lng} <= ${east} = ${lng >= west && lng <= east}`);
+      console.log(`  Latitude check: ${lat} >= ${south} && ${lat} <= ${north} = ${lat >= south && lat <= north}`);
       if (lng >= west && lng <= east && lat >= south && lat <= north) {
+        console.log(`  -> Layer matches!`);
         return layer;
       }
     }
   }
+  console.log('No matching raster layer found');
   return null;
 }

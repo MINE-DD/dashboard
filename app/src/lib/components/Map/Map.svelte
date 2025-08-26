@@ -172,12 +172,21 @@
 		const clickCoordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
 		const currentRasterLayers = $rasterLayers;
 		
+		console.log('Available raster layers:', Array.from(currentRasterLayers.entries()).map(([id, layer]) => ({
+			id,
+			name: layer.name,
+			bounds: layer.bounds,
+			visible: layer.isVisible
+		})));
+		
 		// Find the visible raster layer at this coordinate
+		console.log('Checking for raster at coordinates:', clickCoordinates);
 		const visibleRasterLayer = findVisibleRasterLayerAtCoordinate(
 			currentRasterLayers,
 			clickCoordinates[0],
 			clickCoordinates[1]
 		);
+		console.log('Found visible raster layer:', visibleRasterLayer);
 
 		if (!visibleRasterLayer) {
 			isLoading.set(false);
@@ -273,7 +282,7 @@
 				heading: `${pathogen} Prevalence`,
 				subheading: 'Raster layer data',
 				pathogen: pathogen,
-				prevalenceValue: prevalencePercent,  // Direct raster value as percentage
+				prevalenceValue: prevalencePercent / 100,  // Convert from percentage (0-11) to decimal (0-0.11) for MapPopover
 				ageGroup: ageGroup || 'All ages',
 				ageRange: ageGroup || 'All ages',
 				syndrome: syndrome || 'Diarrhea',

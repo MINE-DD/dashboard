@@ -3,20 +3,20 @@ import type { FeatureCollection, Feature, Point } from 'geojson';
 
 // Design type color mapping (consistent with dots)
 const DESIGN_COLORS: { [key: string]: string } = {
-  'Surveillance': '#FFE5B490',               // Pastel Orange
-  'Surveillance_dark': '#7A4F0060',          // Even Darker Pastel Orange
-  'Intervention Trial': '#B7EFC590',         // Pastel Green
-  'Intervention Trial_dark': '#18513A60',    // Even Darker Pastel Green
-  'Case-Control': '#FFB3C690',               // Pastel Red
-  'Case-Control_dark': '#5A1E2960',          // Even Darker Pastel Red
-  'Cohort': '#9197FF90',                     // Pastel Blue
-  'Cohort_dark': '#10163A60',                // Even Darker Pastel Blue
-  'Cross-Sectional': '#E6B3FF90',            // Pastel Purple
-  'Cross-Sectional_dark': '#4A1A5C60',       // Dark Purple
-  'Other: Cohort': '#9197FF90',              // Same as Cohort
-  'Other: Cohort_dark': '#10163A60',         // Same as Cohort dark
-  'Other: Mixed Design': '#C0C0C090',        // Light Gray
-  'Other: Mixed Design_dark': '#40404060'    // Dark Gray
+  'Surveillance': '#FFE5B460',               // Pastel Orange
+  'Surveillance_dark': '#7A4F0090',          // Even Darker Pastel Orange
+  'Intervention Trial': '#B7EFC560',         // Pastel Green
+  'Intervention Trial_dark': '#18513A90',    // Even Darker Pastel Green
+  'Case-Control': '#FFB3C660',               // Pastel Red
+  'Case-Control_dark': '#ae292990',          // Even Darker Pastel Red
+  'Cohort': '#9197FF60',                     // Pastel Blue
+  'Cohort_dark': '#10163A90',                // Even Darker Pastel Blue
+  'Cross-Sectional': '#E6B3FF60',            // Pastel Purple
+  'Cross-Sectional_dark': '#4A1A5C90',       // Dark Purple
+  'Other: Cohort': '#9197FF60',              // Same as Cohort
+  'Other: Cohort_dark': '#10163A90',         // Same as Cohort dark
+  'Other: Mixed Design': '#C0C0C060',        // Light Gray
+  'Other: Mixed Design_dark': '#40404090'    // Dark Gray
 };
 
 const DEFAULT_COLOR = '#808080';

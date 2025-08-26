@@ -139,18 +139,30 @@
 			const props = feature.properties as PointProperties;
 			const prevalence = (props.prevalenceValue * 100).toFixed(1) + '%';
 			const color = getPrevalenceColor(props.prevalenceValue);
+			const designColor = getDesignColor(props.design);
 			
 			itemsHtml += `
 				<div class="multi-point-item" onclick="window.__multiPointPopover && window.__multiPointPopover.selectFeature(${index})" style="cursor: pointer;">
-					<div class="item-header">
-						<span class="pathogen-name">${formatDropdownText(props.pathogen)}</span>
-						<span class="prevalence-badge" style="background-color: ${color}">
-							${prevalence}
-						</span>
-					</div>
-					<div class="item-details">
-						<span class="detail-chip">${formatDropdownText(props.ageRange)}</span>
-						<span class="detail-chip">${formatDropdownText(props.syndrome)}</span>
+					<div class="item-container">
+						<div class="design-bar" style="background-color: ${designColor}"></div>
+						<div class="item-content">
+							<div class="item-header">
+								<div class="pathogen-info">
+									<span class="pathogen-name">${formatDropdownText(props.pathogen)}</span>
+									<div class="item-meta">
+										<span class="meta-text">${formatDropdownText(props.ageRange)}</span>
+										<span class="meta-separator">•</span>
+										<span class="meta-text">${formatDropdownText(props.syndrome)}</span>
+									</div>
+								</div>
+								<span class="prevalence-badge" style="background-color: ${color}">
+									${prevalence}
+								</span>
+							</div>
+							<div class="item-footer">
+								<span class="design-label">${formatDropdownText(props.design)}</span>
+							</div>
+						</div>
 					</div>
 				</div>
 			`;
@@ -168,16 +180,18 @@
 			</div>
 			<style>
 				.multi-point-menu {
-					padding: 4px;
+					padding: 0;
 				}
 				.menu-header {
-					padding: 8px 12px;
+					padding: 12px 14px;
+					background: #fafafa;
 					border-bottom: 1px solid #e5e7eb;
 				}
 				.menu-header h3 {
 					font-size: 14px;
 					font-weight: 600;
-					margin: 0 0 4px 0;
+					margin: 0 0 2px 0;
+					color: #1f2937;
 				}
 				.menu-header p {
 					font-size: 12px;
@@ -185,49 +199,98 @@
 					margin: 0;
 				}
 				.menu-items {
-					max-height: 300px;
+					max-height: 320px;
 					overflow-y: auto;
-					padding: 4px 0;
+					padding: 6px;
+					background: #ffffff;
+				}
+				.menu-items::-webkit-scrollbar {
+					width: 6px;
+				}
+				.menu-items::-webkit-scrollbar-track {
+					background: #f3f4f6;
+					border-radius: 3px;
+				}
+				.menu-items::-webkit-scrollbar-thumb {
+					background: #d1d5db;
+					border-radius: 3px;
+				}
+				.menu-items::-webkit-scrollbar-thumb:hover {
+					background: #9ca3af;
 				}
 				.multi-point-item {
-					padding: 8px 12px;
-					border-bottom: 1px solid #f3f4f6;
-					transition: background-color 0.2s;
+					margin-bottom: 4px;
+					border-radius: 6px;
+					overflow: hidden;
+					transition: background-color 0.15s ease;
+					background: #ffffff;
+					border: 1px solid #e5e7eb;
 				}
 				.multi-point-item:hover {
 					background-color: #f9fafb;
+					border-color: #d1d5db;
 				}
 				.multi-point-item:last-child {
-					border-bottom: none;
+					margin-bottom: 0;
+				}
+				.item-container {
+					display: flex;
+				}
+				.design-bar {
+					width: 3px;
+					flex-shrink: 0;
+				}
+				.item-content {
+					flex: 1;
+					padding: 8px 10px;
 				}
 				.item-header {
 					display: flex;
 					justify-content: space-between;
-					align-items: center;
+					align-items: flex-start;
 					margin-bottom: 4px;
+				}
+				.pathogen-info {
+					flex: 1;
 				}
 				.pathogen-name {
 					font-size: 13px;
-					font-weight: 500;
+					font-weight: 600;
+					color: #1f2937;
+					display: block;
+					margin-bottom: 2px;
+				}
+				.item-meta {
+					display: flex;
+					align-items: center;
+					gap: 4px;
+					font-size: 11px;
+					color: #6b7280;
+				}
+				.meta-text {
+					color: #6b7280;
+				}
+				.meta-separator {
+					color: #d1d5db;
+					font-size: 10px;
 				}
 				.prevalence-badge {
 					font-size: 11px;
 					font-weight: 600;
 					color: white;
 					padding: 2px 6px;
-					border-radius: 4px;
+					border-radius: 10px;
 				}
-				.item-details {
-					display: flex;
-					gap: 4px;
-					flex-wrap: wrap;
+				.item-footer {
+					padding-top: 4px;
+					border-top: 1px solid #f3f4f6;
 				}
-				.detail-chip {
-					font-size: 11px;
-					color: #6b7280;
-					background: #f3f4f6;
-					padding: 2px 6px;
-					border-radius: 3px;
+				.design-label {
+					font-size: 10px;
+					color: #9ca3af;
+					font-weight: 500;
+					text-transform: uppercase;
+					letter-spacing: 0.3px;
 				}
 			</style>
 		`;
@@ -276,8 +339,8 @@
 						</div>
 					</div>
 					<div class="info-row">
-						<div class="info-label">Age Group:</div>
-						<div class="info-value">${formatItalicText(props.ageGroup)}</div>
+						<div class="info-label">Age Range:</div>
+						<div class="info-value">${formatItalicText(props.ageRange)}</div>
 					</div>
 					<div class="info-row">
 						<div class="info-label">Syndrome:</div>
@@ -286,10 +349,6 @@
 					<div class="info-row">
 						<div class="info-label">Location:</div>
 						<div class="info-value">${formatItalicText(props.location)}</div>
-					</div>
-					<div class="info-row">
-						<div class="info-label">Age Range:</div>
-						<div class="info-value">${formatItalicText(props.ageRange)}</div>
 					</div>
 				</div>
 
@@ -300,7 +359,11 @@
 					</div>
 					<div class="info-row">
 						<div class="info-label">Design:</div>
-						<div class="info-value">${formatItalicText(props.design)}</div>
+						<div class="info-value">
+							<span class="design-chip" style="background-color: ${getDesignColor(props.design)}">
+								${formatItalicText(props.design)}
+							</span>
+						</div>
 					</div>
 				</div>
 
@@ -410,6 +473,14 @@
 				.source-link:hover {
 					text-decoration: underline;
 				}
+				.design-chip {
+					display: inline-block;
+					padding: 3px 8px;
+					border-radius: 4px;
+					color: #333;
+					font-size: 13px;
+					border: 1px solid rgba(0, 0, 0, 0.1);
+				}
 			</style>
 		`;
 	}
@@ -419,6 +490,20 @@
 		if (prevalence < 0.3) return '#ff7f00'; // Medium: orange
 		if (prevalence < 0.5) return '#E4581C'; // High: lighter red
 		return '#e41a1c'; // Very high: red
+	}
+
+	function getDesignColor(design: string): string {
+		// Design type color mapping (consistent with map dots)
+		const designColors: { [key: string]: string } = {
+			'Surveillance': '#FFE5B4',               // Pastel Orange
+			'Intervention Trial': '#B7EFC5',         // Pastel Green
+			'Case-Control': '#FFB3C6',               // Pastel Red
+			'Cohort': '#9197FF',                     // Pastel Blue
+			'Cross-Sectional': '#E6B3FF',            // Pastel Purple
+			'Other: Cohort': '#9197FF',              // Same as Cohort
+			'Other: Mixed Design': '#C0C0C0'         // Light Gray
+		};
+		return designColors[design] || '#C0C0C0'; // Default to gray if not found
 	}
 
 	onDestroy(() => {
