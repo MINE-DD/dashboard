@@ -55,8 +55,6 @@
 	}
 
 	function showMultiPointMenu() {
-		cleanup();
-		
 		if (!map || !coordinates || features.length === 0) return;
 
 		// Store handlers globally for inline onclick
@@ -67,47 +65,69 @@
 
 		const html = createMenuContent();
 		
-		popup = new maplibregl.Popup({
-			closeButton: true,
-			closeOnClick: false,
-			maxWidth: '320px',
-			className: 'multi-point-popup',
-			offset: 12
-		})
-			.setLngLat(coordinates)
-			.setHTML(html)
-			.addTo(map);
-
-		popup.on('close', () => {
-			cleanup();
-			dispatch('close');
-		});
+		// Create popup instance if it doesn't exist
+		if (!popup) {
+			popup = new maplibregl.Popup({
+				closeButton: true,
+				closeOnClick: false,
+				maxWidth: '320px',
+				className: 'multi-point-popup',
+				offset: 12
+			});
+			
+			popup.on('close', () => {
+				cleanup();
+				dispatch('close');
+			});
+			
+			popup
+				.setLngLat(coordinates)
+				.addTo(map);
+		}
+		
+		// Update popup content and ensure correct styling
+		popup.setHTML(html);
+		
+		// Update the popup's max width for menu view
+		const popupElement = popup.getElement();
+		if (popupElement) {
+			popupElement.querySelector('.maplibregl-popup-content')?.setAttribute('style', 'max-width: 320px');
+		}
 	}
 
 	function showDetailedView() {
-		if (popup) {
-			popup.remove();
-		}
-
 		if (!map || !coordinates || !selectedFeature) return;
 
 		const html = createDetailedContent(selectedFeature.properties as PointProperties);
 		
-		popup = new maplibregl.Popup({
-			closeButton: true,
-			closeOnClick: false,
-			maxWidth: '360px',
-			className: 'study-point-popup',
-			offset: 12
-		})
-			.setLngLat(coordinates)
-			.setHTML(html)
-			.addTo(map);
-
-		popup.on('close', () => {
-			cleanup();
-			dispatch('close');
-		});
+		// Update existing popup or create new one
+		if (!popup) {
+			popup = new maplibregl.Popup({
+				closeButton: true,
+				closeOnClick: false,
+				maxWidth: '360px',
+				className: 'study-point-popup',
+				offset: 12
+			});
+			
+			popup.on('close', () => {
+				cleanup();
+				dispatch('close');
+			});
+			
+			popup
+				.setLngLat(coordinates)
+				.addTo(map);
+		}
+		
+		// Update popup content and class
+		popup.setHTML(html);
+		
+		// Update the popup's max width for detailed view
+		const popupElement = popup.getElement();
+		if (popupElement) {
+			popupElement.querySelector('.maplibregl-popup-content')?.setAttribute('style', 'max-width: 360px');
+		}
 	}
 
 	function createMenuContent(): string {

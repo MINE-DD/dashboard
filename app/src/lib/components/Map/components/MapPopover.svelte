@@ -111,17 +111,18 @@
 		}
 		// Prevalence value is now a decimal (0.0-1.0) from the PREV column
 		// Convert to percentage for display
-		const prevalencePercent = typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue) 
-			? props.prevalenceValue * 100
-			: 0;
+		const prevalencePercent =
+			typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue)
+				? props.prevalenceValue * 100
+				: 0;
 		const prevalenceDisplay = prevalencePercent.toFixed(2) + '%';
 
 		// Determine prevalence color based on decimal value
 		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);
-		
+
 		// Format pathogen name with italic support
 		const pathogenFormatted = formatItalicText(props.pathogen);
-		
+
 		// Use heading as title (with italic formatting)
 		const title = formatItalicText(props.heading);
 		const subtitle = formatItalicText(props.subheading);
@@ -177,11 +178,15 @@
           </div>
         </div>
 
-        ${props.footnote && props.footnote.trim() ? `
+        ${
+					props.footnote && props.footnote.trim()
+						? `
         <div class="popup-footnote">
           <small>${formatItalicText(props.footnote)}</small>
         </div>
-        ` : ''}
+        `
+						: ''
+				}
 
         <div class="popup-footer">
           <a href="${props.hyperlink}" target="_blank" class="source-link">
@@ -214,7 +219,7 @@
 	}
 
 	:global(.study-point-popup .maplibregl-popup-content) {
-		padding: 15px;
+		padding: 56px;
 		border-radius: 8px;
 		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 	}
@@ -239,19 +244,19 @@
 	:global(.pathogen-name) {
 		color: #333;
 	}
-	
+
 	:global(.pathogen-name em) {
 		font-style: italic;
 		font-weight: 500;
 	}
-	
+
 	:global(.popup-subtitle) {
 		font-size: 14px;
 		color: #666;
 		margin: -5px 0 10px 0;
 		font-style: italic;
 	}
-	
+
 	:global(.popup-footnote) {
 		margin-top: 10px;
 		padding-top: 8px;
@@ -259,7 +264,7 @@
 		color: #666;
 		font-size: 12px;
 	}
-	
+
 	:global(.popup-footnote em) {
 		font-style: italic;
 	}
