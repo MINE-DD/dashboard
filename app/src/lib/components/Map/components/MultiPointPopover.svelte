@@ -88,10 +88,13 @@
 		// Update popup content and ensure correct styling
 		popup.setHTML(html);
 		
-		// Update the popup's max width for menu view
+		// Update the popup's max width and styling for menu view
 		const popupElement = popup.getElement();
 		if (popupElement) {
-			popupElement.querySelector('.maplibregl-popup-content')?.setAttribute('style', 'max-width: 320px');
+			const content = popupElement.querySelector('.maplibregl-popup-content');
+			if (content) {
+				content.setAttribute('style', 'max-width: 320px; padding: 0; border-radius: 8px; overflow: hidden;');
+			}
 		}
 	}
 
@@ -123,10 +126,13 @@
 		// Update popup content and class
 		popup.setHTML(html);
 		
-		// Update the popup's max width for detailed view
+		// Update the popup's max width and styling for detailed view
 		const popupElement = popup.getElement();
 		if (popupElement) {
-			popupElement.querySelector('.maplibregl-popup-content')?.setAttribute('style', 'max-width: 360px');
+			const content = popupElement.querySelector('.maplibregl-popup-content');
+			if (content) {
+				content.setAttribute('style', 'max-width: 360px; padding: 15px; border-radius: 8px;');
+			}
 		}
 	}
 
@@ -182,6 +188,8 @@
 			<style>
 				.multi-point-menu {
 					padding: 0;
+					border-radius: 8px;
+					overflow: hidden;
 				}
 				.menu-header {
 					padding: 12px 14px;
@@ -202,7 +210,7 @@
 				.menu-items {
 					max-height: 320px;
 					overflow-y: auto;
-					padding: 6px;
+					padding: 8px;
 					background: #ffffff;
 				}
 				.menu-items::-webkit-scrollbar {
@@ -220,7 +228,7 @@
 					background: #9ca3af;
 				}
 				.multi-point-item {
-					margin-bottom: 4px;
+					margin-bottom: 6px;
 					border-radius: 6px;
 					overflow: hidden;
 					transition: background-color 0.15s ease;
@@ -243,7 +251,7 @@
 				}
 				.item-content {
 					flex: 1;
-					padding: 8px 10px;
+					padding: 10px 12px;
 				}
 				.item-header {
 					display: flex;

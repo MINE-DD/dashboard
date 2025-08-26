@@ -45,9 +45,6 @@
 	export let initialZoom: number = 2; // Default zoom level
 	export let initialStyleId: string | null = null; // Optional style ID to use
 
-	// Define a constant for the data URL to ensure consistency
-	export let pointDataUrl: string = 'data/01_Points/2025-07-31_Plan-EO_Dashboard_point_data.csv';
-
 	// Track the global opacity value for raster layers
 	let globalOpacity = 80; // Default to 80%
 

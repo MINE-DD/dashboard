@@ -5,67 +5,60 @@ import { parseUrlFilters } from './urlParams';
 import { loadPointsData } from '../store';
 import { dataUpdateDate } from '$lib/stores/data.store';
 
-// Use Vite's glob import to get all CSV files at build time
-// The eager: false means files won't be loaded until needed
-const dataFiles = import.meta.glob('/static/data/01_Points/*_Plan-EO_Dashboard_point_data.csv', { 
-  eager: false,
-  as: 'url'
-});
+// Get R2 base URL from environment
+const R2_BASE_URL = import.meta.env.VITE_R2_POINTS_BASE_URL || 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/01_Points';
 
 /**
- * Get the main CSV data file path
+ * Get the main CSV data file path from R2 storage
  * The file uses semicolon (;) as delimiter and contains pathogen prevalence data.
  * Note: Some pathogen names include markdown-style formatting (__name__) 
  * for italic rendering of genus names (e.g., __Campylobacter__, __E. coli__).
  * Files follow pattern: YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv
  */
 async function getLatestDataFile(): Promise<string> {
-  // Get all file paths from the glob import
-  const filePaths = Object.keys(dataFiles);
-  
-  if (filePaths.length === 0) {
-    console.error('No data files found in /static/data/01_Points/');
-    // Fallback to a known file
-    const fallbackFile = 'data/01_Points/2025-12-19_Plan-EO_Dashboard_point_data.csv';
-    dataUpdateDate.set('2025-12-19');
-    return fallbackFile;
+  try {
+    // Fetch the list of available files from our API endpoint
+    const response = await fetch('/api/r2-files');
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch file list from R2');
+    }
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    if (!data.files || data.files.length === 0) {
+      console.error('No data files found in R2 bucket');
+      // Fallback to a known file URL
+      const fallbackUrl = `${R2_BASE_URL}/2025-07-31_Plan-EO_Dashboard_point_data.csv`;
+      dataUpdateDate.set('2025-07-31');
+      return fallbackUrl;
+    }
+    
+    // Use the most recent file (already sorted by the API)
+    const latestFile = data.files[0];
+    dataUpdateDate.set(latestFile.date);
+    
+    console.log(`Loading data from R2: ${latestFile.fileName} (Date: ${latestFile.date})`);
+    console.log(`Found ${data.files.length} data files in R2, using the most recent one`);
+    
+    return latestFile.url;
+    
+  } catch (error) {
+    console.error('Error fetching R2 file list:', error);
+    // Fallback to a known file URL
+    const fallbackUrl = `${R2_BASE_URL}/2025-07-31_Plan-EO_Dashboard_point_data.csv`;
+    dataUpdateDate.set('2025-07-31');
+    console.log('Using fallback R2 URL:', fallbackUrl);
+    return fallbackUrl;
   }
-  
-  // Extract filenames and sort by date (newest first)
-  const sortedFiles = filePaths
-    .map(path => {
-      // Extract filename from path
-      const filename = path.split('/').pop() || '';
-      // Extract date from filename
-      const dateMatch = filename.match(/^(\d{4}-\d{2}-\d{2})/);
-      return {
-        path: path.replace('/static/', ''), // Remove /static/ prefix for fetch
-        filename,
-        date: dateMatch ? dateMatch[1] : ''
-      };
-    })
-    .filter(file => file.date) // Only keep files with valid dates
-    .sort((a, b) => b.date.localeCompare(a.date)); // Sort by date descending
-  
-  if (sortedFiles.length === 0) {
-    console.error('No valid data files found with date pattern');
-    const fallbackFile = 'data/01_Points/2025-12-19_Plan-EO_Dashboard_point_data.csv';
-    dataUpdateDate.set('2025-12-19');
-    return fallbackFile;
-  }
-  
-  // Use the most recent file
-  const latestFile = sortedFiles[0];
-  dataUpdateDate.set(latestFile.date);
-  
-  console.log(`Loading data from: ${latestFile.filename} (Date: ${latestFile.date})`);
-  console.log(`Found ${sortedFiles.length} data files, using the most recent one`);
-  
-  return latestFile.path;
 }
 
 // Export for consistency across the app
-export let POINTS_DATA_URL = 'data/01_Points/2025-08-19_Plan-EO_Dashboard_point_data.csv';
+export let POINTS_DATA_URL = `${R2_BASE_URL}/2025-07-31_Plan-EO_Dashboard_point_data.csv`;
 
 /**
  * Preload data before map initialization

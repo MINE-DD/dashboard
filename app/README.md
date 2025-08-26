@@ -78,7 +78,8 @@ Choose from multiple professionally designed map styles:
 
 ### 📊 Data Management
 
-- **Dynamic CSV data loading** from structured file system
+- **Cloud-based data storage** using Cloudflare R2 object storage
+- **Dynamic CSV data loading** from R2 bucket
 - **Automatic data updates** with timestamped files
 - **Italic text formatting** for scientific names
 - **Comprehensive metadata** for each data point
@@ -102,6 +103,7 @@ Choose from multiple professionally designed map styles:
 | **Authentication** | Auth.js (custom system) |
 | **Data Processing** | PapaParse, GeoTIFF.js |
 | **State Management** | Svelte Stores (Runes) |
+| **Cloud Storage** | Cloudflare R2 |
 
 ## 📋 System Requirements
 
@@ -145,6 +147,9 @@ VITE_MAPTILER_KEY=your_maptiler_api_key
 
 # TiTiler Configuration (optional, for advanced raster processing)
 VITE_TITILER_ENDPOINT=http://localhost:8000
+
+# R2 Storage Configuration
+VITE_R2_POINTS_BASE_URL=https://your-bucket.r2.dev/01_Points
 
 # Authentication (if using auth features)
 AUTH_SECRET=your-secret-key
@@ -209,9 +214,7 @@ src/
 │   └── about/+page.svelte                # About page
 └── static/
     └── data/
-        ├── 01_Points/                     # CSV data files
-        │   └── YYYY-MM-DD_*.csv          # Timestamped data
-        └── cogs/                          # Raster layer files
+        └── cogs/                          # Raster layer files (migrating to R2)
             └── *.tif                      # GeoTIFF files
 ```
 
@@ -219,8 +222,10 @@ src/
 
 ### CSV Data Structure
 
-Data files are stored in `/static/data/01_Points/` with the naming pattern:
+Data files are stored in Cloudflare R2 at `01_Points/` with the naming pattern:
 `YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv`
+
+The application automatically fetches the latest available CSV file from R2 storage.
 
 **Important Notes:**
 - CSV files use **semicolon (`;`)** as delimiter
