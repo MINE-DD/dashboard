@@ -109,15 +109,15 @@
 			console.error('MapPopover: No properties provided!');
 			return '<div class="popup-content">No data available</div>';
 		}
-		// Prevalence value is already a percentage from the CSV
-		// Ensure it's a valid number and round to 2 decimal places
+		// Prevalence value is now a decimal (0.0-1.0) from the PREV column
+		// Convert to percentage for display
 		const prevalencePercent = typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue) 
-			? props.prevalenceValue 
+			? props.prevalenceValue * 100
 			: 0;
 		const prevalenceDisplay = prevalencePercent.toFixed(2) + '%';
 
-		// Determine prevalence color based on value (convert to decimal for color function)
-		const prevalenceColor = getPrevalenceColor(props.prevalenceValue / 100);
+		// Determine prevalence color based on decimal value
+		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);
 		
 		// Format pathogen name with italic support
 		const pathogenFormatted = formatItalicText(props.pathogen);

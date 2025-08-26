@@ -59,8 +59,8 @@ export function convertCsvToGeoJson(csvData: PointDataRow[]): PointFeatureCollec
           hyperlink: row.Hyperlink || '',
           cases: parseInt(row.CASES) || 0,
           samples: parseInt(row.SAMPLES) || 0,
-          // Parse prevalence value from string like "42.4 (39.2, 45.6)"
-          prevalenceValue: row.Prevalence ? parseFloat(row.Prevalence.split(' ')[0]) || 0 : 0,
+          // Use PREV column which contains decimal values (0.0-1.0)
+          prevalenceValue: parseFloat(row.PREV) || 0,
           standardError: parseFloat(row.SE) || 0
         }
       };

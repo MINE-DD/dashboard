@@ -136,31 +136,25 @@ export function createPieChartImage(
   const darkenBaseColor = DESIGN_COLORS[design + '_dark'] || DEFAULT_COLOR;
 
   // Convert prevalence to fraction
-  // If prevalenceValue is a decimal (0.0-1.0), use it directly
-  // If prevalenceValue is a percentage (0-100), divide by 100
-  let prevalenceFraction: number;
-
-  if (prevalenceValue <= 1) {
-    // Assume it's already a decimal fraction (0.0-1.0)
-    prevalenceFraction = Math.max(0, Math.min(1, prevalenceValue));
-  } else {
-    // Assume it's a percentage (0-100), convert to fraction
-    prevalenceFraction = Math.max(0, Math.min(100, prevalenceValue)) / 100;
-  }
+  // The prevalenceValue from CSV is always a decimal (0.0-1.0), so use it directly
+  // No need for conditional logic as all values are consistently in decimal format
+  const prevalenceFraction = Math.max(0, Math.min(1, prevalenceValue));
 
   // Define angles
   const startAngle = -Math.PI / 2; // Start at top
   const prevalenceEndAngle = startAngle + 2 * Math.PI * prevalenceFraction;
 
-  // First, draw the complete background circle (non-prevalence)
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-  ctx.closePath();
-  ctx.fillStyle = baseColor;
-  ctx.fill();
+  // Draw the non-prevalence segment (the larger, lighter portion)
+  if (prevalenceFraction < 1) {
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.arc(centerX, centerY, radius, prevalenceEndAngle, startAngle + 2 * Math.PI);
+    ctx.closePath();
+    ctx.fillStyle = baseColor;
+    ctx.fill();
+  }
 
-  // Then, draw the prevalence segment on top (if any prevalence exists)
+  // Draw the prevalence segment (the smaller, darker portion)
   if (prevalenceFraction > 0) {
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
