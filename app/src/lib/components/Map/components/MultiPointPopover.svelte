@@ -148,6 +148,7 @@
 						<div class="item-content">
 							<div class="item-header">
 								<div class="pathogen-info">
+									${props.heading ? `<span class="study-heading">${formatDropdownText(props.heading)}</span>` : `<span class="study-heading">${formatDropdownText(props.pathogen)}</span>`}
 									<span class="pathogen-name">${formatDropdownText(props.pathogen)}</span>
 									<div class="item-meta">
 										<span class="meta-text">${formatDropdownText(props.ageRange)}</span>
@@ -253,12 +254,20 @@
 				.pathogen-info {
 					flex: 1;
 				}
-				.pathogen-name {
+				.study-heading {
 					font-size: 13px;
 					font-weight: 600;
 					color: #1f2937;
 					display: block;
 					margin-bottom: 2px;
+					line-height: 1.3;
+				}
+				.pathogen-name {
+					font-size: 11px;
+					color: #6b7280;
+					display: block;
+					margin-bottom: 3px;
+					font-style: italic;
 				}
 				.item-meta {
 					display: flex;
