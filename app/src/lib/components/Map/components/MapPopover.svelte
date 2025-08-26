@@ -170,7 +170,10 @@
           </div>
           <div class="info-row">
             <div class="info-label">Design:</div>
-            <div class="info-value">${formatItalicText(props.design)}</div>
+            <div class="info-value">
+              <span class="design-indicator-inline" style="background-color: ${getDesignColor(props.design)}"></span>
+              ${formatItalicText(props.design)}
+            </div>
           </div>
         </div>
 
@@ -204,6 +207,21 @@
 		if (prevalence < 0.3) return '#ff7f00'; // Medium: orange
 		if (prevalence < 0.5) return '#E4581C'; // High: lighter red
 		return '#e41a1c'; // Very high: red
+	}
+	
+	// Helper function to get design color
+	function getDesignColor(design: string): string {
+		// Design type color mapping (consistent with map dots)
+		const designColors: { [key: string]: string } = {
+			'Surveillance': '#FFE5B4',               // Pastel Orange
+			'Intervention Trial': '#B7EFC5',         // Pastel Green
+			'Case-Control': '#FFB3C6',               // Pastel Red
+			'Cohort': '#9197FF',                     // Pastel Blue
+			'Cross-Sectional': '#E6B3FF',            // Pastel Purple
+			'Other: Cohort': '#9197FF',              // Same as Cohort
+			'Other: Mixed Design': '#C0C0C0'         // Light Gray
+		};
+		return designColors[design] || '#C0C0C0'; // Default to gray if not found
 	}
 </script>
 
@@ -314,5 +332,14 @@
 
 	:global(.source-link:hover) {
 		text-decoration: underline;
+	}
+	
+	:global(.design-indicator-inline) {
+		display: inline-block;
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		margin-right: 6px;
+		border: 1px solid rgba(0, 0, 0, 0.2);
 	}
 </style>

@@ -312,6 +312,9 @@
 		// Use heading as title (with italic formatting)
 		const title = formatItalicText(props.heading);
 		const subtitle = formatItalicText(props.subheading);
+		
+		// Get design color
+		const designColor = getDesignColor(props.design);
 
 		return `
 			<div class="popup-content">
@@ -360,9 +363,8 @@
 					<div class="info-row">
 						<div class="info-label">Design:</div>
 						<div class="info-value">
-							<span class="design-chip" style="background-color: ${getDesignColor(props.design)}">
-								${formatItalicText(props.design)}
-							</span>
+							<span class="design-indicator-inline" style="background-color: ${designColor}"></span>
+							${formatItalicText(props.design)}
 						</div>
 					</div>
 				</div>
@@ -455,6 +457,8 @@
 				.info-value {
 					flex: 1;
 					color: #333;
+					display: flex;
+					align-items: center;
 				}
 				.popup-footer {
 					padding-top: 8px;
@@ -473,13 +477,13 @@
 				.source-link:hover {
 					text-decoration: underline;
 				}
-				.design-chip {
+				.design-indicator-inline {
 					display: inline-block;
-					padding: 3px 8px;
-					border-radius: 4px;
-					color: #333;
-					font-size: 13px;
-					border: 1px solid rgba(0, 0, 0, 0.1);
+					width: 10px;
+					height: 10px;
+					border-radius: 50%;
+					margin-right: 6px;
+					border: 1px solid rgba(0, 0, 0, 0.2);
 				}
 			</style>
 		`;
