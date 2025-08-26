@@ -70,8 +70,17 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       skipEmptyLines: true,
       delimiter: delimiter,
       quoteChar: '"',
-      dynamicTyping: true, // Convert numerical values
+      dynamicTyping: false, // Keep all values as strings initially
       transform: (value, field) => {
+        // Manually convert numeric fields to numbers
+        const numericFields = ['CASES', 'SAMPLES', 'PREV', 'SE', 'SITE_LAT', 'SITE_LON'];
+        
+        if (typeof field === 'string' && numericFields.includes(field)) {
+          // Convert numeric fields to numbers
+          const num = parseFloat(value as string);
+          return isNaN(num) ? value : num;
+        }
+        
         if (typeof value === 'string') {
           // Keep markdown formatting for display purposes
           // The __ markers will be converted to italics in the UI
@@ -128,8 +137,9 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
 
           // Extract age group VAL and create mappings
           if (row.AGE_VAL && row.AGE_LAB) {
-            const val = row.AGE_VAL as string;
-            const lab = row.AGE_LAB as string;
+            // Ensure values are strings
+            const val = String(row.AGE_VAL);
+            const lab = String(row.AGE_LAB);
             ageGroupValSet.add(val);
             ageValToLab.set(val, lab);
             ageLabToVal.set(lab, val);
@@ -137,8 +147,9 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
 
           // Extract syndrome VAL and create mappings
           if (row.SYNDROME_VAL && row.SYNDROME_LAB) {
-            const val = row.SYNDROME_VAL as string;
-            const lab = row.SYNDROME_LAB as string;
+            // Ensure values are strings
+            const val = String(row.SYNDROME_VAL);
+            const lab = String(row.SYNDROME_LAB);
             syndromeValSet.add(val);
             synValToLab.set(val, lab);
             synLabToVal.set(lab, val);
@@ -149,16 +160,23 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       // Sort VAL values based on their numeric prefix
       const sortValSet = (valSet: Set<string>): string[] => {
         return Array.from(valSet).sort((a, b) => {
+          // Ensure values are strings before processing
+          const strA = String(a);
+          const strB = String(b);
+          
           // Extract numeric prefix if present (e.g., "01" from "01_Age_PSAC")
-          const numA = parseInt(a.split('_')[0]) || 999;
-          const numB = parseInt(b.split('_')[0]) || 999;
+          const partsA = strA.includes('_') ? strA.split('_') : [strA];
+          const partsB = strB.includes('_') ? strB.split('_') : [strB];
+          
+          const numA = parseInt(partsA[0]) || 999;
+          const numB = parseInt(partsB[0]) || 999;
           
           if (numA !== numB) {
             return numA - numB;
           }
           
           // If numbers are equal or not present, sort alphabetically
-          return a.localeCompare(b);
+          return strA.localeCompare(strB);
         });
       };
       

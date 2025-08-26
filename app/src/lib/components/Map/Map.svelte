@@ -36,7 +36,9 @@
 	import MapSidebar from './components/MapSidebar.svelte';
 	import MapPopover from './components/MapPopover.svelte';
 	import MapLegend from './components/MapLegend.svelte';
+	import MultiPointPopover from './components/MultiPointPopover.svelte';
 	import type { VisualizationType } from './store/types';
+	import { detectOverlappingFeatures } from './utils/overlapDetection';
 
 	// Props that can be passed to the component
 	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
@@ -60,6 +62,10 @@
 	let showPopover = false;
 	let popoverCoordinates: [number, number] | null = null;
 	let popoverProperties: any = null;
+	
+	// Multi-point popover state
+	let showMultiPointPopover = false;
+	let multiPointFeatures: maplibregl.MapGeoJSONFeature[] = [];
 
 
 	// Handle map ready event
@@ -293,10 +299,29 @@
 	function handlePointClick(event: CustomEvent) {
 		console.log('Map.svelte: handlePointClick called with:', event.detail);
 		showPopover = false;
+		showMultiPointPopover = false;
 		popoverCoordinates = null;
 		popoverProperties = null;
+		multiPointFeatures = [];
 
 		const { coordinates, properties } = event.detail;
+		
+		// Check if there are multiple features at this location
+		if (map) {
+			const clickPoint = map.project(coordinates);
+			const overlappingFeatures = detectOverlappingFeatures(map, coordinates, clickPoint);
+			
+			if (overlappingFeatures.length > 1) {
+				// Multiple points at this location - show selection menu
+				console.log(`Found ${overlappingFeatures.length} overlapping features`);
+				popoverCoordinates = coordinates;
+				multiPointFeatures = overlappingFeatures;
+				showMultiPointPopover = true;
+				return;
+			}
+		}
+		
+		// Single point - show regular popover
 		console.log('Extracted properties:', properties);
 		popoverCoordinates = coordinates;
 		popoverProperties = properties;
@@ -415,16 +440,29 @@
 		/>
 	</div>
 
-	{#if map && showPopover && popoverCoordinates && popoverProperties}
-		<MapPopover
-			{map}
-			coordinates={popoverCoordinates}
-			properties={popoverProperties}
-			visible={showPopover}
-			on:close={() => {
-				showPopover = false;
-			}}
-		/>
+	{#if map && popoverCoordinates}
+		{#if showMultiPointPopover && multiPointFeatures.length > 0}
+			<MultiPointPopover
+				{map}
+				coordinates={popoverCoordinates}
+				features={multiPointFeatures}
+				visible={showMultiPointPopover}
+				on:close={() => {
+					showMultiPointPopover = false;
+					multiPointFeatures = [];
+				}}
+			/>
+		{:else if showPopover && popoverProperties}
+			<MapPopover
+				{map}
+				coordinates={popoverCoordinates}
+				properties={popoverProperties}
+				visible={showPopover}
+				on:close={() => {
+					showPopover = false;
+				}}
+			/>
+		{/if}
 	{/if}
 
 	{#if map && isStyleLoaded && $filteredPointsData.features.length > 0}
