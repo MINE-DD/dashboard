@@ -257,6 +257,26 @@ Scientific names use double underscores for italic rendering:
 - **Reset View**: Double-click on map
 - **3D Tilt**: Right-click and drag (when 3D bars selected)
 
+### Interactive Data Points
+
+#### Single Point Interaction
+- **Click** on any data point to view detailed information including:
+  - Pathogen name and prevalence percentage
+  - Age group and syndrome information
+  - Study location and duration
+  - Study design type
+  - Source publication with direct link
+
+#### Overlapping Points (Pie Chart Mode)
+When pie charts visually overlap on the map:
+- **Automatic Detection**: The system detects when pie charts overlap by at least 5 pixels
+- **Selection Menu**: A popup menu lists all overlapping data points
+- **Quick Preview**: Each item shows pathogen, prevalence, age range, and syndrome
+- **Detailed View**: Click any item to see complete study information
+- **Navigation**: Use "Back to list" button to return to the selection menu
+
+This feature ensures easy access to all data even in densely populated regions where multiple studies overlap geographically.
+
 ### Using Filters
 
 1. **Single Selection**: Use dropdown to select one item per category
