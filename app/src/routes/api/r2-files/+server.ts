@@ -34,8 +34,13 @@ export const GET: RequestHandler = async () => {
     }
     
     // Also add some historical dates we know might exist
-    const historicalDates = ['2025-07-31', '2025-06-30', '2025-05-31'];
-    datesToCheck.push(...historicalDates);
+    const historicalDates = ['2025-08-25', '2025-07-31', '2025-06-30', '2025-05-31'];
+    // Add historical dates if they're not already in the list
+    historicalDates.forEach(date => {
+      if (!datesToCheck.includes(date)) {
+        datesToCheck.push(date);
+      }
+    });
     
     // Check files in batches to avoid too many concurrent requests
     const existingFiles: any[] = [];
