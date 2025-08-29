@@ -122,7 +122,8 @@ export function createPieChartImage(
   design: string
 ): string {
   const canvas = document.createElement('canvas');
-  const size = Math.max(20, Math.min(60, Math.sqrt(samples) * 3)); // Scale size based on samples
+  // Optimized for 10-50,000 sample range: maps log10(10)=1 to log10(50000)=4.7 into 20-100px range
+  const size = Math.max(20, Math.min(100, 20 * Math.log10(samples + 1))); // ~20px at 10 samples, ~94px at 50k samples
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
@@ -173,7 +174,7 @@ export function createPieChartImage(
   // Add a subtle border to make the pie chart more defined
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+  ctx.strokeStyle = 'rgba(128, 128, 128, 0.2)'; // 50% gray with 50% opacity
   ctx.lineWidth = 1;
   ctx.stroke();
 

@@ -6,8 +6,8 @@ import type { MapGeoJSONFeature } from 'maplibre-gl';
  * This mirrors the logic in pieChartUtils.ts
  */
 function getPieChartRadius(samples: number): number {
-  // Size calculation from pieChartUtils: Math.max(20, Math.min(60, Math.sqrt(samples) * 3))
-  const size = Math.max(20, Math.min(60, Math.sqrt(samples) * 3));
+  // Size calculation from pieChartUtils: optimized for 10-50,000 sample range
+  const size = Math.max(20, Math.min(100, 20 * Math.log10(samples + 1))); // ~20px at 10 samples, ~94px at 50k samples
   return size / 2; // Return radius, not diameter
 }
 
@@ -28,7 +28,7 @@ export function detectOverlappingFeatures(
   const layers = ['points-layer', 'pie-charts', '3d-bars-layer'];
   
   // Use a larger buffer for pie charts to catch overlapping ones
-  const buffer = 60; // Maximum pie chart radius
+  const buffer = 100; // Maximum pie chart radius (updated for larger max size)
   
   const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
     [clickPoint.x - buffer, clickPoint.y - buffer],
