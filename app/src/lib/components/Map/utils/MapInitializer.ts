@@ -4,7 +4,10 @@ import type { MapStyle } from '../MapStyles';
 import { parseUrlFilters } from './urlParams';
 import { loadPointsData } from '../store';
 import { dataUpdateDate } from '$lib/stores/data.store';
-import { getLatestDataFromManifest } from '$lib/utils/dataManifest';
+import { latestDataDate, latestDataFile } from '$lib/generated/dataManifest';
+
+// Get R2 base URL from environment
+const R2_BASE_URL = import.meta.env.VITE_R2_POINTS_BASE_URL || 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/01_Points';
 
 /**
  * Get the main CSV data file path from R2 storage
@@ -14,9 +17,10 @@ import { getLatestDataFromManifest } from '$lib/utils/dataManifest';
  * Files follow pattern: YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv
  */
 async function getLatestDataFile(): Promise<string> {
-  // Use data from build-time manifest
-  const { url, date } = await getLatestDataFromManifest();
-  dataUpdateDate.set(date);
+  // Use embedded manifest data from build time
+  dataUpdateDate.set(latestDataDate);
+  const url = `${R2_BASE_URL}/${latestDataFile}`;
+  console.log(`Using data file: ${latestDataFile} (${latestDataDate})`);
   return url;
 }
 

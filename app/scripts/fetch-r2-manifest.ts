@@ -213,4 +213,7 @@ function writeManifest(manifest: any) {
 }
 
 // Run the script
-fetchR2Manifest();
+fetchR2Manifest().then(() => {
+  // Generate the TypeScript module after manifest is created
+  import('./generate-manifest-module.ts');
+});

@@ -3,9 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "predev": "bun run scripts/fetch-r2-manifest.ts",
+    "fetch-manifest": "bun run scripts/fetch-r2-manifest.ts && bun run scripts/generate-manifest-module.ts",
+    "predev": "bun run fetch-manifest",
     "dev": "vite dev",
-    "prebuild": "bun run scripts/fetch-r2-manifest.ts",
+    "prebuild": "bun run fetch-manifest",
     "build": "vite build",
     "preview": "vite preview",
     "start": "bun run build/index.js",
