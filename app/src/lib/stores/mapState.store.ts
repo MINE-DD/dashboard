@@ -98,9 +98,13 @@ function setMapReady(ready: boolean) {
   console.log('Setting map ready:', ready);
   mapIsReady.set(ready);
   
-  // Check if we should initialize
+  // Check if we should initialize with a small delay to ensure everything is ready
   if (ready) {
-    checkAndInitialize();
+    // Use setTimeout to ensure this happens after the current execution stack
+    setTimeout(() => {
+      console.log('Delayed initialization check after map ready');
+      checkAndInitialize();
+    }, 100);
   }
 }
 
@@ -133,8 +137,12 @@ export function resetMapState() {
   mapError.set(null);
 }
 
+// Track retry attempts
+let initializationRetryCount = 0;
+const MAX_INITIALIZATION_RETRIES = 3;
+
 // Centralized initialization check
-export async function checkAndInitialize() {
+export async function checkAndInitialize(isRetry = false) {
   const map = get(mapInstance);
   const ready = get(mapIsReady);
   const hasData = get(filteredPointsData)?.features?.length > 0;
@@ -148,7 +156,9 @@ export async function checkAndInitialize() {
     hasData,
     pointsAdded,
     state,
-    vizType
+    vizType,
+    isRetry,
+    retryCount: initializationRetryCount
   });
   
   // Check if all conditions are met
@@ -163,8 +173,31 @@ export async function checkAndInitialize() {
     if (success) {
       initializationState.set('ready');
       pointsAddedToMap.set(true);
+      initializationRetryCount = 0; // Reset retry count on success
     } else {
       initializationState.set('error');
+      
+      // Retry if we haven't exceeded max retries
+      if (!isRetry && initializationRetryCount < MAX_INITIALIZATION_RETRIES) {
+        initializationRetryCount++;
+        console.log(`Initialization failed, retrying (attempt ${initializationRetryCount}/${MAX_INITIALIZATION_RETRIES})...`);
+        
+        // Reset state and retry after a delay
+        setTimeout(() => {
+          initializationState.set('idle');
+          checkAndInitialize(true);
+        }, 500 * initializationRetryCount); // Exponential backoff
+      }
+    }
+  } else if (ready && hasData && !pointsAdded && initializationRetryCount < MAX_INITIALIZATION_RETRIES) {
+    // If conditions aren't met but we should have points, schedule a retry
+    if (!isRetry) {
+      initializationRetryCount++;
+      console.log(`Conditions not met, scheduling retry (attempt ${initializationRetryCount}/${MAX_INITIALIZATION_RETRIES})...`);
+      
+      setTimeout(() => {
+        checkAndInitialize(true);
+      }, 500 * initializationRetryCount);
     }
   }
 }
@@ -295,7 +328,10 @@ filteredPointsData.subscribe((data) => {
     if (!pointsAdded && ready) {
       // First load or reinitialization needed
       console.log('Data available, checking initialization...');
-      checkAndInitialize();
+      // Add a small delay to ensure visualization type is loaded from localStorage
+      setTimeout(() => {
+        checkAndInitialize();
+      }, 50);
     } else if (pointsAdded && ready && state === 'ready' && 
               (currentDataLength !== previousDataLength || currentFilterState !== previousFilterState)) {
       // Data changed after initialization (filter change)

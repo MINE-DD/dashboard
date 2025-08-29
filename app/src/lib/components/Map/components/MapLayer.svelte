@@ -31,6 +31,7 @@
 	// Local state for tracking initialization
 	let localMapSet = false;
 	let localEventHandlersSet = false;
+	let isInitialStyleLoad = true; // Track if this is the first style load
 
 	// Set the map instance in the store when it becomes available
 	$: if (map && !localMapSet) {
@@ -245,6 +246,23 @@
 	function handleStyleChange() {
 		if ($isProgrammaticOperation) {
 			// console.log('Style change detected during programmatic operation, ignoring in MapLayer.');
+			return;
+		}
+
+		// Skip reset on initial style load
+		if (isInitialStyleLoad) {
+			console.log('Initial style load detected, skipping reset');
+			isInitialStyleLoad = false;
+			
+			// Still ensure map is ready after initial style load
+			if (map && $hasData) {
+				map.once('idle', () => {
+					console.log('Map idle after initial style load, setting ready state');
+					if (map.loaded()) {
+						setMapReady(true);
+					}
+				});
+			}
 			return;
 		}
 

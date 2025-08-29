@@ -58,6 +58,7 @@ The dashboard offers four distinct visualization modes, each optimized for diffe
 - **Adjustable opacity controls** (0-100%)
 - **Toggle visibility** for data points and raster layers independently
 - **Filter-aware layers** with automatic mapping to pathogen/age/syndrome combinations
+- **Layer ordering guarantee**: Data visualization layers (dots, pies, 3D bars) always remain on top of raster layers
 
 ### 🎨 Map Styles & Themes
 
