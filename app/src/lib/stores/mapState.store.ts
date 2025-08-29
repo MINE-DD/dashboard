@@ -281,15 +281,15 @@ filteredPointsData.subscribe((data) => {
     s: Array.from(selectedS).sort()
   });
   
-  console.log('Filtered data changed:', {
-    hasData,
-    currentDataLength,
-    previousDataLength,
-    pointsAdded,
-    ready,
-    state,
-    filterStateChanged: currentFilterState !== previousFilterState
-  });
+  // console.log('Filtered data changed:', {
+  //   hasData,
+  //   currentDataLength,
+  //   previousDataLength,
+  //   pointsAdded,
+  //   ready,
+  //   state,
+  //   filterStateChanged: currentFilterState !== previousFilterState
+  // });
   
   if (hasData) {
     if (!pointsAdded && ready) {

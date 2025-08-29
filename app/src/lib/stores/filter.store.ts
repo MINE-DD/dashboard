@@ -170,16 +170,16 @@ export const filteredIndices = derived(
     const result = resultIndicesSet ? Array.from(resultIndicesSet) : [];
     
     // Debug log
-    console.log('Filter Debug:', {
-      selectedPathogens: Array.from($selectedPathogens),
-      selectedAgeGroups: Array.from($selectedAgeGroups),
-      selectedSyndromes: Array.from($selectedSyndromes),
-      ageIndexKeys: Array.from($ageGroupIndex.keys()).slice(0, 5),
-      syndromeIndexKeys: Array.from($syndromeIndex.keys()).slice(0, 5),
-      ageIndexSize: $ageGroupIndex.size,
-      syndromeIndexSize: $syndromeIndex.size,
-      matchingCount: result.length
-    });
+    // console.log('Filter Debug:', {
+    //   selectedPathogens: Array.from($selectedPathogens),
+    //   selectedAgeGroups: Array.from($selectedAgeGroups),
+    //   selectedSyndromes: Array.from($selectedSyndromes),
+    //   ageIndexKeys: Array.from($ageGroupIndex.keys()).slice(0, 5),
+    //   syndromeIndexKeys: Array.from($syndromeIndex.keys()).slice(0, 5),
+    //   ageIndexSize: $ageGroupIndex.size,
+    //   syndromeIndexSize: $syndromeIndex.size,
+    //   matchingCount: result.length
+    // });
     
     // Only cache if indices are ready and we have data
     if (indicesReady && hasData) {

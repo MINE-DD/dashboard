@@ -3,7 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "predev": "bun run scripts/fetch-r2-manifest.ts",
     "dev": "vite dev",
+    "prebuild": "bun run scripts/fetch-r2-manifest.ts",
     "build": "vite build",
     "preview": "vite preview",
     "start": "bun run build/index.js",
@@ -19,6 +21,7 @@
     "update-data-manifest": "node scripts/generate-data-manifest.js"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.878.0",
     "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/adapter-vercel": "^5.7.2",
     "@sveltejs/kit": "^2.13.0",
