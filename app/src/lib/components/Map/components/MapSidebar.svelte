@@ -233,6 +233,38 @@
 		return newSet;
 	}
 
+	// Function to refresh data from R2
+	async function handleRefreshData() {
+		console.log('Refreshing data from R2...');
+		try {
+			// Get the current data URL - will automatically fetch latest from API
+			const R2_BASE_URL = import.meta.env.VITE_R2_POINTS_BASE_URL || 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/01_Points';
+			
+			// Fetch the latest file information with cache busting
+			const cacheBuster = `?t=${Date.now()}`;
+			const response = await fetch(`/api/r2-files${cacheBuster}`);
+			
+			if (!response.ok) {
+				throw new Error('Failed to check for updated data');
+			}
+			
+			const data = await response.json();
+			if (data.files && data.files.length > 0) {
+				const latestFile = data.files[0];
+				console.log(`Loading latest data: ${latestFile.fileName}`);
+				
+				// Force reload with the latest file URL
+				await loadPointsData(latestFile.url, true);
+				
+				// Show success message (optional - could add a toast notification here)
+				console.log('Data refreshed successfully');
+			}
+		} catch (error) {
+			console.error('Error refreshing data:', error);
+			// Could add error notification here
+		}
+	}
+
 	// Helper function to toggle all values in a category
 	function toggleAll(category: 'pathogens' | 'ageGroups' | 'syndromes', checked: boolean) {
 		if (category === 'pathogens') {
@@ -361,8 +393,22 @@
 			<div class="flex flex-col">
 				<h2 class="text-base-content text-md m-0 font-semibold">Data Explorer</h2>
 				{#if $dataUpdateDate}
-					<span class="text-base-content/60 text-xs mt-0.5">
+					<span class="text-base-content/60 text-xs mt-0.5 flex items-center gap-1">
 						Data updated: {formatDataDate($dataUpdateDate)}
+						<button
+							class="btn btn-ghost btn-xs"
+							on:click={handleRefreshData}
+							title="Refresh data to check for updates"
+							disabled={$isLoading}
+						>
+							{#if $isLoading}
+								<span class="loading loading-spinner loading-xs"></span>
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+								</svg>
+							{/if}
+						</button>
 					</span>
 				{/if}
 			</div>

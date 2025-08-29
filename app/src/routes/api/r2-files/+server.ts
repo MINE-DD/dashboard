@@ -33,15 +33,6 @@ export const GET: RequestHandler = async () => {
       datesToCheck.push(dateStr);
     }
     
-    // Also add some historical dates we know might exist
-    const historicalDates = ['2025-08-25', '2025-07-31', '2025-06-30', '2025-05-31'];
-    // Add historical dates if they're not already in the list
-    historicalDates.forEach(date => {
-      if (!datesToCheck.includes(date)) {
-        datesToCheck.push(date);
-      }
-    });
-    
     // Check files in batches to avoid too many concurrent requests
     const existingFiles: any[] = [];
     const batchSize = 10;
@@ -88,6 +79,12 @@ export const GET: RequestHandler = async () => {
         files: existingFiles,
         source: 'detected',
         lastChecked: new Date().toISOString()
+      }, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
     }
     
@@ -101,6 +98,12 @@ export const GET: RequestHandler = async () => {
       }],
       source: 'default',
       lastChecked: new Date().toISOString()
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
     
   } catch (error) {

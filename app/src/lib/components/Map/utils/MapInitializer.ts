@@ -20,8 +20,9 @@ async function getLatestDataFile(): Promise<string> {
   console.log('R2 Base URL:', R2_BASE_URL);
   
   try {
-    // Fetch the list of available files from our API endpoint
-    const response = await fetch('/api/r2-files');
+    // Fetch the list of available files from our API endpoint with cache busting
+    const cacheBuster = `?t=${Date.now()}`;
+    const response = await fetch(`/api/r2-files${cacheBuster}`);
     console.log('API response status:', response.status);
     
     if (!response.ok) {

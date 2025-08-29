@@ -44,8 +44,12 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
 
     // console.log('Fetching fresh data from:', url);
 
-    // console.log('Fetching from URL:', url);
-    const response = await fetch(url);
+    // Add cache busting to the URL
+    const cacheBuster = url.includes('?') ? `&t=${Date.now()}` : `?t=${Date.now()}`;
+    const fetchUrl = url + cacheBuster;
+    
+    // console.log('Fetching from URL:', fetchUrl);
+    const response = await fetch(fetchUrl);
     // console.log('Response status:', response.status, response.ok);
     if (!response.ok) {
       throw new Error(`Failed to fetch data: ${response.statusText}`);
