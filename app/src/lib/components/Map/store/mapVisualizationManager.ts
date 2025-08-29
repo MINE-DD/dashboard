@@ -154,28 +154,50 @@ export async function updateMapVisualization(
   }
 }
 
-// Helper function to ensure points are always on top
+// Helper function to ensure points are always on top of rasters
 function ensurePointsOnTop(map: MaplibreMap) {
   if (!map) return;
 
-  // For dots visualization
-  if (map.getLayer('points-layer')) {
-    map.moveLayer('points-layer');
-  }
+  try {
+    // First, ensure country boundaries are above rasters but below data layers
+    if (map.getLayer('country-boundaries-layer')) {
+      map.moveLayer('country-boundaries-layer');
+    }
 
-  // For pie charts visualization
-  if (map.getLayer('pie-charts')) {
-    map.moveLayer('pie-charts');
-  }
+    // Then move data visualization layers to top
+    // Order matters - last moved will be on top
+    
+    // Heatmap layer (should be below dots/pies if they exist)
+    if (map.getLayer('heatmap-layer')) {
+      map.moveLayer('heatmap-layer');
+    }
 
-  // For 3D bars visualization
-  if (map.getLayer('3d-bars-layer')) {
-    map.moveLayer('3d-bars-layer');
-  }
+    // 3D bars layer
+    if (map.getLayer('3d-bars-layer')) {
+      map.moveLayer('3d-bars-layer');
+    }
 
-  // For heatmap visualization
-  if (map.getLayer('heatmap-layer')) {
-    map.moveLayer('heatmap-layer');
+    // Dots layer
+    if (map.getLayer('points-layer')) {
+      map.moveLayer('points-layer');
+    }
+
+    // Single pie chart layer
+    if (map.getLayer('pie-charts')) {
+      map.moveLayer('pie-charts');
+    }
+
+    // Multiple pie chart layers (legacy, just in case)
+    const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+    pieChartLayerIds.forEach((layerId) => {
+      if (map.getLayer(layerId)) {
+        map.moveLayer(layerId);
+      }
+    });
+    
+    console.log('MapVisualizationManager: Ensured data layers are on top');
+  } catch (e) {
+    console.error('MapVisualizationManager: Error ensuring layer order:', e);
   }
 }
 
@@ -301,6 +323,9 @@ export async function addInitialPointsToMap(
     const visible = get(dataPointsVisible);
     applyDataPointsVisibility(map, visible);
     
+    // Ensure correct layer ordering (data layers on top of rasters)
+    ensurePointsOnTop(map);
+    
     console.log('✅ Successfully added initial points to map');
     return true;
 
@@ -313,9 +338,9 @@ export async function addInitialPointsToMap(
 
     console.error('Error details:', {
       ...errorDetails,
-      mapExists: !!$map,
-      mapLoaded: $map?.loaded(),
-      featuresCount: $filteredData?.features?.length
+      mapExists: !!map,
+      mapLoaded: map?.loaded(),
+      featuresCount: filteredData?.features?.length
     });
     return false;
   }
