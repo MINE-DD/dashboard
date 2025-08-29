@@ -9,7 +9,11 @@
 	} from '../MapStyles';
 	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
 	import { setMapStyle } from '../utils/MapStyleManager';
-	import { rasterDebugMode, toggleDebugMode, reprocessVisibleLayers } from '$lib/stores/raster.store';
+	import {
+		rasterDebugMode,
+		toggleDebugMode,
+		reprocessVisibleLayers
+	} from '$lib/stores/raster.store';
 
 	// Props
 	export let map: MaplibreMap | null = null;
@@ -67,7 +71,7 @@
 		</div>
 
 		<!-- Debug Mode Toggle -->
-		<button
+		<!-- <button
 			class="btn btn-sm m-1"
 			class:btn-warning={$rasterDebugMode}
 			class:btn-ghost={!$rasterDebugMode}
@@ -75,7 +79,7 @@
 			title="Toggle debug mode to show black pixels where raster data exists"
 		>
 			{$rasterDebugMode ? 'Exit Debug' : 'Debug Raster'}
-		</button>
+		</button> -->
 	</div>
 </div>
 

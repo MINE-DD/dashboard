@@ -642,12 +642,11 @@
 	{/if}
 
 	<!-- Debug Panel -->
-	<div
+	<!-- 	<div
 		class="fixed right-4 top-40 z-[100] max-w-sm rounded-lg bg-white/95 p-3 font-mono text-xs shadow-lg"
 	>
 		<div class="mb-2 text-sm font-bold">Debug Info</div>
 
-		<!-- Hover Info Section -->
 		{#if debugInfo.hoverCoords}
 			<div class="mb-2 border-b border-gray-200 pb-2">
 				<div class="font-bold text-purple-600">Hover Info:</div>
@@ -667,7 +666,6 @@
 			</div>
 		{/if}
 
-		<!-- Click Info Section -->
 		{#if debugInfo.lastClick}
 			<div class="font-bold text-blue-600">Click Info:</div>
 			<div>Click: [{debugInfo.lastClick[0].toFixed(4)}, {debugInfo.lastClick[1].toFixed(4)}]</div>
@@ -696,7 +694,7 @@
 		{#if !debugInfo.lastClick && !debugInfo.hoverCoords}
 			<div class="text-gray-500">Move mouse over map to see hover info</div>
 		{/if}
-	</div>
+	</div> -->
 
 	<!-- Hover Tooltip - follows mouse cursor -->
 	{#if debugInfo.hoverInRaster && debugInfo.hoverRasterValue !== null && debugInfo.hoverMousePos}
