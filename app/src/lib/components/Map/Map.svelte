@@ -26,7 +26,13 @@
 	import { processPathogenData } from './utils/csvDataProcessor';
 	import { isClickOnVisibleRaster } from './utils/rasterClickUtils';
 	import { preloadData } from './utils/MapInitializer';
-	import { getRasterValueAtCoordinate, findVisibleRasterLayerAtCoordinate } from './utils/rasterPixelQuery';
+	import {
+		getRasterValueAtCoordinate,
+		getRasterValueAtCoordinateFast,
+		findVisibleRasterLayerAtCoordinate,
+		isLatitudeInWebMercatorRange
+	} from './utils/rasterPixelQuery';
+	import { WEB_MERCATOR_MAX_LATITUDE } from './utils/geoTiffProcessor';
 
 	// Import modularized components
 	import MapCore from './components/MapCore.svelte';
@@ -37,7 +43,8 @@
 	import MapPopover from './components/MapPopover.svelte';
 	import MapLegend from './components/MapLegend.svelte';
 	import MultiPointPopover from './components/MultiPointPopover.svelte';
-	import type { VisualizationType } from './store/types';
+	import RasterLegend from './components/RasterLegend.svelte';
+	import type { VisualizationType, RasterLayer } from './store/types';
 	import { detectOverlappingFeatures } from './utils/overlapDetection';
 
 	// Props that can be passed to the component
@@ -59,16 +66,113 @@
 	let showPopover = false;
 	let popoverCoordinates: [number, number] | null = null;
 	let popoverProperties: any = null;
-	
+
 	// Multi-point popover state
 	let showMultiPointPopover = false;
 	let multiPointFeatures: maplibregl.MapGeoJSONFeature[] = [];
 
+	// Debug state
+	let debugInfo = {
+		lastClick: null as [number, number] | null,
+		pixelCoords: null as { x: number; y: number } | null,
+		rasterValue: null as number | null,
+		error: null as string | null,
+		rasterClicked: false,
+		rasterName: null as string | null,
+		// Hover state
+		hoverCoords: null as [number, number] | null,
+		hoverRasterValue: null as number | null,
+		hoverRasterName: null as string | null,
+		hoverInRaster: false,
+		hoverMousePos: null as { x: number; y: number } | null
+	};
+
+	// Handle cursor change immediately (no debounce)
+	function handleCursorChange(event: maplibregl.MapMouseEvent) {
+		if (!map) return;
+
+		const coords: [number, number] = [event.lngLat.lng, event.lngLat.lat];
+		const currentRasterLayers = $rasterLayers;
+
+		// Check if hovering over a raster - quick check for cursor
+		const visibleRasterLayer = findVisibleRasterLayerAtCoordinate(
+			currentRasterLayers,
+			coords[0],
+			coords[1]
+		);
+
+		// Set cursor immediately based on raster presence
+		if (visibleRasterLayer) {
+			// Force pointer cursor when over raster, overriding other handlers
+			setTimeout(() => {
+				if (map) map.getCanvas().style.cursor = 'pointer';
+			}, 0);
+		}
+	}
+
+	// Handle map hover for raster feedback - fast version for tooltip
+	function handleMapHoverFast(event: maplibregl.MapMouseEvent) {
+		if (!map) return;
+
+		const coords: [number, number] = [event.lngLat.lng, event.lngLat.lat];
+		const currentRasterLayers = $rasterLayers;
+		debugInfo.hoverMousePos = event.point;
+
+		// Quick check if hovering over a raster
+		const visibleRasterLayer = findVisibleRasterLayerAtCoordinate(
+			currentRasterLayers,
+			coords[0],
+			coords[1]
+		);
+
+		if (visibleRasterLayer) {
+			// Get the raster value using fast version (no neighbor analysis)
+			const value = getRasterValueAtCoordinateFast(visibleRasterLayer, coords[0], coords[1]);
+
+			// Update only essential hover info for tooltip
+			debugInfo.hoverInRaster = true;
+			debugInfo.hoverRasterValue = value;
+		} else {
+			debugInfo.hoverInRaster = false;
+			debugInfo.hoverRasterValue = null;
+		}
+	}
+
+	// Slower update for debug panel details
+	function handleMapHoverDebug(event: maplibregl.MapMouseEvent) {
+		if (!map) return;
+
+		const coords: [number, number] = [event.lngLat.lng, event.lngLat.lat];
+		const currentRasterLayers = $rasterLayers;
+		debugInfo.hoverCoords = coords;
+
+		const visibleRasterLayer = findVisibleRasterLayerAtCoordinate(
+			currentRasterLayers,
+			coords[0],
+			coords[1]
+		);
+
+		if (visibleRasterLayer) {
+			debugInfo.hoverRasterName = visibleRasterLayer.name;
+		} else {
+			debugInfo.hoverRasterName = null;
+		}
+	}
+
+	// Very light debounce for tooltip (10ms)
+	const debouncedHoverFast = debounce(handleMapHoverFast, 10);
+	// Heavier debounce for debug panel (100ms)
+	const debouncedHoverDebug = debounce(handleMapHoverDebug, 100);
 
 	// Handle map ready event
 	function handleMapReady(event: CustomEvent<{ map: MaplibreMap }>) {
 		map = event.detail.map;
 		isStyleLoaded = true;
+
+		// Add hover event listeners
+		map.on('mousemove', handleCursorChange); // Immediate cursor change
+		map.on('mousemove', debouncedHoverFast); // Fast tooltip update (10ms)
+		map.on('mousemove', debouncedHoverDebug); // Slower debug panel update (100ms)
 
 		// Load data immediately when map is ready
 		// DISABLED: Data is already loaded by preloadData in MapInitializer
@@ -96,7 +200,7 @@
 					'line-width': 2
 				}
 			});
-			
+
 			// Layer ordering will be handled by reactive statements when data is ready
 		}
 	}
@@ -168,14 +272,37 @@
 
 		const clickCoordinates: [number, number] = [event.detail.lngLat.lng, event.detail.lngLat.lat];
 		const currentRasterLayers = $rasterLayers;
-		
-		console.log('Available raster layers:', Array.from(currentRasterLayers.entries()).map(([id, layer]) => ({
-			id,
-			name: layer.name,
-			bounds: layer.bounds,
-			visible: layer.isVisible
-		})));
-		
+
+		// Check if any raster layer is visible
+		const hasVisibleRasterLayer = Array.from(currentRasterLayers.values()).some(
+			(layer) => layer.isVisible
+		);
+
+		if (!hasVisibleRasterLayer) {
+			// No raster layers are visible, don't process click
+			isLoading.set(false);
+			return;
+		}
+
+		console.log(
+			'Available raster layers:',
+			Array.from(currentRasterLayers.entries()).map(([id, layer]) => ({
+				id,
+				name: layer.name,
+				bounds: layer.bounds,
+				visible: layer.isVisible
+			}))
+		);
+
+		// Debug: Log exact click coordinates and update debug info
+		console.log(`Map click at coordinates: lng=${clickCoordinates[0]}, lat=${clickCoordinates[1]}`);
+		debugInfo.lastClick = clickCoordinates;
+		debugInfo.pixelCoords = event.detail.point;
+		debugInfo.error = null;
+		debugInfo.rasterValue = null;
+		debugInfo.rasterClicked = false;
+		debugInfo.rasterName = null;
+
 		// Find the visible raster layer at this coordinate
 		console.log('Checking for raster at coordinates:', clickCoordinates);
 		const visibleRasterLayer = findVisibleRasterLayerAtCoordinate(
@@ -185,13 +312,32 @@
 		);
 		console.log('Found visible raster layer:', visibleRasterLayer);
 
+		// If no raster layer found at this coordinate, don't show popover
 		if (!visibleRasterLayer) {
+			console.log('No raster layer at click location - not showing popover');
+			debugInfo.error = 'Click outside raster bounds';
+			debugInfo.rasterClicked = false;
 			isLoading.set(false);
-			return;
+			return; // Don't show any popover for clicks outside raster
 		}
 
 		isLoading.set(true);
 		try {
+			// Update debug info to show raster was clicked
+			debugInfo.rasterClicked = true;
+			debugInfo.rasterName = visibleRasterLayer.name;
+
+			// Debug: Log the raster layer details
+			console.log('=== RASTER CLICK DEBUG ===');
+			console.log('Click coordinates:', clickCoordinates);
+			console.log('Raster layer:', {
+				name: visibleRasterLayer.name,
+				bounds: visibleRasterLayer.bounds,
+				width: visibleRasterLayer.width,
+				height: visibleRasterLayer.height,
+				hasData: !!visibleRasterLayer.rasterData
+			});
+
 			// Get the actual raster value at this coordinate
 			const rasterValue = getRasterValueAtCoordinate(
 				visibleRasterLayer,
@@ -199,8 +345,15 @@
 				clickCoordinates[1]
 			);
 
+			console.log('Raster value returned:', rasterValue);
+			debugInfo.rasterValue = rasterValue;
+
 			if (rasterValue === null) {
 				// No data at this location (e.g., ocean)
+				console.log('No raster value at this location - stopping');
+				debugInfo.error = 'No raster value (likely ocean or no-data area)';
+				debugInfo.rasterClicked = true; // We clicked on the raster layer bounds, but no data
+				debugInfo.rasterName = visibleRasterLayer.name;
 				isLoading.set(false);
 				return;
 			}
@@ -209,10 +362,10 @@
 			let pathogen = '';
 			let ageGroup = '';
 			let syndrome = '';
-			
+
 			const layerName = visibleRasterLayer.name;
 			const parts = layerName.split(' ');
-			
+
 			// Parse pathogen from layer name (e.g., "SHIG 0-11 Asym Pr")
 			if (parts.length > 0) {
 				switch (parts[0].toUpperCase()) {
@@ -232,7 +385,7 @@
 						pathogen = parts[0];
 				}
 			}
-			
+
 			// Parse age group from layer name (e.g., "0-11" -> "0-11 months")
 			if (parts.length > 1) {
 				const ageRangePart = parts[1];
@@ -246,7 +399,7 @@
 					ageGroup = ageRangePart;
 				}
 			}
-			
+
 			// Parse syndrome type from layer name (e.g., "Asym", "Comm", "Medi")
 			if (parts.length > 2) {
 				const syndromePart = parts[2];
@@ -279,12 +432,12 @@
 				heading: `${pathogen} Prevalence`,
 				subheading: 'Raster layer data',
 				pathogen: pathogen,
-				prevalenceValue: prevalencePercent / 100,  // Convert from percentage (0-11) to decimal (0-0.11) for MapPopover
+				prevalenceValue: prevalencePercent / 100, // Convert from percentage (0-11) to decimal (0-0.11) for MapPopover
 				ageGroup: ageGroup || 'All ages',
 				ageRange: ageGroup || 'All ages',
 				syndrome: syndrome || 'Diarrhea',
 				location: `${formattedLat}°, ${formattedLng}°`,
-				
+
 				// Additional fields
 				duration: '-',
 				design: 'Geospatial model',
@@ -311,12 +464,12 @@
 		multiPointFeatures = [];
 
 		const { coordinates, properties } = event.detail;
-		
+
 		// Check if there are multiple features at this location
 		if (map) {
 			const clickPoint = map.project(coordinates);
 			const overlappingFeatures = detectOverlappingFeatures(map, coordinates, clickPoint);
-			
+
 			if (overlappingFeatures.length > 1) {
 				// Multiple points at this location - show selection menu
 				console.log(`Found ${overlappingFeatures.length} overlapping features`);
@@ -326,7 +479,7 @@
 				return;
 			}
 		}
-		
+
 		// Single point - show regular popover
 		console.log('Extracted properties:', properties);
 		popoverCoordinates = coordinates;
@@ -367,6 +520,15 @@
 			} else {
 				console.warn(`Initial style ID "${initialStyleId}" not found. Using default.`);
 			}
+		}
+	});
+
+	onDestroy(() => {
+		// Clean up event listeners
+		if (map) {
+			map.off('mousemove', handleCursorChange);
+			map.off('mousemove', debouncedHoverFast);
+			map.off('mousemove', debouncedHoverDebug);
 		}
 	});
 
@@ -473,6 +635,77 @@
 
 	{#if map && isStyleLoaded && $filteredPointsData.features.length > 0}
 		<MapLegend visible={true} />
+	{/if}
+
+	{#if map && isStyleLoaded}
+		<RasterLegend visible={true} />
+	{/if}
+
+	<!-- Debug Panel -->
+	<div
+		class="fixed right-4 top-40 z-[100] max-w-sm rounded-lg bg-white/95 p-3 font-mono text-xs shadow-lg"
+	>
+		<div class="mb-2 text-sm font-bold">Debug Info</div>
+
+		<!-- Hover Info Section -->
+		{#if debugInfo.hoverCoords}
+			<div class="mb-2 border-b border-gray-200 pb-2">
+				<div class="font-bold text-purple-600">Hover Info:</div>
+				<div>
+					Coords: [{debugInfo.hoverCoords[0].toFixed(4)}, {debugInfo.hoverCoords[1].toFixed(4)}]
+				</div>
+				{#if debugInfo.hoverInRaster}
+					<div class="text-purple-600">Raster: {debugInfo.hoverRasterName}</div>
+					{#if debugInfo.hoverRasterValue !== null}
+						<div class="font-bold text-purple-600">Value: {debugInfo.hoverRasterValue}%</div>
+					{:else}
+						<div class="text-orange-500">No data at hover</div>
+					{/if}
+				{:else}
+					<div class="text-gray-500">Not over raster</div>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Click Info Section -->
+		{#if debugInfo.lastClick}
+			<div class="font-bold text-blue-600">Click Info:</div>
+			<div>Click: [{debugInfo.lastClick[0].toFixed(4)}, {debugInfo.lastClick[1].toFixed(4)}]</div>
+		{/if}
+		{#if debugInfo.pixelCoords}
+			<div>Pixel: ({debugInfo.pixelCoords.x}, {debugInfo.pixelCoords.y})</div>
+		{/if}
+		<div class="mt-1 border-t border-gray-200 pt-1">
+			{#if debugInfo.rasterClicked}
+				<div class="font-bold text-blue-600">✓ Raster Layer Found</div>
+				{#if debugInfo.rasterName}
+					<div class="text-xs text-blue-600">Layer: {debugInfo.rasterName}</div>
+				{/if}
+				{#if debugInfo.rasterValue !== null}
+					<div class="mt-1 font-bold text-green-600">✓ Data Value: {debugInfo.rasterValue}%</div>
+				{:else if debugInfo.error && debugInfo.error.includes('no-data')}
+					<div class="mt-1 text-orange-600">⚠ No Data (Ocean/Outside Coverage)</div>
+				{/if}
+			{:else if debugInfo.lastClick}
+				<div class="text-gray-500">✗ No Raster Layer at Click</div>
+			{/if}
+		</div>
+		{#if debugInfo.error && !debugInfo.error.includes('no-data')}
+			<div class="mt-1 text-xs text-red-600">{debugInfo.error}</div>
+		{/if}
+		{#if !debugInfo.lastClick && !debugInfo.hoverCoords}
+			<div class="text-gray-500">Move mouse over map to see hover info</div>
+		{/if}
+	</div>
+
+	<!-- Hover Tooltip - follows mouse cursor -->
+	{#if debugInfo.hoverInRaster && debugInfo.hoverRasterValue !== null && debugInfo.hoverMousePos}
+		<div
+			class="pointer-events-none fixed z-[1000] whitespace-nowrap rounded bg-black/90 px-2 py-1 text-xs text-white"
+			style="left: {debugInfo.hoverMousePos.x + 15}px; top: {debugInfo.hoverMousePos.y - 30}px;"
+		>
+			Prevalence: {debugInfo.hoverRasterValue}%
+		</div>
 	{/if}
 
 	{#if $isLoading}

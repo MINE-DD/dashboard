@@ -360,11 +360,11 @@
 					</div>
 					<div class="info-row">
 						<div class="info-label">Age Range:</div>
-						<div class="info-value">${formatItalicText(props.ageRange)}</div>
+						<div class="info-value">${formatDropdownText(props.ageRange)}</div>
 					</div>
 					<div class="info-row">
 						<div class="info-label">Syndrome:</div>
-						<div class="info-value">${formatItalicText(props.syndrome)}</div>
+						<div class="info-value">${formatDropdownText(props.syndrome)}</div>
 					</div>
 					<div class="info-row">
 						<div class="info-label">Location:</div>

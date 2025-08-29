@@ -362,70 +362,34 @@ export function getDefaultColor(): string {
 }
 
 /**
- * Create multiple pie chart layers ordered by size (larger to smaller, with smaller on top)
+ * Create a single pie chart layer with dynamic sorting to ensure smaller pies appear on top
  */
-export function createPieChartLayers(map: MaplibreMap, filteredPointsData: FeatureCollection<Point>): void {
+export function createSinglePieChartLayer(map: MaplibreMap, filteredPointsData: FeatureCollection<Point>): void {
   if (!map) return;
 
-  // Get separate data
-  const separateData = getSeparatePieChartData(filteredPointsData);
-
-  // Determine size ranges based on sample counts
-  const sampleCounts = separateData.features.map(f => f.properties?.samples || 0);
-  const maxSamples = Math.max(...sampleCounts);
-  const minSamples = Math.min(...sampleCounts);
-
-  // Create 3 size categories: large, medium, small
-  const largeCutoff = minSamples + (maxSamples - minSamples) * 0.67;
-  const mediumCutoff = minSamples + (maxSamples - minSamples) * 0.33;
-
-  // Define layer configurations (larger layers first, smaller on top)
-  const layerConfigs = [
-    {
-      id: 'pie-charts-large',
-      filter: ['>=', ['get', 'samples'], largeCutoff],
-      zIndex: 1
-    },
-    {
-      id: 'pie-charts-medium',
-      filter: ['all', ['>=', ['get', 'samples'], mediumCutoff], ['<', ['get', 'samples'], largeCutoff]],
-      zIndex: 2
-    },
-    {
-      id: 'pie-charts-small',
-      filter: ['<', ['get', 'samples'], mediumCutoff],
-      zIndex: 3
+  // Add single pie chart layer with symbol-sort-key for proper z-ordering
+  map.addLayer({
+    id: 'pie-charts',
+    type: 'symbol',
+    source: 'points-source',
+    layout: {
+      'icon-image': generatePieChartIconExpression(filteredPointsData),
+      'icon-size': 1,
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      // Sort by samples - multiply by -1 so smaller samples (smaller pies) render on top
+      'symbol-sort-key': ['*', -1, ['get', 'samples']]
     }
-  ];
-
-  // Create layers in order (large to small, so small appears on top)
-  layerConfigs.forEach(config => {
-    map.addLayer({
-      id: config.id,
-      type: 'symbol',
-      source: 'points-source',
-      filter: config.filter as any,
-      layout: {
-        'icon-image': generatePieChartIconExpression(filteredPointsData),
-        'icon-size': 1,
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true
-      }
-    });
   });
 }
 
 /**
- * Remove all pie chart layers
+ * Remove the pie chart layer
  */
-export function removePieChartLayers(map: MaplibreMap): void {
+export function removePieChartLayer(map: MaplibreMap): void {
   if (!map) return;
 
-  const layerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
-
-  layerIds.forEach(layerId => {
-    if (map.getLayer(layerId)) {
-      map.removeLayer(layerId);
-    }
-  });
+  if (map.getLayer('pie-charts')) {
+    map.removeLayer('pie-charts');
+  }
 }

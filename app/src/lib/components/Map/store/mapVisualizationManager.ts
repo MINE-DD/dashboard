@@ -18,8 +18,8 @@ import {
   generatePieChartSymbols,
   generatePieChartIconExpression,
   getSeparatePieChartData,
-  createPieChartLayers,
-  removePieChartLayers,
+  createSinglePieChartLayer,
+  removePieChartLayer,
   getDesignColors,
   getDefaultColor
 } from '../utils/pieChartUtils';
@@ -125,19 +125,16 @@ export async function updateMapVisualization(
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
-      // Update the layer's icon expression for each pie chart layer
-      const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
+      // Update the layer's icon expression for the pie chart layer
       const iconExpression = generatePieChartIconExpression(filteredData) as any;
 
-      pieChartLayerIds.forEach(layerId => {
-        try {
-          if (map.getLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'icon-image', iconExpression);
-          }
-        } catch (e) {
-          console.warn(`Failed to update icon expression for layer ${layerId}:`, e);
+      try {
+        if (map.getLayer('pie-charts')) {
+          map.setLayoutProperty('pie-charts', 'icon-image', iconExpression);
         }
-      });
+      } catch (e) {
+        console.warn('Failed to update icon expression for pie charts layer:', e);
+      }
 
       console.log('Pie chart visualization updated');
     } else {
@@ -167,12 +164,9 @@ function ensurePointsOnTop(map: MaplibreMap) {
   }
 
   // For pie charts visualization
-  const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
-  pieChartLayerIds.forEach(layerId => {
-    if (map.getLayer(layerId)) {
-      map.moveLayer(layerId);
-    }
-  });
+  if (map.getLayer('pie-charts')) {
+    map.moveLayer('pie-charts');
+  }
 
   // For 3D bars visualization
   if (map.getLayer('3d-bars-layer')) {
@@ -266,8 +260,8 @@ export async function addInitialPointsToMap(
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
-      // Add symbol layers for pie charts
-      createPieChartLayers(map, filteredData);
+      // Add single symbol layer for pie charts with dynamic sorting
+      createSinglePieChartLayer(map, filteredData);
     } else if (vizType === '3d-bars') {
       // Add 3D bar extrusion layer
       create3DBarLayer(map);
@@ -353,8 +347,8 @@ export async function switchVisualizationType(
 
     // Remove existing layers based on current type
     if (currentType === 'pie-charts') {
-      // Remove pie chart layers
-      removePieChartLayers(map);
+      // Remove pie chart layer
+      removePieChartLayer(map);
       cleanupPieChartImages(map);
     } else if (currentType === '3d-bars') {
       // Remove 3D bar layer
@@ -387,8 +381,8 @@ export async function switchVisualizationType(
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
-      // Add pie chart layers
-      createPieChartLayers(map, filteredData);
+      // Add single pie chart layer with dynamic sorting
+      createSinglePieChartLayer(map, filteredData);
     } else if (newType === '3d-bars') {
       dataToUse = convertPointsToPolygons(filteredData) as any;
 

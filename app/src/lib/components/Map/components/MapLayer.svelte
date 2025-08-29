@@ -160,14 +160,12 @@
 			console.log('points-layer not found when trying to add listeners');
 		}
 
-		const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
-		pieChartLayerIds.forEach((layerId) => {
-			if (map.getLayer(layerId)) {
-				map.on('click', layerId, handlePointClick);
-				map.on('mouseenter', layerId, handleMouseEnter);
-				map.on('mouseleave', layerId, handleMouseLeave);
-			}
-		});
+		// Add event handlers for single pie chart layer
+		if (map.getLayer('pie-charts')) {
+			map.on('click', 'pie-charts', handlePointClick);
+			map.on('mouseenter', 'pie-charts', handleMouseEnter);
+			map.on('mouseleave', 'pie-charts', handleMouseLeave);
+		}
 
 		// Add event handlers for 3D bars
 		if (map.getLayer('3d-bars-layer')) {
@@ -194,14 +192,12 @@
 			map.off('mouseleave', 'points-layer', handleMouseLeave);
 		}
 
-		const pieChartLayerIds = ['pie-charts-large', 'pie-charts-medium', 'pie-charts-small'];
-		pieChartLayerIds.forEach((layerId) => {
-			if (map.getLayer(layerId)) {
-				map.off('click', layerId, handlePointClick);
-				map.off('mouseenter', layerId, handleMouseEnter);
-				map.off('mouseleave', layerId, handleMouseLeave);
-			}
-		});
+		// Remove event handlers for single pie chart layer
+		if (map.getLayer('pie-charts')) {
+			map.off('click', 'pie-charts', handlePointClick);
+			map.off('mouseenter', 'pie-charts', handleMouseEnter);
+			map.off('mouseleave', 'pie-charts', handleMouseLeave);
+		}
 
 		// Remove event handlers for 3D bars
 		if (map.getLayer('3d-bars-layer')) {
@@ -227,9 +223,7 @@
 		if (lastVisualizationType !== null) {
 			// Check if any of our visualization layers exist
 			const hasPointsLayer = map.getLayer('points-layer');
-			const hasPieChartLayers = map.getLayer('pie-charts-large') || 
-										map.getLayer('pie-charts-medium') || 
-										map.getLayer('pie-charts-small');
+			const hasPieChartLayers = map.getLayer('pie-charts');
 			const has3DBarsLayer = map.getLayer('3d-bars-layer');
 			const hasHeatmapLayer = map.getLayer('heatmap-layer');
 			

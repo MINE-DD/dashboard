@@ -84,7 +84,7 @@ export function syncRasterLayers(
                 [west, south] // bottom-left
               ];
 
-            // Check for problematic global bounds before defining source
+            // Check for global bounds (±90° latitude)
             const isGlobalBounds =
               layer.bounds[0] === -180 &&
               layer.bounds[1] === -90 &&
@@ -92,8 +92,8 @@ export function syncRasterLayers(
               layer.bounds[3] === 90;
 
             if (isGlobalBounds) {
-              console.warn(
-                `Raster: Using image source ${sourceId} with potentially problematic global bounds.`
+              console.log(
+                `Raster: Using image source ${sourceId} with global bounds.`
               );
             }
 

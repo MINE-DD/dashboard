@@ -28,6 +28,7 @@ export interface ProcessingOptions {
   rescale?: [number, number]; // Min/max values for rescaling
   noDataValue?: number; // Value to treat as transparent
   noDataThreshold?: number; // Threshold for treating values as no-data (e.g., 0.01)
+  debugMode?: boolean; // If true, show black pixels for all data locations
 }
 
 /**
@@ -124,12 +125,18 @@ export function mercatorToLatLng(mercatorX: number, mercatorY: number): [number,
 
   // Clamp to valid lat/lng range
   const clampedLng = Math.max(-180, Math.min(180, lng));
-  // Web Mercator mathematically limits at ±85.051129°, but we'll allow up to ±90° for bounds
-  // to ensure click detection works at extreme latitudes
-  const clampedLat = Math.max(-90, Math.min(90, lat));
+  // Web Mercator mathematically limits at ±85.051129°
+  // We clamp to this limit to accurately represent data availability
+  const clampedLat = Math.max(-WEB_MERCATOR_MAX_LATITUDE, Math.min(WEB_MERCATOR_MAX_LATITUDE, lat));
 
   return [clampedLng, clampedLat];
 }
+
+/**
+ * Web Mercator projection's maximum latitude extent
+ * Beyond this latitude, Web Mercator projection cannot represent data
+ */
+export const WEB_MERCATOR_MAX_LATITUDE = 85.051129;
 
 /**
  * Validate and adjust bounds if needed, including handling latitude limits for global bounds
@@ -140,8 +147,11 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
   // Initialize bounds with a default value to avoid null issues
   if (!bounds || bounds.length !== 4) {
     console.warn('GeoTIFF Processor: Missing or invalid bounds, using global bounds');
-    return [-180, -90, 180, 90]; // Use full global bounds
+    return [-180, -90, 180, 90];
   }
+
+  console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
+  console.log('GeoTIFF Processor: Projection info:', projectionInfo);
 
   // Check if projection is Web Mercator or if coordinates are outside WGS84 range
   const isWebMercator = projectionInfo === 'EPSG:3857' ||
@@ -149,15 +159,15 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     Math.abs(bounds[2]) > 180;
 
   if (isWebMercator) {
-    // console.log('GeoTIFF Processor: Detected Web Mercator coordinates, converting to WGS84');
+    console.log('GeoTIFF Processor: Detected Web Mercator coordinates, converting to WGS84');
 
     // Convert Web Mercator bounds to lat/lng
     const sw = mercatorToLatLng(bounds[0], bounds[1]);
     const ne = mercatorToLatLng(bounds[2], bounds[3]);
 
-    // console.log('GeoTIFF Processor: Converted Web Mercator bounds:');
-    // console.log(`  Original: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
-    // console.log(`  Converted: [${sw[0]}, ${sw[1]}, ${ne[0]}, ${ne[1]}]`);
+    console.log('GeoTIFF Processor: Converted Web Mercator bounds:');
+    console.log(`  Original: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
+    console.log(`  Converted: [${sw[0]}, ${sw[1]}, ${ne[0]}, ${ne[1]}]`);
 
     return [sw[0], sw[1], ne[0], ne[1]];
   }
@@ -170,50 +180,48 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     Math.abs(bounds[3] - 10018754.17) < 100;
 
   if (isWebMercatorGlobalBounds) {
-    // console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84 bounds with latitude limits');
-    return [-180, -90, 180, 90]; // Use full global bounds
+    console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84');
+    return [-180, -90, 180, 90];
   }
 
   // Check for invalid coordinates in WGS84
-  if (
-    bounds.some((coord) => typeof coord !== 'number' || !isFinite(coord)) ||
-    bounds[0] < -180 || bounds[0] > 180 || // west
-    bounds[2] < -180 || bounds[2] > 180 || // east
-    bounds[1] < -90 || bounds[1] > 90 || // south
-    bounds[3] < -90 || bounds[3] > 90     // north
-  ) {
-    // console.warn('GeoTIFF Processor: Invalid or out-of-range bounds, using global bounds:', bounds);
-    return [-180, -90, 180, 90]; // Use full global bounds
+  if (bounds.some((coord) => typeof coord !== 'number' || !isFinite(coord))) {
+    console.warn('GeoTIFF Processor: Invalid bounds (NaN/Infinite), using global bounds:', bounds);
+    return [-180, -90, 180, 90];
   }
 
-  // For any bounds that are close to global, use full global bounds
-  const isNearGlobalBounds =
-    Math.abs(bounds[0] + 180) < 10 &&
-    Math.abs(bounds[1] + 90) < 10 &&
-    Math.abs(bounds[2] - 180) < 10 &&
-    Math.abs(bounds[3] - 90) < 10;
+  // IMPORTANT: Don't force global bounds for valid regional data!
+  // The original logic was causing the positioning offset by stretching regional data globally
+  
+  // Only check if bounds are exactly global (indicating global dataset)
+  const isExactlyGlobal =
+    bounds[0] === -180 &&
+    bounds[1] === -90 &&
+    bounds[2] === 180 &&
+    bounds[3] === 90;
 
-  if (isNearGlobalBounds) {
-    // console.log('GeoTIFF Processor: Bounds are close to global, using full global bounds');
-    return [-180, -90, 180, 90]; // Use full global bounds for proper coverage
+  if (isExactlyGlobal) {
+    console.log('GeoTIFF Processor: Using exact global bounds');
+    return [-180, -90, 180, 90];
   }
 
-  // For non-global bounds, check if latitudes are too extreme and limit them if needed
+  // For all other cases, preserve the actual bounds from the GeoTIFF
   let [west, south, east, north] = bounds;
 
-  // Allow full latitude range for proper click detection
-  // Note: Web Mercator projection naturally limits at ±85.051129°,
-  // but we use ±90° for bounds to ensure clicks work everywhere
-  if (north > 90) {
-    // console.log(`GeoTIFF Processor: Limiting north latitude from ${north} to 90`);
-    north = 90;
-  }
-  if (south < -90) {
-    // console.log(`GeoTIFF Processor: Limiting south latitude from ${south} to -90`);
-    south = -90;
+  // Only clamp if coordinates are truly invalid (outside possible WGS84 range)
+  if (west < -180 || west > 180 || east < -180 || east > 180) {
+    console.warn('GeoTIFF Processor: Longitude values outside ±180°, clamping:', bounds);
+    west = Math.max(-180, Math.min(180, west));
+    east = Math.max(-180, Math.min(180, east));
   }
 
-  // console.log('GeoTIFF Processor: Using bounds:', [west, south, east, north]);
+  if (south < -90 || south > 90 || north < -90 || north > 90) {
+    console.warn('GeoTIFF Processor: Latitude values outside ±90°, clamping:', bounds);
+    south = Math.max(-90, Math.min(90, south));
+    north = Math.max(-90, Math.min(90, north));
+  }
+
+  console.log('GeoTIFF Processor: ✅ Using actual GeoTIFF bounds:', [west, south, east, north]);
   return [west, south, east, north];
 }
 
@@ -282,47 +290,64 @@ export async function processGeoTIFF(
   const rawDataCopy = new Float32Array(width * height);
 
   // Scan for min/max values and identify no-data areas
+  let noDataCount = 0;
+  let validDataCount = 0;
+  
   for (let i = 0; i < width * height; i++) {
     const value = rasterData[0][i]; // First band
-    // Check for sentinel/no-data values (very large negative numbers, NaN, etc.)
-    if (isNaN(value) || value < -1e10 || value > 1e10) {
-      rawDataCopy[i] = 0; // Store 0 for no-data values
+    // Check for sentinel/no-data values
+    // GeoTIFF often uses specific sentinel values like -9999, -999, etc.
+    if (isNaN(value) || value < -1e10 || value > 1e10 || value === -9999 || value === -999) {
+      rawDataCopy[i] = NaN; // Store NaN for no-data values
+      noDataCount++;
     } else {
-      rawDataCopy[i] = value; // Store raw value
+      rawDataCopy[i] = value; // Store raw value (including legitimate 0 values)
+      validDataCount++;
     }
     
     // Only consider valid values for min/max calculation
-    if (value !== 0 && !isNaN(value) && value > -1e10 && value < 1e10) {
+    // Note: 0 is a valid value (0% prevalence), so we include it
+    if (!isNaN(value) && value > -1e10 && value < 1e10) {
       minValue = Math.min(minValue, value);
       maxValue = Math.max(maxValue, value);
     }
   }
 
-  // console.log(`GeoTIFF Processor: Data range: ${minValue} to ${maxValue}`);
+  console.log(`GeoTIFF Processor: Data stats - Valid: ${validDataCount}, No-data: ${noDataCount}, Range: ${minValue} to ${maxValue}`);
 
   // Use provided rescale values or default to the detected range
   const rescale = options.rescale || [minValue, maxValue];
   const noDataThreshold = options.noDataThreshold || 0.01;
 
   // Apply colormap to raster data with better no-data handling
+  // IMPORTANT: Use rawDataCopy for consistency with what we store
   for (let i = 0; i < width * height; i++) {
-    const value = rasterData[0][i]; // First band
+    const value = rawDataCopy[i]; // Use the processed copy, not the original!
 
-    // More aggressive no-data detection
-    // Consider values very close to 0 or outside reasonable range as no-data
-    if (value === 0 || isNaN(value) || value < minValue * 0.01) {
+    // Check for no-data values
+    // Only NaN and extreme values are considered no-data
+    // 0 is a valid value (0% prevalence) and should be colored
+    if (isNaN(value) || value < -1e10 || value > 1e10) {
       // Transparent for no-data values
       imageData.data[i * 4] = 0;
       imageData.data[i * 4 + 1] = 0;
       imageData.data[i * 4 + 2] = 0;
       imageData.data[i * 4 + 3] = 0;
     } else {
-      // Apply viridis colormap
-      const [r, g, b] = getViridisColor(value);
-      imageData.data[i * 4] = r;
-      imageData.data[i * 4 + 1] = g;
-      imageData.data[i * 4 + 2] = b;
-      imageData.data[i * 4 + 3] = 255; // Alpha
+      // Debug mode: show black pixels for all data locations
+      if (options.debugMode) {
+        imageData.data[i * 4] = 0;     // Red = 0 (black)
+        imageData.data[i * 4 + 1] = 0; // Green = 0 (black)
+        imageData.data[i * 4 + 2] = 0; // Blue = 0 (black)
+        imageData.data[i * 4 + 3] = 255; // Alpha = 255 (opaque)
+      } else {
+        // Apply viridis colormap (including for 0 values)
+        const [r, g, b] = getViridisColor(value);
+        imageData.data[i * 4] = r;
+        imageData.data[i * 4 + 1] = g;
+        imageData.data[i * 4 + 2] = b;
+        imageData.data[i * 4 + 3] = 255; // Alpha
+      }
     }
   }
 

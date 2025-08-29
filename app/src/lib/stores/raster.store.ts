@@ -53,6 +53,9 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
 // Main store for all raster layers
 export const rasterLayers = writable<Map<string, RasterLayer>>(createInitialRasterLayers());
 
+// Debug mode store for visualizing data positioning
+export const rasterDebugMode = writable<boolean>(false);
+
 // --- Raster Layer Helper Functions ---
 
 export async function addRasterLayerFromUrl(url: string): Promise<void> {
@@ -75,8 +78,10 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
   });
 
   try {
+    const debugMode = get(rasterDebugMode);
     const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(url, {
-      rescale: DEFAULT_RESCALE
+      rescale: DEFAULT_RESCALE,
+      debugMode: debugMode
     });
     const finalLayer: RasterLayer = {
       ...tempLayer,
@@ -127,8 +132,10 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
   });
 
   try {
+    const debugMode = get(rasterDebugMode);
     const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
-      rescale: layer.rescale || DEFAULT_RESCALE
+      rescale: layer.rescale || DEFAULT_RESCALE,
+      debugMode: debugMode
     });
     console.log(`Raster store: Setting bounds for ${layerId}:`, bounds);
     rasterLayers.update((currentLayers) => {
@@ -195,4 +202,43 @@ export function removeRasterLayer(id: string): void {
     layers.delete(id);
     return layers;
   });
+}
+
+export function toggleDebugMode(): void {
+  rasterDebugMode.update(mode => !mode);
+}
+
+export async function reprocessVisibleLayers(): Promise<void> {
+  const layers = get(rasterLayers);
+  const debugMode = get(rasterDebugMode);
+  
+  // Reprocess all visible layers with the current debug mode
+  const visibleLayers = Array.from(layers.values()).filter(layer => 
+    layer.isVisible && layer.sourceUrl && !layer.isLoading
+  );
+  
+  for (const layer of visibleLayers) {
+    try {
+      console.log(`Reprocessing layer ${layer.id} with debugMode: ${debugMode}`);
+      const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
+        rescale: layer.rescale || DEFAULT_RESCALE,
+        debugMode: debugMode
+      });
+      
+      rasterLayers.update((currentLayers) => {
+        const layerToUpdate = currentLayers.get(layer.id);
+        if (layerToUpdate) {
+          layerToUpdate.dataUrl = dataUrl;
+          layerToUpdate.metadata = metadata;
+          layerToUpdate.bounds = bounds as [number, number, number, number];
+          layerToUpdate.rasterData = rasterData;
+          layerToUpdate.width = width;
+          layerToUpdate.height = height;
+        }
+        return currentLayers;
+      });
+    } catch (err) {
+      console.error(`Error reprocessing layer ${layer.id}:`, err);
+    }
+  }
 }

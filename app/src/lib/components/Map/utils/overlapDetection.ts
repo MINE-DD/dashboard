@@ -25,7 +25,7 @@ export function detectOverlappingFeatures(
   clickPoint: { x: number; y: number }
 ): MapGeoJSONFeature[] {
   // Query all visualization layers at the click point
-  const layers = ['points-layer', 'pie-charts-large', 'pie-charts-medium', 'pie-charts-small', '3d-bars-layer'];
+  const layers = ['points-layer', 'pie-charts', '3d-bars-layer'];
   
   // Use a larger buffer for pie charts to catch overlapping ones
   const buffer = 60; // Maximum pie chart radius
@@ -39,9 +39,7 @@ export function detectOverlappingFeatures(
   const seenIds = new Set<string>();
   
   // Check if we're in pie chart mode
-  const hasPieChartLayers = layers.some(layerId => 
-    layerId.startsWith('pie-charts-') && map.getLayer(layerId)
-  );
+  const hasPieChartLayer = map.getLayer('pie-charts');
   
   layers.forEach(layerId => {
     if (map.getLayer(layerId)) {
@@ -62,7 +60,7 @@ export function detectOverlappingFeatures(
   });
   
   // If we're showing pie charts, detect visual overlap
-  if (hasPieChartLayers && allFeatures.length > 0) {
+  if (hasPieChartLayer && allFeatures.length > 0) {
     const clickedFeature = findClickedFeature(allFeatures, clickPoint, map);
     if (!clickedFeature) return [];
     

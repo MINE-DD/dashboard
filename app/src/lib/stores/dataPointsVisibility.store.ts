@@ -21,9 +21,7 @@ export function applyDataPointsVisibility(map: MaplibreMap | null, visible: bool
   // List of all possible point layer IDs
   const pointLayerIds = [
     'points-layer', // Dots visualization
-    'pie-charts-large', // Pie chart layers
-    'pie-charts-medium',
-    'pie-charts-small',
+    'pie-charts', // Single pie chart layer with dynamic sorting
     '3d-bars-layer', // 3D bars visualization
     'heatmap-layer' // Heatmap visualization
   ];
