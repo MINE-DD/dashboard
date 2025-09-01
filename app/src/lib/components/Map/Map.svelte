@@ -105,20 +105,36 @@
 		const coords: [number, number] = [event.lngLat.lng, event.lngLat.lat];
 		const currentRasterLayers = $rasterLayers;
 
-		// Check if hovering over a raster - quick check for cursor
+		// 1) Check raster under cursor
 		const visibleRasterLayer = findVisibleRasterLayerAtCoordinate(
 			currentRasterLayers,
 			coords[0],
 			coords[1]
 		);
 
-		// Set cursor immediately based on raster presence
+		let pointer = false;
 		if (visibleRasterLayer) {
-			// Force pointer cursor when over raster, overriding other handlers
-			setTimeout(() => {
-				if (map) map.getCanvas().style.cursor = 'pointer';
-			}, 0);
+			// Only show pointer if there is valid raster data at the coordinate
+			const v = getRasterValueAtCoordinateFast(visibleRasterLayer, coords[0], coords[1]);
+			pointer = v !== null && isFinite(v as number);
+		} else {
+			// 2) Check interactive vector layers (points, pies, 3D bars, heatmap)
+			const layersToCheck: string[] = [];
+			if (map.getLayer('points-layer')) layersToCheck.push('points-layer');
+			if (map.getLayer('pie-charts')) layersToCheck.push('pie-charts');
+			if (map.getLayer('3d-bars-layer')) layersToCheck.push('3d-bars-layer');
+			// Note: heatmap is not treated as interactive for cursor style
+
+			if (layersToCheck.length) {
+				const featuresAtPoint = map.queryRenderedFeatures([event.point.x, event.point.y], {
+					layers: layersToCheck
+				});
+				pointer = featuresAtPoint.length > 0;
+			}
 		}
+
+		// 3) Apply cursor style
+		map.getCanvas().style.cursor = pointer ? 'pointer' : '';
 	}
 
 	// Handle map hover for raster feedback - fast version for tooltip

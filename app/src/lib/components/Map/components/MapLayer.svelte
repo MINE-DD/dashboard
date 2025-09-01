@@ -60,7 +60,7 @@
 				});
 			});
 		}
-		
+
 		// Listen for source data events to track when layers are added
 		map.on('sourcedata', (e) => {
 			if (e.isSourceLoaded && e.sourceId === 'points-source' && e.source) {
@@ -175,11 +175,9 @@
 			map.on('mouseleave', '3d-bars-layer', handleMouseLeave);
 		}
 
-		// Add event handlers for heatmap
+		// Add event handler for heatmap clicks only (no pointer change on hover)
 		if (map.getLayer('heatmap-layer')) {
 			map.on('click', 'heatmap-layer', handlePointClick);
-			map.on('mouseenter', 'heatmap-layer', handleMouseEnter);
-			map.on('mouseleave', 'heatmap-layer', handleMouseLeave);
 		}
 	}
 
@@ -207,19 +205,22 @@
 			map.off('mouseleave', '3d-bars-layer', handleMouseLeave);
 		}
 
-		// Remove event handlers for heatmap
+		// Remove event handler for heatmap
 		if (map.getLayer('heatmap-layer')) {
 			map.off('click', 'heatmap-layer', handlePointClick);
-			map.off('mouseenter', 'heatmap-layer', handleMouseEnter);
-			map.off('mouseleave', 'heatmap-layer', handleMouseLeave);
 		}
 	}
 
 	// Track the last visualization type to detect changes
 	let lastVisualizationType: string | null = null;
-	
+
 	// Watch for visualization type changes and re-attach handlers when needed
-	$: if (map && $mapLoaded && $initializationState === 'ready' && $visualizationType !== lastVisualizationType) {
+	$: if (
+		map &&
+		$mapLoaded &&
+		$initializationState === 'ready' &&
+		$visualizationType !== lastVisualizationType
+	) {
 		// Only re-attach if visualization type actually changed and not the first time
 		if (lastVisualizationType !== null) {
 			// Check if any of our visualization layers exist
@@ -227,18 +228,18 @@
 			const hasPieChartLayers = map.getLayer('pie-charts');
 			const has3DBarsLayer = map.getLayer('3d-bars-layer');
 			const hasHeatmapLayer = map.getLayer('heatmap-layer');
-			
+
 			if (hasPointsLayer || hasPieChartLayers || has3DBarsLayer || hasHeatmapLayer) {
 				// Wait for map to be idle after visualization change
 				console.log('Waiting for idle state to re-attach event handlers');
 				map.once('idle', () => {
 					console.log('Re-attaching event handlers after visualization change');
 					removeEventHandlers(); // Clean up any existing handlers first
-					setupEventHandlers();   // Attach fresh handlers
+					setupEventHandlers(); // Attach fresh handlers
 				});
 			}
 		}
-		
+
 		lastVisualizationType = $visualizationType;
 	}
 
@@ -254,7 +255,7 @@
 		if (isInitialStyleLoad) {
 			console.log('Initial style load detected, skipping reset');
 			isInitialStyleLoad = false;
-			
+
 			// Still ensure map is ready after initial style load
 			if (map && $hasData) {
 				map.once('idle', () => {
@@ -291,7 +292,6 @@
 		if (map) {
 			removeEventHandlers();
 			map.off('styledata', handleStyleChange);
-			map.off('sourcedata'); // Remove sourcedata listener
 		}
 		setMapInstance(null);
 		setPointsAddedToMap(false);
