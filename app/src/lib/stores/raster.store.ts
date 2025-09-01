@@ -79,14 +79,14 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
 
   try {
     const debugMode = get(rasterDebugMode);
-  const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(url, {
+    const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(url, {
       rescale: DEFAULT_RESCALE,
       debugMode: debugMode
     });
     const finalLayer: RasterLayer = {
       ...tempLayer,
       name: url.substring(url.lastIndexOf('/') + 1),
-  dataUrl: dataUrl,
+      dataUrl: dataUrl,
       bounds: bounds as [number, number, number, number],
       metadata: metadata,
       rasterData: rasterData,
@@ -119,8 +119,8 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
   const layer = layers.get(layerId);
 
   // Force refetch if bounds are the old incorrect values
-  const hasIncorrectBounds = layer?.bounds && 
-    layer.bounds[1] === -56 && 
+  const hasIncorrectBounds = layer?.bounds &&
+    layer.bounds[1] === -56 &&
     layer.bounds[3] === 72;
 
   if (!layer || (!hasIncorrectBounds && layer.bounds && layer.dataUrl) || layer.isLoading) {
@@ -138,7 +138,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
 
   try {
     const debugMode = get(rasterDebugMode);
-  const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
+    const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
       rescale: layer.rescale || DEFAULT_RESCALE,
       debugMode: debugMode
     });
@@ -148,7 +148,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
       const layerToUpdate = currentLayers.get(layerId);
       if (layerToUpdate) {
         layerToUpdate.bounds = bounds as [number, number, number, number];
-  layerToUpdate.dataUrl = dataUrl;
+        layerToUpdate.dataUrl = dataUrl;
         layerToUpdate.metadata = metadata;
         layerToUpdate.rasterData = rasterData;
         layerToUpdate.width = width;
@@ -217,43 +217,43 @@ export function toggleDebugMode(): void {
 export async function reprocessVisibleLayers(): Promise<void> {
   const layers = get(rasterLayers);
   const debugMode = get(rasterDebugMode);
-  
+
   // Check if any layers have the incorrect bounds
-  const hasIncorrectBounds = Array.from(layers.values()).some(layer => 
+  const hasIncorrectBounds = Array.from(layers.values()).some(layer =>
     layer.bounds && layer.bounds[1] === -56 && layer.bounds[3] === 72
   );
-  
+
   if (hasIncorrectBounds) {
     console.log('Detected layers with incorrect bounds, forcing reload...');
   }
-  
+
   // Reprocess all visible layers with the current debug mode
-  const visibleLayers = Array.from(layers.values()).filter(layer => 
+  const visibleLayers = Array.from(layers.values()).filter(layer =>
     layer.isVisible && layer.sourceUrl && !layer.isLoading
   );
-  
+
   for (const layer of visibleLayers) {
     try {
       // Force reload if layer has incorrect bounds or for debugging
-      const shouldReload = !layer.bounds || 
-        (layer.bounds[1] === -56 && layer.bounds[3] === 72) || 
+      const shouldReload = !layer.bounds ||
+        (layer.bounds[1] === -56 && layer.bounds[3] === 72) ||
         Math.abs(layer.bounds[1] + 90) < 0.01 || // Force reload if south bound is -90
         debugMode !== (layer as any).lastDebugMode ||
         true; // TEMPORARY: Force reload all to debug
-        
+
       if (!shouldReload && layer.dataUrl) {
         console.log(`Skipping layer ${layer.id} - already has correct bounds`);
         continue;
       }
-      
+
       console.log(`Reprocessing layer ${layer.id} with debugMode: ${debugMode}`);
-  const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
+      const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
         rescale: layer.rescale || DEFAULT_RESCALE,
         debugMode: debugMode
       });
-      
+
       console.log(`Layer ${layer.id} new bounds: [${bounds.join(', ')}]`);
-      
+
       rasterLayers.update((currentLayers) => {
         const layerToUpdate = currentLayers.get(layer.id);
         if (layerToUpdate) {

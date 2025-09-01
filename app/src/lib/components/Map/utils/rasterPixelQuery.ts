@@ -32,12 +32,12 @@ export function getRasterValueAtCoordinateFast(
 ): number | null {
   // Fast fail checks
   if (!layer.rasterData) return null;
-  
+
   const data = layer.rasterData;
   const w = layer.width;
   const h = layer.height;
   const bounds = layer.bounds;
-  
+
   if (!w || !h || !bounds) return null;
 
   // Debug logging for coordinate mapping (reduced for performance)
@@ -49,13 +49,13 @@ export function getRasterValueAtCoordinateFast(
   // Normalize longitude to [-180, 180] range to handle world copies
   // This is needed because MapLibre with renderWorldCopies:true can return lng > 180
   lng = ((lng + 180) % 360) - 180;
-  
+
   // Direct array access for bounds
   const west = bounds[0];
   const south = bounds[1];
   const east = bounds[2];
   const north = bounds[3];
-  
+
   // Bounds check
   if (lng < west || lng > east || lat < south || lat > north) return null;
 
@@ -64,10 +64,10 @@ export function getRasterValueAtCoordinateFast(
   // Each pixel covers a range, and we want the pixel that contains this coordinate
   const xRatio = (lng - west) / (east - west);
   const pixelX = Math.min(w - 1, Math.floor(xRatio * w));
-  
+
   // Bounds check X
   if (pixelX < 0 || pixelX >= w) return null;
-  
+
   // The raster data is stored top-to-bottom (row 0 = north edge)
   // IMPORTANT: Use Mercator Y for vertical mapping to match map/image placement
   const yNorth = latToMercatorY(north);
@@ -75,27 +75,27 @@ export function getRasterValueAtCoordinateFast(
   const yLat = latToMercatorY(lat);
   const yRatio = (yNorth - yLat) / (yNorth - ySouth);
   const pixelY = Math.min(h - 1, Math.floor(yRatio * h));
-  
+
   // Log critical coordinate mapping occasionally
   if (Math.random() < 0.01) { // Only log 1% of queries
     console.log(`Query (${lng.toFixed(3)}, ${lat.toFixed(3)}) -> Pixel (${pixelX}, ${pixelY})`);
     console.log(`  Bounds: [${west}, ${south}, ${east}, ${north}]`);
     console.log(`  Ratios: x=${xRatio.toFixed(3)}, y=${yRatio.toFixed(3)}`);
   }
-  
+
   // Bounds check Y
   if (pixelY < 0 || pixelY >= h) return null;
-  
+
   // Direct array access - data is stored in row-major order
   const index = pixelY * w + pixelX;
   const value = data[index];
-  
+
   // Fast no-data check - most values are valid, so optimize for that path
   if (!isNaN(value) && value > -1e10 && value < 1e10) {
     // Fast rounding to 2 decimal places
     return ~~(value * 100 + 0.5) / 100;
   }
-  
+
   return null;
 }
 
@@ -121,7 +121,7 @@ export function getRasterValueAtCoordinate(
   lng = ((lng + 180) % 360) - 180;
 
   const [west, south, east, north] = layer.bounds;
-  
+
   // Check if coordinate is within bounds
   if (lng < west || lng > east || lat < south || lat > north) {
     console.log(`Coordinate (${lng}, ${lat}) is outside raster bounds [${west}, ${south}, ${east}, ${north}]`);
@@ -132,7 +132,7 @@ export function getRasterValueAtCoordinate(
   // X increases from west to east (left to right)
   const xRatio = (lng - west) / (east - west);
   const pixelX = Math.min(layer.width - 1, Math.floor(xRatio * layer.width));
-  
+
   // Y-axis: Use consistent top-down orientation (Y=0 at north/top)
   // This matches how we create the canvas image
   // IMPORTANT: Use Mercator Y for vertical mapping to match map/image placement
@@ -141,19 +141,19 @@ export function getRasterValueAtCoordinate(
   const yLat = latToMercatorY(lat);
   const yRatio = (yNorth - yLat) / (yNorth - ySouth);
   const pixelY = Math.min(layer.height - 1, Math.floor(yRatio * layer.height));
-  
+
   // Ensure pixel coordinates are within bounds
   if (pixelX < 0 || pixelX >= layer.width || pixelY < 0 || pixelY >= layer.height) {
     console.log(`Pixel coordinates out of bounds: (${pixelX}, ${pixelY})`);
     return null;
   }
-  
+
   // Get the index in the flat array using consistent top-down orientation
   const index = pixelY * layer.width + pixelX;
-  
+
   // Get the value from the raster data
   const value = layer.rasterData[index];
-  
+
   // Check for no-data values
   // NaN indicates no data (ocean, outside coverage area, etc.)
   // 0 is a valid value (0% prevalence)
@@ -161,7 +161,7 @@ export function getRasterValueAtCoordinate(
     console.log(`No data at pixel (${pixelX}, ${pixelY}): value is ${value}`);
     return null;
   }
-  
+
   // Round to 2 decimal places for display
   // Note: 0 is a valid value representing 0% prevalence
   return Math.round(value * 100) / 100;
@@ -184,13 +184,13 @@ export function findVisibleRasterLayerAtCoordinate(
   for (const [, layer] of rasterLayers) {
     if (layer.isVisible && layer.bounds && !layer.isLoading && !layer.error) {
       const [west, south, east, north] = layer.bounds;
-      
+
       // Check if coordinate is within layer bounds
       if (lng >= west && lng <= east && lat >= south && lat <= north) {
         return layer;
       }
     }
   }
-  
+
   return null;
 }

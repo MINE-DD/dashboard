@@ -55,19 +55,19 @@ export async function loadGeoTIFF(url: string): Promise<{
   metadata: GeoTIFFMetadata;
 }> {
   console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
-  
+
   // Check if we're in the browser and GeoTIFF is available globally
   if (!browser) {
     throw new Error('GeoTIFF processing is only available in browser environments');
   }
-  
+
   // Use the global GeoTIFF library loaded from CDN in app.html
   let tiff;
   try {
     // First try using the global window.GeoTIFF
     if (window.GeoTIFF && typeof window.GeoTIFF.fromUrl === 'function') {
       tiff = await window.GeoTIFF.fromUrl(url);
-    } 
+    }
     // Fallback to try accessing it from the global scope
     else if (typeof (window as any).GeoTIFF !== 'undefined' && typeof (window as any).GeoTIFF.fromUrl === 'function') {
       tiff = await (window as any).GeoTIFF.fromUrl(url);
@@ -86,18 +86,18 @@ export async function loadGeoTIFF(url: string): Promise<{
     console.error('Error loading GeoTIFF:', error);
     throw new Error(`Failed to load GeoTIFF from URL: ${url}`);
   }
-  
+
   if (!tiff) {
     throw new Error('Failed to load GeoTIFF library');
   }
-  
+
   const image = await tiff.getImage();
 
   // Extract metadata
   const imageWidth = image.getWidth();
   const imageHeight = image.getHeight();
   const imageBounds = image.getBoundingBox();
-  
+
   console.log('GeoTIFF Metadata DIRECT FROM FILE:', {
     width: imageWidth,
     height: imageHeight,
@@ -107,7 +107,7 @@ export async function loadGeoTIFF(url: string): Promise<{
     resolution: image.getResolution(),
     fileDirectory: image.fileDirectory
   });
-  
+
   // Additional check for projection info
   try {
     const geoKeys = image.getGeoKeys();
@@ -223,7 +223,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     console.log(`  Original: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
     console.log(`  Converted: [${sw[0]}, ${sw[1]}, ${ne[0]}, ${ne[1]}]`);
 
-  return [sw[0], sw[1], ne[0], ne[1]];
+    return [sw[0], sw[1], ne[0], ne[1]];
   }
 
   // Check for Web Mercator global bounds (approximately ±20037508.34, ±10018754.17)
@@ -235,9 +235,9 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
 
   if (isWebMercatorGlobalBounds) {
     console.log('GeoTIFF Processor: Detected Web Mercator global bounds, converting properly');
-  // Use canonical tile bounds directly for clarity/consistency
-  console.log('GeoTIFF Processor: Using canonical Web Mercator tile bounds (WGS84).');
-  return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
+    // Use canonical tile bounds directly for clarity/consistency
+    console.log('GeoTIFF Processor: Using canonical Web Mercator tile bounds (WGS84).');
+    return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
   }
 
   // Check for invalid coordinates in WGS84
@@ -249,7 +249,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
 
   // IMPORTANT: Don't force global bounds for valid regional data!
   // The original logic was causing the positioning offset by stretching regional data globally
-  
+
   // Check if bounds claim to be global
   const isExactlyGlobal =
     bounds[0] === -180 &&
@@ -260,7 +260,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
   // Check for near-global bounds that are from Web Mercator conversion
   // The ±66.51326° latitude corresponds to Y=±10018754.17 meters in Web Mercator
   // This is a standard extent for global Web Mercator tiles and should NOT be adjusted
-  const isNearGlobal = 
+  const isNearGlobal =
     Math.abs(bounds[0] + 180) < 0.1 &&
     Math.abs(bounds[2] - 180) < 0.1 &&
     Math.abs(bounds[1] + 66.51) < 1 &&
@@ -272,14 +272,14 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     // Return the original bounds - they are correct!
     return bounds;
   }
-  
+
   if (isExactlyGlobal) {
     // If bounds claim to be exactly global (-90 to 90), this is likely incorrect for Web Mercator data
     // Web Mercator can only represent approximately ±85.05° (and commonly ±66.51° for tiles)
     console.log(`GeoTIFF Processor: Detected claimed global bounds ${JSON.stringify(bounds)}`);
     console.log(`GeoTIFF Processor: Adjusting to Web Mercator practical limits`);
     // Use the standard Web Mercator tile extent
-  return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
+    return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
   }
 
   // For all other cases, preserve the actual bounds from the GeoTIFF
@@ -369,11 +369,11 @@ export async function processGeoTIFF(
   // Scan for min/max values and identify no-data areas
   let noDataCount = 0;
   let validDataCount = 0;
-  
+
   // Track actual data extent (for detecting if bounds are incorrect)
   let minX = width, maxX = -1;
   let minY = height, maxY = -1;
-  
+
   for (let i = 0; i < width * height; i++) {
     const value = rasterData[0][i]; // First band
     // Check for sentinel/no-data values
@@ -384,7 +384,7 @@ export async function processGeoTIFF(
     } else {
       rawDataCopy[i] = value; // Store raw value (including legitimate 0 values)
       validDataCount++;
-      
+
       // Track actual data extent
       const x = i % width;
       const y = Math.floor(i / width);
@@ -393,7 +393,7 @@ export async function processGeoTIFF(
       minY = Math.min(minY, y);
       maxY = Math.max(maxY, y);
     }
-    
+
     // Only consider valid values for min/max calculation
     // Note: 0 is a valid value (0% prevalence), so we include it
     if (!isNaN(value) && value > -1e10 && value < 1e10) {
@@ -401,16 +401,16 @@ export async function processGeoTIFF(
       maxValue = Math.max(maxValue, value);
     }
   }
-  
+
   // Log actual data extent for debugging
   if (validDataCount > 0) {
     const xCoverage = (maxX - minX + 1) / width;
     const yCoverage = (maxY - minY + 1) / height;
-    
+
     console.log(`GeoTIFF Processor: Actual data extent - X: [${minX}, ${maxX}] (${maxX - minX + 1} pixels), Y: [${minY}, ${maxY}] (${maxY - minY + 1} pixels)`);
     console.log(`GeoTIFF Processor: Full raster size: ${width} x ${height}`);
     console.log(`GeoTIFF Processor: Data coverage - X: ${(xCoverage * 100).toFixed(1)}%, Y: ${(yCoverage * 100).toFixed(1)}%`);
-    
+
     // Don't adjust bounds - the raster should use its declared bounds
     // Even if data doesn't fill the entire extent (ocean areas are 0/NaN)
   }
@@ -429,7 +429,7 @@ export async function processGeoTIFF(
       const sourceIndex = y * width + x;
       // Canvas uses the same row-major order
       const canvasIndex = y * width + x;
-      
+
       const value = rawDataCopy[sourceIndex];
 
       // Check for no-data values
@@ -512,7 +512,7 @@ export async function loadAndProcessGeoTIFF(
 
     // Validate and adjust bounds, passing projection info
     bounds = validateBounds(bounds, projectionInfo || undefined);
-    
+
     console.log(`GeoTIFF Processor: FINAL bounds being returned: [${bounds.join(', ')}]`);
 
     // Process the GeoTIFF

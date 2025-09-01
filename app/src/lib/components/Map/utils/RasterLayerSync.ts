@@ -53,11 +53,11 @@ export function syncRasterLayers(
               [number, number],
               [number, number]
             ] = [
-              [west, north],
-              [east, north],
-              [east, south],
-              [west, south]
-            ];
+                [west, north],
+                [east, north],
+                [east, south],
+                [west, south]
+              ];
             const src = currentMap.getSource(sourceId) as any;
             if (typeof src.setCoordinates === 'function') {
               console.log('RasterLayerSync: Updating image source coordinates for', layerId, coords);
@@ -115,7 +115,7 @@ export function syncRasterLayers(
                 [east, south], // bottom-right
                 [west, south] // bottom-left
               ];
-            
+
             console.log(`RasterLayerSync: IMAGE CORNERS:`, {
               layerId,
               topLeft: `[${west}, ${north}]`,

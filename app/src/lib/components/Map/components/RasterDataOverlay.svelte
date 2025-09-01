@@ -18,23 +18,25 @@
 		}
 
 		const currentRasterLayers = $rasterLayers;
-		const visibleLayers = Array.from(currentRasterLayers.values()).filter(layer => layer.isVisible);
-		
+		const visibleLayers = Array.from(currentRasterLayers.values()).filter(
+			(layer) => layer.isVisible
+		);
+
 		if (visibleLayers.length === 0) {
 			dataPoints = [];
 			return;
 		}
 
-	const points: Array<{ x: number; y: number; value: number }> = [];
-	const container = map.getContainer();
-	const rect = container.getBoundingClientRect();
-	// Use CSS pixel size, not device pixel canvas size, to avoid DPR mismatch
-	const cssWidth = container.clientWidth;
-	const cssHeight = container.clientHeight;
-		
+		const points: Array<{ x: number; y: number; value: number }> = [];
+		const container = map.getContainer();
+		const rect = container.getBoundingClientRect();
+		// Use CSS pixel size, not device pixel canvas size, to avoid DPR mismatch
+		const cssWidth = container.clientWidth;
+		const cssHeight = container.clientHeight;
+
 		// Sample screen pixels and check if they have raster data
 		const sampleRate = 5; // Sample every 5th pixel
-		
+
 		for (let sx = 0; sx < cssWidth; sx += sampleRate) {
 			for (let sy = 0; sy < cssHeight; sy += sampleRate) {
 				// Convert CSS pixel (relative to map container) to geographic coordinates
@@ -44,13 +46,13 @@
 				// Normalize longitude to [-180, 180] for world copies
 				const lng = ((lngLat.lng + 180) % 360) - 180;
 				const lat = lngLat.lat;
-				
+
 				// Check each visible layer for data at this location
 				for (const layer of visibleLayers) {
 					if (!layer || !layer.rasterData || !layer.bounds || !layer.width || !layer.height) {
 						continue;
 					}
-					
+
 					// Log bounds once per update
 					if (sx === 0 && sy === 0) {
 						console.log('RasterDataOverlay - Layer info:', {
@@ -64,7 +66,7 @@
 							degreesPerPixelY: (layer.bounds[3] - layer.bounds[1]) / layer.height
 						});
 					}
-					
+
 					// Clip to actual raster bounds before sampling to avoid outside-extent dots
 					const [west, south, east, north] = layer.bounds;
 					if (lat < south || lat > north || lng < west || lng > east) {
@@ -73,7 +75,7 @@
 
 					// Use the same function that the tooltip uses to get the value
 					const value = getRasterValueAtCoordinateFast(layer, lng, lat);
-					
+
 					if (value !== null && value > 0) {
 						// Found valid data at this geographic location; use map.project for exact screen coords
 						const screen = map.project([lng, lat]);
@@ -83,7 +85,7 @@
 				}
 			}
 		}
-		
+
 		console.log(`RasterDataOverlay: Generated ${points.length} data points`);
 		dataPoints = points;
 	}
@@ -100,10 +102,10 @@
 	onMount(() => {
 		if (map) {
 			mapContainer = map.getContainer();
-			
+
 			// Generate initial points
 			generateDataPoints();
-			
+
 			// Update on map events
 			map.on('moveend', scheduleUpdate);
 			map.on('zoomend', scheduleUpdate);
@@ -136,7 +138,7 @@
 	<div class="pointer-events-none fixed inset-0 z-[500]">
 		{#each dataPoints as point (point.x + '-' + point.y)}
 			<div
-				class="absolute h-[3px] w-[3px] bg-red-600 border border-red-800"
+				class="absolute h-[3px] w-[3px] border border-red-800 bg-red-600"
 				style="left: {point.x}px; top: {point.y}px;"
 			/>
 		{/each}
