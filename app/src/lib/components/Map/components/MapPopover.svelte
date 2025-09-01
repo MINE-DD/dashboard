@@ -277,6 +277,7 @@
 		border-top: 1px solid #eee;
 		color: #666;
 		font-size: 12px;
+		line-height: normal;
 	}
 
 	:global(.popup-footnote em) {

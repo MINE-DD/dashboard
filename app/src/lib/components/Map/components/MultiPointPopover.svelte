@@ -452,6 +452,7 @@
 					border-top: 1px solid #eee;
 					color: #666;
 					font-size: 12px;
+					line-height: normal !important;
 				}
 				.popup-footnote em {
 					font-style: italic;
