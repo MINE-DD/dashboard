@@ -4,8 +4,7 @@ import { toastStore } from '$lib/stores/toast.store';
 // Adjust the import path for geoTiffProcessor relative to the new store location
 import { loadAndProcessGeoTIFF } from '$lib/components/Map/utils/geoTiffProcessor';
 
-// Default rescale values for GeoTIFF processing
-const DEFAULT_RESCALE: [number, number] = [0, 11];
+// Default rescale values no longer forced; processing will auto-detect from data
 
 // Helper to create the initial raster layers map
 function createInitialRasterLayers(): Map<string, RasterLayer> {
@@ -41,8 +40,7 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
       bounds: undefined,
       isLoading: false,
       error: null,
-      colormap: 'viridis', // Default colormap
-      rescale: DEFAULT_RESCALE // Default rescale
+      colormap: 'viridis' // Default colormap
     };
     initialMap.set(layer.id, layer);
   });
@@ -68,8 +66,7 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
     opacity: 0.8,
     isLoading: true,
     error: null,
-    colormap: 'viridis',
-    rescale: DEFAULT_RESCALE
+    colormap: 'viridis'
   };
 
   rasterLayers.update((layers) => {
@@ -79,8 +76,7 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
 
   try {
     const debugMode = get(rasterDebugMode);
-    const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(url, {
-      rescale: DEFAULT_RESCALE,
+    const { dataUrl, metadata, bounds, rasterData, width, height, rescaleUsed } = await loadAndProcessGeoTIFF(url, {
       debugMode: debugMode
     });
     const finalLayer: RasterLayer = {
@@ -92,7 +88,8 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
       rasterData: rasterData,
       width: width,
       height: height,
-      isLoading: false
+      isLoading: false,
+      rescale: rescaleUsed
     };
     rasterLayers.update((layers) => {
       layers.set(layerId, finalLayer);
@@ -138,8 +135,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
 
   try {
     const debugMode = get(rasterDebugMode);
-    const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
-      rescale: layer.rescale || DEFAULT_RESCALE,
+    const { dataUrl, metadata, bounds, rasterData, width, height, rescaleUsed } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
       debugMode: debugMode
     });
     console.log(`Raster store: Setting bounds for ${layerId}: [${bounds.join(', ')}]`);
@@ -154,6 +150,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
         layerToUpdate.width = width;
         layerToUpdate.height = height;
         layerToUpdate.isLoading = false;
+        layerToUpdate.rescale = rescaleUsed;
       }
       return currentLayers;
     });
@@ -247,8 +244,7 @@ export async function reprocessVisibleLayers(): Promise<void> {
       }
 
       console.log(`Reprocessing layer ${layer.id} with debugMode: ${debugMode}`);
-      const { dataUrl, metadata, bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
-        rescale: layer.rescale || DEFAULT_RESCALE,
+      const { dataUrl, metadata, bounds, rasterData, width, height, rescaleUsed } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
         debugMode: debugMode
       });
 
@@ -264,6 +260,7 @@ export async function reprocessVisibleLayers(): Promise<void> {
           layerToUpdate.width = width;
           layerToUpdate.height = height;
           (layerToUpdate as any).lastDebugMode = debugMode;
+          layerToUpdate.rescale = rescaleUsed;
         }
         return currentLayers;
       });

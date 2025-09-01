@@ -306,9 +306,11 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
  * Get color from the viridis colormap
  * Using the exact same implementation as in GeoTIFFExample.svelte
  */
-function getViridisColor(value: number): [number, number, number] {
-  // Rescale value from 0-11 to 0-1 (similar to TiTiler's rescale=0,11)
-  const rescaledValue = Math.min(1, Math.max(0, value / 11));
+function getViridisColor(value: number, rescale: [number, number]): [number, number, number] {
+  // Normalize value using provided rescale range
+  const [minV, maxV] = rescale;
+  const denom = maxV - minV === 0 ? 1 : maxV - minV;
+  const rescaledValue = Math.min(1, Math.max(0, (value - minV) / denom));
 
   // Map to colormap index
   const index = rescaledValue * (VIRIDIS_COLORMAP.length - 1);
@@ -340,7 +342,7 @@ function getViridisColor(value: number): [number, number, number] {
 export async function processGeoTIFF(
   image: any,
   options: ProcessingOptions = {}
-): Promise<{ dataUrl: string; rasterData: Float32Array; width: number; height: number }> {
+): Promise<{ dataUrl: string; rasterData: Float32Array; width: number; height: number; rescaleUsed: [number, number] }> {
   const width = image.getWidth();
   const height = image.getHeight();
 
@@ -418,7 +420,7 @@ export async function processGeoTIFF(
   console.log(`GeoTIFF Processor: Data stats - Valid: ${validDataCount}, No-data: ${noDataCount}, Range: ${minValue} to ${maxValue}`);
 
   // Use provided rescale values or default to the detected range
-  const rescale = options.rescale || [minValue, maxValue];
+  const rescale: [number, number] = options.rescale || [minValue, maxValue];
   const noDataThreshold = options.noDataThreshold || 0.01;
 
   // Apply colormap to raster data with better no-data handling
@@ -450,7 +452,7 @@ export async function processGeoTIFF(
           imageData.data[canvasIndex * 4 + 3] = 255; // Alpha = 255 (opaque)
         } else {
           // Apply viridis colormap (including for 0 values)
-          const [r, g, b] = getViridisColor(value);
+          const [r, g, b] = getViridisColor(value, rescale);
           imageData.data[canvasIndex * 4] = r;
           imageData.data[canvasIndex * 4 + 1] = g;
           imageData.data[canvasIndex * 4 + 2] = b;
@@ -467,7 +469,7 @@ export async function processGeoTIFF(
   const dataUrl = canvas.toDataURL('image/png');
   console.log(`GeoTIFF Processor: Created canvas image ${width}x${height} pixels`);
 
-  return { dataUrl, rasterData: rawDataCopy, width, height };
+  return { dataUrl, rasterData: rawDataCopy, width, height, rescaleUsed: rescale };
 }
 
 /**
@@ -483,6 +485,7 @@ export async function loadAndProcessGeoTIFF(
   rasterData: Float32Array;
   width: number;
   height: number;
+  rescaleUsed: [number, number];
 }> {
   try {
     // Load the GeoTIFF
@@ -516,9 +519,9 @@ export async function loadAndProcessGeoTIFF(
     console.log(`GeoTIFF Processor: FINAL bounds being returned: [${bounds.join(', ')}]`);
 
     // Process the GeoTIFF
-    const { dataUrl, rasterData, width, height } = await processGeoTIFF(image, options);
+    const { dataUrl, rasterData, width, height, rescaleUsed } = await processGeoTIFF(image, options);
 
-    return { dataUrl, metadata, bounds, rasterData, width, height };
+    return { dataUrl, metadata, bounds, rasterData, width, height, rescaleUsed };
   } catch (error) {
     console.error('GeoTIFF Processor: Error processing GeoTIFF:', error);
     throw error;

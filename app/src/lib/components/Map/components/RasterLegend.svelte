@@ -24,18 +24,27 @@
 	// Create gradient string
 	$: gradientStyle = `linear-gradient(to right, ${viridisColors.map((c) => `${c.color} ${c.stop * 100}%`).join(', ')})`;
 
-	// Get min/max values from raster metadata
-	$: minValue = 0;
-	$: maxValue = 11; // Default rescale range
+	// Get min/max from layer's rescale (fallback to 0-11)
+	$: minValue = visibleRaster?.rescale?.[0] ?? 0;
+	$: maxValue = visibleRaster?.rescale?.[1] ?? 11;
 
-	$: if (visibleRaster?.metadata) {
-		// The rescale values are 0-11 for prevalence percentage
-		minValue = 0;
-		maxValue = 11;
-	}
-
-	// Calculate tick marks
-	$: tickValues = [0, 2, 4, 6, 8, 10, 11];
+	// Calculate tick marks dynamically: aim ~6 ticks including endpoints
+	$: tickValues = (() => {
+		const ticks: number[] = [];
+		const steps = 6;
+		const span = maxValue - minValue || 1;
+		const step = span / steps;
+		for (let i = 0; i <= steps; i++) {
+			const v = minValue + step * i;
+			// Round nicely to 1 decimal when needed
+			const rounded = Math.round(v * 10) / 10;
+			ticks.push(rounded);
+		}
+		// Ensure min/max are exact
+		ticks[0] = Math.round(minValue * 10) / 10;
+		ticks[ticks.length - 1] = Math.round(maxValue * 10) / 10;
+		return ticks;
+	})();
 </script>
 
 {#if visible && visibleRaster}
