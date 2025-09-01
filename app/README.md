@@ -254,6 +254,37 @@ Scientific names use double underscores for italic rendering:
 - `__Genus species__` → *Genus species*
 - `Pathogen __G. species__ (TYPE)` → Pathogen *G. species* (TYPE)
 
+## ✅ Confidence intervals (CI): calculation and display
+
+This dashboard shows 95% confidence intervals for prevalence in map popovers. The color scale always reflects the numeric prevalence value, while the label shows the prevalence with CI when available.
+
+### Point data (CSV)
+- Color scale: uses the numeric prevalence column (PREV or equivalent numeric field) as a fraction (0–1).
+- Label: uses the human-readable “Prevalence” column as provided in the CSV. If your pipeline encodes CIs in this column (e.g., `12.34% (95% CI: 10.11%–14.57%)`), the popover shows it as-is. No CI is recomputed client-side for points.
+
+### Raster data (COGs)
+- Input rasters:
+   - Prevalence raster: `*_Pr.tif` with values in percentage points (0–100).
+   - Standard error raster: `*_SE.tif` with values in percentage points.
+- Pairing: the SE raster is inferred by replacing `_Pr.tif` with `_SE.tif` in the clicked layer’s source URL; it’s loaded on demand and cached in-memory for subsequent clicks.
+- Formula: assuming normal approximation, the 95% CI is computed as
+   - halfWidth = 1.96 × SE
+   - lower = max(0, Pr − halfWidth)
+   - upper = min(100, Pr + halfWidth)
+- Units: Pr and SE are both treated as percentage points; the CI is clamped to [0, 100].
+- Display: the popover label is formatted as `XX.XX% (LL.LL%–UU.UU%)` (prefix omitted to match points). If SE is unavailable or the sample returns no data, only `XX.XX%` is shown.
+- Color scale: uses the prevalence value as a fraction (Pr/100) so the legend and styles remain consistent.
+
+### Assumptions and edge cases
+- Normal approximation (±1.96 × SE) is used for 95% coverage.
+- If the click is outside raster data/no-data (e.g., ocean), no raster popover is shown.
+- If no matching `_SE.tif` exists or it cannot be read, the CI is omitted.
+- Values are rounded to 2 decimal places for display; calculations use full precision.
+
+### Quick reference
+- Points: label from CSV “Prevalence”; color from numeric prevalence.
+- Rasters: label computed from `*_Pr.tif` and `*_SE.tif`; color from `*_Pr.tif`.
+
 ## 🎮 User Guide
 
 ### Navigation Controls

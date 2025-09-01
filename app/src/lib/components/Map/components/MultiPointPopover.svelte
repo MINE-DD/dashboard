@@ -143,7 +143,8 @@
 		let itemsHtml = '';
 		features.forEach((feature, index) => {
 			const props = feature.properties as PointProperties;
-			const prevalence = (props.prevalenceValue * 100).toFixed(1) + '%';
+			const prevalence = (props.prevalence && props.prevalence.trim()) ||
+				(props.prevalenceValue * 100).toFixed(1) + '%';
 			const color = getPrevalenceColor(props.prevalenceValue);
 			const designColor = getDesignColor(props.design);
 			
@@ -314,11 +315,12 @@
 	}
 
 	function createDetailedContent(props: PointProperties): string {
-		// Convert prevalence value to percentage for display
+		// Label comes from Prevalence (with CI); fallback to PREV-derived percent
 		const prevalencePercent = typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue) 
 			? props.prevalenceValue * 100
 			: 0;
-		const prevalenceDisplay = prevalencePercent.toFixed(2) + '%';
+		const prevalenceDisplay = (props.prevalence && props.prevalence.trim()) ||
+			prevalencePercent.toFixed(2) + '%';
 		
 		// Determine prevalence color based on decimal value
 		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);

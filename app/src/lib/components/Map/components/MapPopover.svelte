@@ -109,13 +109,13 @@
 			console.error('MapPopover: No properties provided!');
 			return '<div class="popup-content">No data available</div>';
 		}
-		// Prevalence value is now a decimal (0.0-1.0) from the PREV column
-		// Convert to percentage for display
+		// Color is based on PREV (decimal 0-1). Label comes from the Prevalence column (includes CI).
 		const prevalencePercent =
 			typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue)
 				? props.prevalenceValue * 100
 				: 0;
-		const prevalenceDisplay = prevalencePercent.toFixed(2) + '%';
+		const prevalenceLabel = (props.prevalence && props.prevalence.trim()) ||
+			prevalencePercent.toFixed(2) + '%';
 
 		// Determine prevalence color based on decimal value
 		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);
@@ -145,7 +145,7 @@
             <div class="info-label">Prevalence:</div>
             <div class="info-value">
               <span class="prevalence-badge" style="background-color: ${prevalenceColor}">
-                ${prevalenceDisplay}
+				${prevalenceLabel}
               </span>
             </div>
           </div>

@@ -33,6 +33,7 @@
 		isLatitudeInWebMercatorRange
 	} from './utils/rasterPixelQuery';
 	import { WEB_MERCATOR_MAX_LATITUDE } from './utils/geoTiffProcessor';
+	import { loadAndProcessGeoTIFF } from './utils/geoTiffProcessor';
 
 	// Import modularized components
 	import MapCore from './components/MapCore.svelte';
@@ -62,6 +63,9 @@
 
 	// Debug overlay state
 	let showRasterDataOverlay = false; // Hide red pixels by default
+
+	// Simple cache for SE rasters to compute CIs without reloading each click
+	const seRasterCache = new Map<string, { bounds: number[]; rasterData: Float32Array; width: number; height: number }>();
 
 	// References to child components
 	let rasterLayerManager: RasterLayerManager;
@@ -425,10 +429,37 @@
 			const formattedLng = clickCoordinates[0].toFixed(4);
 			const formattedLat = clickCoordinates[1].toFixed(4);
 
-			// Convert raster value to percentage
-			// The raster values are in the 0-11 range based on the rescale parameter
-			// This represents prevalence percentage directly
+			// Convert raster value to percentage (Pr rasters are in percent units)
 			const prevalencePercent = rasterValue;
+
+			// Try to compute 95% CI using matching SE raster if available
+			let prevalenceLabel: string | null = null;
+			try {
+				// Derive SE URL by replacing _Pr.tif with _SE.tif
+				const seUrl = visibleRasterLayer.sourceUrl.replace('_Pr.tif', '_SE.tif');
+				if (seUrl !== visibleRasterLayer.sourceUrl) {
+					// Get SE raster from cache or load on the fly (do not add to map)
+					let cached = seRasterCache.get(seUrl);
+					if (!cached) {
+						const { bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(seUrl, { debugMode: false });
+						cached = { bounds, rasterData, width, height };
+						seRasterCache.set(seUrl, cached);
+					}
+					// Sample SE value at click location using same mapping
+					const tempLayer: any = { rasterData: cached.rasterData, width: cached.width, height: cached.height, bounds: cached.bounds };
+					const seValue = getRasterValueAtCoordinate(tempLayer, clickCoordinates[0], clickCoordinates[1]);
+						if (seValue !== null && isFinite(seValue)) {
+							// SE assumed to be in percent units; 95% CI = prev ± 1.96*SE
+							const halfWidth = 1.96 * seValue;
+							const lower = Math.max(0, prevalencePercent - halfWidth);
+							const upper = Math.min(100, prevalencePercent + halfWidth);
+							// Display to match points popovers: omit the "95% CI:" prefix
+							prevalenceLabel = `${prevalencePercent.toFixed(2)}% (${lower.toFixed(2)}%–${upper.toFixed(2)}%)`;
+						}
+				}
+			} catch (ciErr) {
+				console.warn('Could not compute CI from SE raster:', ciErr);
+			}
 
 			// Create properties that match the expected structure for MapPopover
 			popoverProperties = {
@@ -436,7 +467,9 @@
 				heading: `${pathogen} Prevalence`,
 				subheading: 'Raster layer data',
 				pathogen: pathogen,
-				prevalenceValue: prevalencePercent / 100, // Convert from percentage (0-11) to decimal (0-0.11) for MapPopover
+				prevalenceValue: prevalencePercent / 100, // Decimal for color scale
+				// Label for display (with CI if available)
+				prevalence: prevalenceLabel || `${prevalencePercent.toFixed(2)}%`,
 				ageGroup: ageGroup || 'All ages',
 				ageRange: ageGroup || 'All ages',
 				syndrome: syndrome || 'Diarrhea',
