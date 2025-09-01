@@ -725,13 +725,12 @@
 		<!-- Red pixel indicator for testing - centered on mouse position -->
 		<div
 			class="pointer-events-none fixed z-[999] h-2 w-2 bg-red-500"
-			style="left: {debugInfo.hoverMousePos.x - 4}px; top: {debugInfo.hoverMousePos.y -
-				4}px; border: 1px solid white;"
+			style="left: {debugInfo.hoverMousePos.x}px; top: {debugInfo.hoverMousePos.y}px; transform: translate(-50%, -50%); border: 1px solid white;"
 		></div>
-		<!-- Tooltip positioned closer to cursor -->
+		<!-- Tooltip positioned exactly at cursor -->
 		<div
 			class="pointer-events-none fixed z-[1000] whitespace-nowrap rounded bg-black/90 px-2 py-1 text-xs text-white"
-			style="left: {debugInfo.hoverMousePos.x + 10}px; top: {debugInfo.hoverMousePos.y - 20}px;"
+			style="left: {debugInfo.hoverMousePos.x}px; top: {debugInfo.hoverMousePos.y}px; transform: translate(-50%, -50%);"
 		>
 			Prevalence: {debugInfo.hoverRasterValue}%
 		</div>
