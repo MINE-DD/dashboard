@@ -321,32 +321,39 @@ export async function processGeoTIFF(
 
   // Apply colormap to raster data with better no-data handling
   // IMPORTANT: Use rawDataCopy for consistency with what we store
-  for (let i = 0; i < width * height; i++) {
-    const value = rawDataCopy[i]; // Use the processed copy, not the original!
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      // Calculate the source index in the raster data
+      const sourceIndex = y * width + x;
+      // Canvas uses the same row-major order
+      const canvasIndex = y * width + x;
+      
+      const value = rawDataCopy[sourceIndex];
 
-    // Check for no-data values
-    // Only NaN and extreme values are considered no-data
-    // 0 is a valid value (0% prevalence) and should be colored
-    if (isNaN(value) || value < -1e10 || value > 1e10) {
-      // Transparent for no-data values
-      imageData.data[i * 4] = 0;
-      imageData.data[i * 4 + 1] = 0;
-      imageData.data[i * 4 + 2] = 0;
-      imageData.data[i * 4 + 3] = 0;
-    } else {
-      // Debug mode: show black pixels for all data locations
-      if (options.debugMode) {
-        imageData.data[i * 4] = 0;     // Red = 0 (black)
-        imageData.data[i * 4 + 1] = 0; // Green = 0 (black)
-        imageData.data[i * 4 + 2] = 0; // Blue = 0 (black)
-        imageData.data[i * 4 + 3] = 255; // Alpha = 255 (opaque)
+      // Check for no-data values
+      // Only NaN and extreme values are considered no-data
+      // 0 is a valid value (0% prevalence) and should be colored
+      if (isNaN(value) || value < -1e10 || value > 1e10) {
+        // Transparent for no-data values
+        imageData.data[canvasIndex * 4] = 0;
+        imageData.data[canvasIndex * 4 + 1] = 0;
+        imageData.data[canvasIndex * 4 + 2] = 0;
+        imageData.data[canvasIndex * 4 + 3] = 0;
       } else {
-        // Apply viridis colormap (including for 0 values)
-        const [r, g, b] = getViridisColor(value);
-        imageData.data[i * 4] = r;
-        imageData.data[i * 4 + 1] = g;
-        imageData.data[i * 4 + 2] = b;
-        imageData.data[i * 4 + 3] = 255; // Alpha
+        // Debug mode: show black pixels for all data locations
+        if (options.debugMode) {
+          imageData.data[canvasIndex * 4] = 0;     // Red = 0 (black)
+          imageData.data[canvasIndex * 4 + 1] = 0; // Green = 0 (black)
+          imageData.data[canvasIndex * 4 + 2] = 0; // Blue = 0 (black)
+          imageData.data[canvasIndex * 4 + 3] = 255; // Alpha = 255 (opaque)
+        } else {
+          // Apply viridis colormap (including for 0 values)
+          const [r, g, b] = getViridisColor(value);
+          imageData.data[canvasIndex * 4] = r;
+          imageData.data[canvasIndex * 4 + 1] = g;
+          imageData.data[canvasIndex * 4 + 2] = b;
+          imageData.data[canvasIndex * 4 + 3] = 255; // Alpha
+        }
       }
     }
   }

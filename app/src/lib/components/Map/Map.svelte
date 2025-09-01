@@ -44,6 +44,7 @@
 	import MapLegend from './components/MapLegend.svelte';
 	import MultiPointPopover from './components/MultiPointPopover.svelte';
 	import RasterLegend from './components/RasterLegend.svelte';
+	import RasterDataOverlay from './components/RasterDataOverlay.svelte';
 	import type { VisualizationType, RasterLayer } from './store/types';
 	import { detectOverlappingFeatures } from './utils/overlapDetection';
 
@@ -58,6 +59,9 @@
 	// Map instance and state
 	let map: MaplibreMap | null = null;
 	let isStyleLoaded = false;
+	
+	// Debug overlay state
+	let showRasterDataOverlay = true; // Show red pixels by default for testing
 
 	// References to child components
 	let rasterLayerManager: RasterLayerManager;
@@ -641,6 +645,19 @@
 		<RasterLegend visible={true} />
 	{/if}
 
+	<!-- Raster Data Overlay - shows red pixels for all raster data -->
+	{#if map && isStyleLoaded}
+		<RasterDataOverlay {map} visible={showRasterDataOverlay} />
+	{/if}
+
+	<!-- Toggle button for raster overlay -->
+	<button
+		class="fixed bottom-20 right-4 z-[1000] rounded bg-red-500 px-3 py-2 text-xs text-white shadow-lg hover:bg-red-600"
+		on:click={() => showRasterDataOverlay = !showRasterDataOverlay}
+	>
+		{showRasterDataOverlay ? 'Hide' : 'Show'} Raster Pixels
+	</button>
+
 	<!-- Debug Panel -->
 	<!-- 	<div
 		class="fixed right-4 top-40 z-[100] max-w-sm rounded-lg bg-white/95 p-3 font-mono text-xs shadow-lg"
@@ -698,6 +715,12 @@
 
 	<!-- Hover Tooltip - follows mouse cursor -->
 	{#if debugInfo.hoverInRaster && debugInfo.hoverRasterValue !== null && debugInfo.hoverMousePos}
+		<!-- Red pixel indicator for testing -->
+		<div
+			class="pointer-events-none fixed z-[999] h-2 w-2 bg-red-500"
+			style="left: {debugInfo.hoverMousePos.x - 4}px; top: {debugInfo.hoverMousePos.y - 4}px; border: 1px solid white;"
+		>
+		</div>
 		<div
 			class="pointer-events-none fixed z-[1000] whitespace-nowrap rounded bg-black/90 px-2 py-1 text-xs text-white"
 			style="left: {debugInfo.hoverMousePos.x + 15}px; top: {debugInfo.hoverMousePos.y - 30}px;"

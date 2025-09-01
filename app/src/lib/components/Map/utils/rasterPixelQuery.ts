@@ -33,7 +33,7 @@ export function getRasterValueAtCoordinateFast(
   if (!w || !h || !bounds) return null;
 
   // Debug logging for coordinate mapping (reduced for performance)
-  if (Math.random() < 0.1) { // Only log 10% of queries to avoid spam
+  if (Math.random() < 0.01) { // Only log 1% of queries
     console.log(`🔍 Query at (${lng.toFixed(3)}, ${lat.toFixed(3)}) for layer: ${layer.name}`);
     console.log(`  Bounds: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
   }
@@ -47,37 +47,36 @@ export function getRasterValueAtCoordinateFast(
   // Bounds check
   if (lng < west || lng > east || lat < south || lat > north) return null;
 
-  // Direct pixel calculation - optimize for top-down (most common)
+  // Calculate pixel X coordinate (same for both orientations)
   const xRatio = (lng - west) / (east - west);
   const pixelX = ~~(xRatio * w); // ~~ is faster than Math.floor for positive numbers
   
+  // Bounds check X
+  if (pixelX < 0 || pixelX >= w) return null;
+  
+  // The raster data is stored top-to-bottom (row 0 = north edge)
+  // This matches the canvas representation
   const yRatio = (north - lat) / (north - south);
   const pixelY = ~~(yRatio * h);
   
   // Log critical coordinate mapping occasionally
-  if (Math.random() < 0.05) { // Only log 5% of queries
-    console.log(`  Pixel: (${pixelX}, ${pixelY}) from ratios (${xRatio.toFixed(3)}, ${yRatio.toFixed(3)})`);
+  if (Math.random() < 0.01) { // Only log 1% of queries
+    console.log(`Query (${lng.toFixed(3)}, ${lat.toFixed(3)}) -> Pixel (${pixelX}, ${pixelY})`);
+    console.log(`  Bounds: [${west}, ${south}, ${east}, ${north}]`);
+    console.log(`  Ratios: x=${xRatio.toFixed(3)}, y=${yRatio.toFixed(3)}`);
   }
   
-  // Bounds check
-  if (pixelX < 0 || pixelX >= w || pixelY < 0 || pixelY >= h) return null;
+  // Bounds check Y
+  if (pixelY < 0 || pixelY >= h) return null;
   
-  // Direct array access
-  const value = data[pixelY * w + pixelX];
+  // Direct array access - data is stored in row-major order
+  const index = pixelY * w + pixelX;
+  const value = data[index];
   
   // Fast no-data check - most values are valid, so optimize for that path
   if (!isNaN(value) && value > -1e10 && value < 1e10) {
     // Fast rounding to 2 decimal places
     return ~~(value * 100 + 0.5) / 100;
-  }
-  
-  // Fallback: try bottom-up orientation
-  const pixelYAlt = ~~((lat - south) / (north - south) * h);
-  if (pixelYAlt >= 0 && pixelYAlt < h) {
-    const altValue = data[pixelYAlt * w + pixelX];
-    if (!isNaN(altValue) && altValue > -1e10 && altValue < 1e10) {
-      return ~~(altValue * 100 + 0.5) / 100;
-    }
   }
   
   return null;
@@ -114,26 +113,10 @@ export function getRasterValueAtCoordinate(
   const xRatio = (lng - west) / (east - west);
   const pixelX = Math.floor(xRatio * layer.width);
   
-  // Y-axis: Most GeoTIFFs store with Y=0 at top (north)
-  // Let's go back to the original orientation
-  const yRatio = (north - lat) / (north - south); // Y=0 is north (top)
+  // Y-axis: Use consistent top-down orientation (Y=0 at north/top)
+  // This matches how we create the canvas image
+  const yRatio = (north - lat) / (north - south);
   const pixelY = Math.floor(yRatio * layer.height);
-  
-  // Also calculate bottom-up for comparison
-  const yRatioBottomUp = (lat - south) / (north - south); // Y=0 is south (bottom)
-  const pixelYBottomUp = Math.floor(yRatioBottomUp * layer.height);
-  const pixelYAlt = pixelYBottomUp;
-  
-  // console.log(`Y-axis: Using top-down orientation. Pixel Y=${pixelY}, Bottom-up would be Y=${pixelYAlt}`);
-  
-  // console.log('Pixel calculation:', {
-  //   xRatio,
-  //   yRatio,
-  //   pixelX,
-  //   pixelY,
-  //   width: layer.width,
-  //   height: layer.height
-  // });
   
   // Ensure pixel coordinates are within bounds
   if (pixelX < 0 || pixelX >= layer.width || pixelY < 0 || pixelY >= layer.height) {
@@ -141,112 +124,11 @@ export function getRasterValueAtCoordinate(
     return null;
   }
   
-  // Get the index in the flat array
-  let index = pixelY * layer.width + pixelX;
+  // Get the index in the flat array using consistent top-down orientation
+  const index = pixelY * layer.width + pixelX;
   
-  // console.log(`Array index: ${index} (max: ${layer.rasterData.length - 1})`);
-  
-  // Get the value using current orientation (top-down)
-  let value = layer.rasterData[index];
-  let usedOrientation = 'top-down';
-  
-  // Check the alternative orientation (bottom-up)
-  let altValue = NaN;
-  let altIndex = -1;
-  if (pixelYAlt >= 0 && pixelYAlt < layer.height && pixelX >= 0 && pixelX < layer.width) {
-    altIndex = pixelYAlt * layer.width + pixelX;
-    altValue = layer.rasterData[altIndex];
-  }
-  
-  // Smart orientation selection: Use whichever has valid data
-  // But be careful not to create false positives by reading from wrong locations
-  
-  // First, check surrounding pixels for both orientations to determine which is correct
-  let topDownValidCount = 0;
-  let bottomUpValidCount = 0;
-  
-  // Count valid neighbors for top-down orientation
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const testX = pixelX + dx;
-      const testY = pixelY + dy;
-      if (testX >= 0 && testX < layer.width && testY >= 0 && testY < layer.height) {
-        const testIndex = testY * layer.width + testX;
-        const testValue = layer.rasterData[testIndex];
-        if (!isNaN(testValue) && testValue > -1e10 && testValue < 1e10) {
-          topDownValidCount++;
-        }
-      }
-    }
-  }
-  
-  // Count valid neighbors for bottom-up orientation
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const testX = pixelX + dx;
-      const testY = pixelYAlt + dy;
-      if (testX >= 0 && testX < layer.width && testY >= 0 && testY < layer.height) {
-        const testIndex = testY * layer.width + testX;
-        const testValue = layer.rasterData[testIndex];
-        if (!isNaN(testValue) && testValue > -1e10 && testValue < 1e10) {
-          bottomUpValidCount++;
-        }
-      }
-    }
-  }
-  
-  // console.log(`Neighbor analysis - Top-down valid: ${topDownValidCount}, Bottom-up valid: ${bottomUpValidCount}`);
-  
-  // Smart orientation selection based on neighbor analysis
-  // The goal is to use the correct orientation without creating false positives
-  if (isNaN(value) && !isNaN(altValue) && altIndex >= 0) {
-    // Case 1: Bottom-up has significantly more valid neighbors - strong evidence it's correct
-    if (bottomUpValidCount > topDownValidCount && bottomUpValidCount >= 3) {
-      console.warn(`⚠️ Switching to bottom-up - more valid neighbors (${bottomUpValidCount} vs ${topDownValidCount})`);
-      value = altValue;
-      usedOrientation = 'bottom-up';
-      index = altIndex;
-    }
-    // Case 2: Both have very few neighbors, but bottom-up has a value - likely near edge or sparse area
-    else if (topDownValidCount <= 2 && bottomUpValidCount > 0) {
-      console.warn(`⚠️ Switching to bottom-up - has value in sparse area (neighbors: ${bottomUpValidCount})`);
-      value = altValue;
-      usedOrientation = 'bottom-up';
-      index = altIndex;
-    }
-    // Case 3: No clear evidence - keep NaN (likely truly no-data)
-    else {
-      console.log(`Keeping top-down NaN - insufficient evidence for bottom-up (${topDownValidCount} vs ${bottomUpValidCount})`);
-    }
-  }
-  // Also check the reverse: if top-down has value but we should consider bottom-up
-  else if (!isNaN(value) && isNaN(altValue)) {
-    // If top-down has almost no valid neighbors but bottom-up has many, we might have wrong orientation
-    if (topDownValidCount <= 1 && bottomUpValidCount >= 5) {
-      console.warn('⚠️ WARNING: Top-down has value but very few neighbors, bottom-up has many - orientation might be wrong');
-    }
-  }
-  
-  // console.log(`Primary (top-down) value: ${layer.rasterData[pixelY * layer.width + pixelX]}`);
-  // console.log(`Alternative (bottom-up) value: ${altValue}`);
-  // console.log(`Using ${usedOrientation} orientation, final value: ${value}`);
-  // console.log(`Valid neighbors - Top-down: ${topDownValidCount}/9, Bottom-up: ${bottomUpValidCount}/9`);
-  
-  // Debug: Check surrounding values to understand the data
-  const debugValues = [];
-  const checkY = usedOrientation === 'bottom-up' ? pixelYAlt : pixelY;
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const testX = pixelX + dx;
-      const testY = checkY + dy;
-      if (testX >= 0 && testX < layer.width && testY >= 0 && testY < layer.height) {
-        const testIndex = testY * layer.width + testX;
-        debugValues.push(`(${dx},${dy}): ${layer.rasterData[testIndex]?.toFixed(2) || 'NaN'}`);
-      }
-    }
-  }
-  
-  // console.log(`Surrounding values (${usedOrientation}):`, debugValues.join(', '));
+  // Get the value from the raster data
+  const value = layer.rasterData[index];
   
   // Check for no-data values
   // NaN indicates no data (ocean, outside coverage area, etc.)
@@ -273,25 +155,18 @@ export function findVisibleRasterLayerAtCoordinate(
   lng: number,
   lat: number
 ): RasterLayer | null {
-  // console.log(`Finding raster layer at lng: ${lng}, lat: ${lat}`);
-  
   // For global raster layers, we need to check if the click is within data range
   // even if technically outside the stored bounds
   for (const [, layer] of rasterLayers) {
     if (layer.isVisible && layer.bounds && !layer.isLoading && !layer.error) {
       const [west, south, east, north] = layer.bounds;
       
-      // Simple bounds check - if the click is within the layer's bounds, it matches
-      // console.log(`Checking layer ${layer.name}: bounds [${west}, ${south}, ${east}, ${north}]`);
-      // console.log(`  Longitude check: ${lng} >= ${west} && ${lng} <= ${east} = ${lng >= west && lng <= east}`);
-      // console.log(`  Latitude check: ${lat} >= ${south} && ${lat} <= ${north} = ${lat >= south && lat <= north}`);
-      
+      // Check if coordinate is within layer bounds
       if (lng >= west && lng <= east && lat >= south && lat <= north) {
-        // console.log(`  -> Layer matches!`);
         return layer;
       }
     }
   }
-  // console.log('No matching raster layer found');
+  
   return null;
 }
