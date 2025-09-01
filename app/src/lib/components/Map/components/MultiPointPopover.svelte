@@ -37,7 +37,7 @@
 			popup = null;
 		}
 		selectedFeature = null;
-		
+
 		// Clean up global handlers
 		if (typeof window !== 'undefined') {
 			(window as any).__multiPointPopover = undefined;
@@ -64,7 +64,7 @@
 		};
 
 		const html = createMenuContent();
-		
+
 		// Create popup instance if it doesn't exist
 		if (!popup) {
 			popup = new maplibregl.Popup({
@@ -74,26 +74,27 @@
 				className: 'multi-point-popup',
 				offset: 12
 			});
-			
+
 			popup.on('close', () => {
 				cleanup();
 				dispatch('close');
 			});
-			
-			popup
-				.setLngLat(coordinates)
-				.addTo(map);
+
+			popup.setLngLat(coordinates).addTo(map);
 		}
-		
+
 		// Update popup content and ensure correct styling
 		popup.setHTML(html);
-		
+
 		// Update the popup's max width and styling for menu view
 		const popupElement = popup.getElement();
 		if (popupElement) {
 			const content = popupElement.querySelector('.maplibregl-popup-content');
 			if (content) {
-				content.setAttribute('style', 'max-width: 320px; padding: 0; border-radius: 8px; overflow: hidden;');
+				content.setAttribute(
+					'style',
+					'max-width: 320px; padding: 0; border-radius: 8px; overflow: hidden;'
+				);
 			}
 		}
 	}
@@ -102,7 +103,7 @@
 		if (!map || !coordinates || !selectedFeature) return;
 
 		const html = createDetailedContent(selectedFeature.properties as PointProperties);
-		
+
 		// Update existing popup or create new one
 		if (!popup) {
 			popup = new maplibregl.Popup({
@@ -112,20 +113,18 @@
 				className: 'study-point-popup',
 				offset: 12
 			});
-			
+
 			popup.on('close', () => {
 				cleanup();
 				dispatch('close');
 			});
-			
-			popup
-				.setLngLat(coordinates)
-				.addTo(map);
+
+			popup.setLngLat(coordinates).addTo(map);
 		}
-		
+
 		// Update popup content and class
 		popup.setHTML(html);
-		
+
 		// Update the popup's max width and styling for detailed view
 		const popupElement = popup.getElement();
 		if (popupElement) {
@@ -143,11 +142,12 @@
 		let itemsHtml = '';
 		features.forEach((feature, index) => {
 			const props = feature.properties as PointProperties;
-			const prevalence = (props.prevalence && props.prevalence.trim()) ||
+			const prevalence =
+				(props.prevalence && props.prevalence.trim()) ||
 				(props.prevalenceValue * 100).toFixed(1) + '%';
 			const color = getPrevalenceColor(props.prevalenceValue);
 			const designColor = getDesignColor(props.design);
-			
+
 			itemsHtml += `
 				<div class="multi-point-item" onclick="window.__multiPointPopover && window.__multiPointPopover.selectFeature(${index})" style="cursor: pointer;">
 					<div class="item-container">
@@ -316,22 +316,23 @@
 
 	function createDetailedContent(props: PointProperties): string {
 		// Label comes from Prevalence (with CI); fallback to PREV-derived percent
-		const prevalencePercent = typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue) 
-			? props.prevalenceValue * 100
-			: 0;
-		const prevalenceDisplay = (props.prevalence && props.prevalence.trim()) ||
-			prevalencePercent.toFixed(2) + '%';
-		
+		const prevalencePercent =
+			typeof props.prevalenceValue === 'number' && isFinite(props.prevalenceValue)
+				? props.prevalenceValue * 100
+				: 0;
+		const prevalenceDisplay =
+			(props.prevalence && props.prevalence.trim()) || prevalencePercent.toFixed(2) + '%';
+
 		// Determine prevalence color based on decimal value
 		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);
-		
+
 		// Format pathogen name with italic support
 		const pathogenFormatted = formatItalicText(props.pathogen);
-		
+
 		// Use heading as title (with italic formatting)
 		const title = formatItalicText(props.heading);
 		const subtitle = formatItalicText(props.subheading);
-		
+
 		// Get design color
 		const designColor = getDesignColor(props.design);
 
@@ -388,11 +389,15 @@
 					</div>
 				</div>
 
-				${props.footnote && props.footnote.trim() ? `
+				${
+					props.footnote && props.footnote.trim()
+						? `
 				<div class="popup-footnote">
 					<small>${formatItalicText(props.footnote)}</small>
 				</div>
-				` : ''}
+				`
+						: ''
+				}
 
 				<div class="popup-footer">
 					<a href="${props.hyperlink}" target="_blank" class="source-link">
@@ -518,13 +523,13 @@
 	function getDesignColor(design: string): string {
 		// Design type color mapping (consistent with map dots)
 		const designColors: { [key: string]: string } = {
-			'Surveillance': '#FFE5B4',               // Pastel Orange
-			'Intervention Trial': '#B7EFC5',         // Pastel Green
-			'Case-Control': '#FFB3C6',               // Pastel Red
-			'Cohort': '#9197FF',                     // Pastel Blue
-			'Cross-Sectional': '#E6B3FF',            // Pastel Purple
-			'Other: Cohort': '#9197FF',              // Same as Cohort
-			'Other: Mixed Design': '#C0C0C0'         // Light Gray
+			Surveillance: '#FFE5B4', // Pastel Orange
+			'Intervention Trial': '#B7EFC5', // Pastel Green
+			'Case-Control': '#FFB3C6', // Pastel Red
+			Cohort: '#9197FF', // Pastel Blue
+			'Cross-Sectional': '#E6B3FF', // Pastel Purple
+			'Other: Cohort': '#9197FF', // Same as Cohort
+			'Other: Mixed Design': '#C0C0C0' // Light Gray
 		};
 		return designColors[design] || '#C0C0C0'; // Default to gray if not found
 	}

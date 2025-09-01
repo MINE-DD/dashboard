@@ -65,7 +65,10 @@
 	let showRasterDataOverlay = false; // Hide red pixels by default
 
 	// Simple cache for SE rasters to compute CIs without reloading each click
-	const seRasterCache = new Map<string, { bounds: number[]; rasterData: Float32Array; width: number; height: number }>();
+	const seRasterCache = new Map<
+		string,
+		{ bounds: number[]; rasterData: Float32Array; width: number; height: number }
+	>();
 
 	// References to child components
 	let rasterLayerManager: RasterLayerManager;
@@ -441,21 +444,32 @@
 					// Get SE raster from cache or load on the fly (do not add to map)
 					let cached = seRasterCache.get(seUrl);
 					if (!cached) {
-						const { bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(seUrl, { debugMode: false });
+						const { bounds, rasterData, width, height } = await loadAndProcessGeoTIFF(seUrl, {
+							debugMode: false
+						});
 						cached = { bounds, rasterData, width, height };
 						seRasterCache.set(seUrl, cached);
 					}
 					// Sample SE value at click location using same mapping
-					const tempLayer: any = { rasterData: cached.rasterData, width: cached.width, height: cached.height, bounds: cached.bounds };
-					const seValue = getRasterValueAtCoordinate(tempLayer, clickCoordinates[0], clickCoordinates[1]);
-						if (seValue !== null && isFinite(seValue)) {
-							// SE assumed to be in percent units; 95% CI = prev ± 1.96*SE
-							const halfWidth = 1.96 * seValue;
-							const lower = Math.max(0, prevalencePercent - halfWidth);
-							const upper = Math.min(100, prevalencePercent + halfWidth);
-							// Display to match points popovers: omit the "95% CI:" prefix
-							prevalenceLabel = `${prevalencePercent.toFixed(2)}% (${lower.toFixed(2)}%–${upper.toFixed(2)}%)`;
-						}
+					const tempLayer: any = {
+						rasterData: cached.rasterData,
+						width: cached.width,
+						height: cached.height,
+						bounds: cached.bounds
+					};
+					const seValue = getRasterValueAtCoordinate(
+						tempLayer,
+						clickCoordinates[0],
+						clickCoordinates[1]
+					);
+					if (seValue !== null && isFinite(seValue)) {
+						// SE assumed to be in percent units; 95% CI = prev ± 1.96*SE
+						const halfWidth = 1.96 * seValue;
+						const lower = Math.max(0, prevalencePercent - halfWidth);
+						const upper = Math.min(100, prevalencePercent + halfWidth);
+						// Display to match points popovers: omit the "95% CI:" prefix
+						prevalenceLabel = `${prevalencePercent.toFixed(2)}% (${lower.toFixed(2)}%–${upper.toFixed(2)}%)`;
+					}
 				}
 			} catch (ciErr) {
 				console.warn('Could not compute CI from SE raster:', ciErr);

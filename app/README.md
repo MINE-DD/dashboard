@@ -46,7 +46,7 @@ The dashboard offers four distinct visualization modes, each optimized for diffe
   - Bacterial: *Campylobacter*, *Shigella*, *Salmonella*, E. coli variants (EPEC, ETEC, EAEC, STEC)
   - Viral: Rotavirus, Norovirus, Adenovirus, Astrovirus, Sapovirus
   - Parasitic: *Giardia*, *Cryptosporidium*, *Cyclospora cayetanensis*, *Entamoeba histolytica*
-  
+
 - **Age Group Filtering**: Target specific demographics
 - **Syndrome Filtering**: Focus on particular disease presentations
 - **Real-time Statistics**: Live point counting and filter status display
