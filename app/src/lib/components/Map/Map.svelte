@@ -721,16 +721,18 @@
 	</div> -->
 
 	<!-- Hover Tooltip - follows mouse cursor -->
-	{#if debugInfo.hoverInRaster && debugInfo.hoverRasterValue !== null && debugInfo.hoverMousePos}
+	{#if debugInfo.hoverInRaster && debugInfo.hoverRasterValue !== null && debugInfo.hoverMousePos && !showPopover && !showMultiPointPopover}
 		<!-- Red pixel indicator for testing - centered on mouse position -->
 		<div
 			class="pointer-events-none fixed z-[999] h-2 w-2 bg-red-500"
-			style="left: {debugInfo.hoverMousePos.x}px; top: {debugInfo.hoverMousePos.y}px; transform: translate(-50%, -50%); border: 1px solid white;"
+			style="left: {debugInfo.hoverMousePos.x}px; top: {debugInfo.hoverMousePos
+				.y}px; transform: translate(-50%, -50%); border: 1px solid white;"
 		></div>
 		<!-- Tooltip positioned exactly at cursor -->
 		<div
 			class="pointer-events-none fixed z-[1000] whitespace-nowrap rounded bg-black/90 px-2 py-1 text-xs text-white"
-			style="left: {debugInfo.hoverMousePos.x}px; top: {debugInfo.hoverMousePos.y}px; transform: translate(-50%, -50%);"
+			style="left: {debugInfo.hoverMousePos.x}px; top: {debugInfo.hoverMousePos
+				.y}px; transform: translate(-50%, -50%);"
 		>
 			Prevalence: {debugInfo.hoverRasterValue}%
 		</div>
