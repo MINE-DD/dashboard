@@ -9,11 +9,7 @@
 	} from '../MapStyles';
 	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
 	import { setMapStyle } from '../utils/MapStyleManager';
-	import {
-		rasterDebugMode,
-		toggleDebugMode,
-		reprocessVisibleLayers
-	} from '$lib/stores/raster.store';
+	import { rasterDebugMode, toggleDebugMode } from '$lib/stores/raster.store';
 
 	// Props
 	export let map: MaplibreMap | null = null;
@@ -27,13 +23,6 @@
 		if (map) {
 			setMapStyle(map, style);
 		}
-	}
-
-	// Handle debug mode toggle
-	async function handleDebugToggle() {
-		toggleDebugMode();
-		// Reprocess visible layers with new debug mode
-		await reprocessVisibleLayers();
 	}
 
 	// Generate position classes with higher z-index
@@ -70,15 +59,6 @@
 			</ul>
 		</div>
 
-		<!-- Reload Raster Layers Button (Temporary - for fixing bounds issue) -->
-		<button
-			class="btn btn-sm btn-warning m-1"
-			on:click={reprocessVisibleLayers}
-			title="Reload raster layers with corrected bounds"
-		>
-			Reload Rasters
-		</button>
-		
 		<!-- Debug Mode Toggle -->
 		<!-- <button
 			class="btn btn-sm m-1"
