@@ -272,7 +272,7 @@ This dashboard shows 95% confidence intervals for prevalence in map popovers. Th
    - lower = max(0, Pr − halfWidth)
    - upper = min(100, Pr + halfWidth)
 - Units: Pr and SE are both treated as percentage points; the CI is clamped to [0, 100].
-- Display: the popover label is formatted as `XX.XX% (LL.LL%–UU.UU%)` (prefix omitted to match points). If SE is unavailable or the sample returns no data, only `XX.XX%` is shown.
+- Display: the popover label is formatted as `XX.XX (LL.LL–UU.UU)`; the unit is shown in the label as "Prevalence (%)". If SE is unavailable or the sample returns no data, only `XX.XX` is shown.
 - Color scale: uses the prevalence value as a fraction (Pr/100) so the legend and styles remain consistent.
 
 ### Assumptions and edge cases

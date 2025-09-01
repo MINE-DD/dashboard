@@ -151,8 +151,8 @@
             <div class="info-label">Pathogen:</div>
             <div class="info-value">${pathogenFormatted}</div>
           </div>
-          <div class="info-row">
-            <div class="info-label">Prevalence:</div>
+					<div class="info-row">
+						<div class="info-label">Prevalence (%):</div>
             <div class="info-value">
               <span class="prevalence-badge" style="background-color: ${prevalenceColor}">
 				${prevalenceLabel}
@@ -319,7 +319,7 @@
 	}
 
 	:global(.info-label) {
-		flex: 0 0 100px;
+		flex: 0 0 112px;
 		font-weight: 500;
 		color: #666;
 	}

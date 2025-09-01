@@ -483,8 +483,8 @@
 						const halfWidth = 1.96 * seValue;
 						const lower = Math.max(0, prevalencePercent - halfWidth);
 						const upper = Math.min(100, prevalencePercent + halfWidth);
-						// Display to match points popovers: omit the "95% CI:" prefix
-						prevalenceLabel = `${prevalencePercent.toFixed(2)}% (${lower.toFixed(2)}%–${upper.toFixed(2)}%)`;
+						// Display numbers without %; header shows unit as Prevalence (%)
+						prevalenceLabel = `${prevalencePercent.toFixed(2)} (${lower.toFixed(2)}–${upper.toFixed(2)})`;
 					}
 				}
 			} catch (ciErr) {
@@ -498,8 +498,8 @@
 				subheading: 'Raster layer data',
 				pathogen: pathogen,
 				prevalenceValue: prevalencePercent / 100, // Decimal for color scale
-				// Label for display (with CI if available)
-				prevalence: prevalenceLabel || `${prevalencePercent.toFixed(2)}%`,
+				// Label for display (with CI if available); numbers without % (unit in label)
+				prevalence: prevalenceLabel || `${prevalencePercent.toFixed(2)}`,
 				ageGroup: ageGroup || 'All ages',
 				ageRange: ageGroup || 'All ages',
 				syndrome: syndrome || 'Diarrhea',
@@ -797,7 +797,7 @@
 			style="left: {debugInfo.hoverMousePos.x}px; top: {debugInfo.hoverMousePos
 				.y}px; transform: translate(-50%, -50%);"
 		>
-			Prevalence: {debugInfo.hoverRasterValue}%
+			Prevalence: {debugInfo.hoverRasterValue}
 		</div>
 	{/if}
 
