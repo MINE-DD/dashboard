@@ -150,16 +150,16 @@ export async function checkAndInitialize(isRetry = false) {
   const state = get(initializationState);
   const vizType = get(visualizationType);
   
-  console.log('Checking initialization conditions:', {
-    hasMap: !!map,
-    mapReady: ready,
-    hasData,
-    pointsAdded,
-    state,
-    vizType,
-    isRetry,
-    retryCount: initializationRetryCount
-  });
+  // console.log('Checking initialization conditions:', {
+  //   hasMap: !!map,
+  //   mapReady: ready,
+  //   hasData,
+  //   pointsAdded,
+  //   state,
+  //   vizType,
+  //   isRetry,
+  //   retryCount: initializationRetryCount
+  // });
   
   // Check if all conditions are met
   if (map && ready && hasData && !pointsAdded && state === 'idle') {

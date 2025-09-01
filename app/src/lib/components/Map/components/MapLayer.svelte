@@ -78,18 +78,18 @@
 	// We just need to react to state changes for UI updates
 
 	// Log state changes for debugging
-	$: console.log('MapLayer state:', {
-		mapLoaded: $mapLoaded,
-		hasData: $hasData,
-		pointsAdded: $pointsAddedToMap,
-		initializationState: $initializationState,
-		canInit: $canInitializeMap,
-		dataLength: $filteredPointsData?.features?.length || 0
-	});
+	// $: console.log('MapLayer state:', {
+	// 	mapLoaded: $mapLoaded,
+	// 	hasData: $hasData,
+	// 	pointsAdded: $pointsAddedToMap,
+	// 	initializationState: $initializationState,
+	// 	canInit: $canInitializeMap,
+	// 	dataLength: $filteredPointsData?.features?.length || 0
+	// });
 
 	// React to successful initialization
 	$: if ($initializationState === 'ready' && map && !localEventHandlersSet) {
-		console.log('Initialization complete, setting up event handlers');
+		// console.log('Initialization complete, setting up event handlers');
 		setupEventHandlers();
 		if (map) {
 			map.on('styledata', handleStyleChange);
@@ -244,8 +244,9 @@
 
 	// Handle style changes
 	function handleStyleChange() {
-		if ($isProgrammaticOperation) {
-			// console.log('Style change detected during programmatic operation, ignoring in MapLayer.');
+		// Check both the derived store and individual flags for immediate response
+		if ($isProgrammaticOperation || $isAdjustingLayerOrder) {
+			console.log('Style change detected during programmatic operation, ignoring in MapLayer.');
 			return;
 		}
 

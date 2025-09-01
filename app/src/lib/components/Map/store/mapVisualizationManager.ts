@@ -143,6 +143,13 @@ export async function updateMapVisualization(
 
     // Ensure points are on top
     ensurePointsOnTop(map);
+    
+    // Call the Map component's ensureLayerOrder function if available
+    // This ensures raster layers are properly ordered after filter changes
+    const mapComponent = (window as any).__mapComponent;
+    if (mapComponent && typeof mapComponent.ensureLayerOrder === 'function') {
+      mapComponent.ensureLayerOrder();
+    }
 
     return true;
 
@@ -326,7 +333,14 @@ export async function addInitialPointsToMap(
     // Ensure correct layer ordering (data layers on top of rasters)
     ensurePointsOnTop(map);
     
-    console.log('✅ Successfully added initial points to map');
+    // Call the Map component's ensureLayerOrder function if available
+    // This ensures raster layers are properly ordered
+    const mapComponent = (window as any).__mapComponent;
+    if (mapComponent && typeof mapComponent.ensureLayerOrder === 'function') {
+      mapComponent.ensureLayerOrder();
+    }
+    
+    // console.log('✅ Successfully added initial points to map');
     return true;
 
   } catch (error) {
@@ -468,6 +482,13 @@ export async function switchVisualizationType(
     // Apply visibility setting from store after switching
     const visible = get(dataPointsVisible);
     applyDataPointsVisibility(map, visible);
+    
+    // Call the Map component's ensureLayerOrder function if available
+    // This ensures raster layers are properly ordered after visualization switch
+    const mapComponent = (window as any).__mapComponent;
+    if (mapComponent && typeof mapComponent.ensureLayerOrder === 'function') {
+      mapComponent.ensureLayerOrder();
+    }
     
     console.log(`Successfully switched to ${newType} visualization`);
     return true;

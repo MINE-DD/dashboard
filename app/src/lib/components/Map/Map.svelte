@@ -504,6 +504,11 @@
 	}
 
 	onMount(async () => {
+		// Register this component's ensureLayerOrder function globally for access from stores
+		(window as any).__mapComponent = {
+			ensureLayerOrder
+		};
+		
 		const urlParams = await preloadData();
 		if (urlParams.center) initialCenter = urlParams.center;
 		if (urlParams.zoom) initialZoom = urlParams.zoom;
@@ -524,6 +529,11 @@
 	});
 
 	onDestroy(() => {
+		// Clean up global reference
+		if ((window as any).__mapComponent) {
+			delete (window as any).__mapComponent;
+		}
+		
 		// Clean up event listeners
 		if (map) {
 			map.off('mousemove', handleCursorChange);
@@ -543,35 +553,25 @@
 		}
 	}
 
-	$: if ($pointsAddedToMap && map && isStyleLoaded && rasterLayerManager) {
-		console.log('Map.svelte: pointsAddedToMap is true, ensuring layer order.');
-		// Use idle event to ensure map has finished rendering before adjusting layers
-		map.once('idle', () => {
-			if (rasterLayerManager && typeof rasterLayerManager.ensureCorrectLayerOrder === 'function') {
+	// Function to ensure layer order after visualization changes
+	export function ensureLayerOrder() {
+		if (map && isStyleLoaded && rasterLayerManager && typeof rasterLayerManager.ensureCorrectLayerOrder === 'function') {
+			console.log('Map.svelte: Ensuring layer order after visualization change');
+			// Use idle event to ensure map has finished rendering before adjusting layers
+			map.once('idle', () => {
 				rasterLayerManager.ensureCorrectLayerOrder();
-			}
-		});
+			});
+		}
 	}
 
-	let previousVisibleRasterCount = 0;
-	$: {
-		if (map && isStyleLoaded && rasterLayerManager) {
-			const currentVisibleRasterCount = Array.from($rasterLayers.values()).filter(
-				(l) => l.isVisible && l.bounds
-			).length;
-			if (currentVisibleRasterCount !== previousVisibleRasterCount) {
-				console.log('Map.svelte: Visible raster count changed, ensuring layer order.');
-				// Use idle event to ensure map has finished rendering
-				map.once('idle', () => {
-					if (
-						rasterLayerManager &&
-						typeof rasterLayerManager.ensureCorrectLayerOrder === 'function'
-					) {
-						rasterLayerManager.ensureCorrectLayerOrder();
-					}
-				});
-			}
-			previousVisibleRasterCount = currentVisibleRasterCount;
+	// Function to handle raster visibility changes
+	export function handleRasterVisibilityChange() {
+		if (map && isStyleLoaded && rasterLayerManager && typeof rasterLayerManager.ensureCorrectLayerOrder === 'function') {
+			console.log('Map.svelte: Raster visibility changed, ensuring layer order');
+			// Use idle event to ensure map has finished rendering
+			map.once('idle', () => {
+				rasterLayerManager.ensureCorrectLayerOrder();
+			});
 		}
 	}
 </script>
@@ -717,7 +717,7 @@
 			<div class="error-container">
 				<div class="error-icon">⚠️</div>
 				<div class="error-message">Error: {$dataError}</div>
-				<button class="retry-button" on:click={() => loadPointsData(pointDataUrl, true)}>
+				<button class="retry-button" on:click={() => loadPointsData('/data/processed_geodata.geojson', true)}>
 					Retry
 				</button>
 			</div>
