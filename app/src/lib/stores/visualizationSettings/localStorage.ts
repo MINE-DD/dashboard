@@ -6,12 +6,14 @@ export interface VisualizationSettings {
   globalOpacity: number;
   barThickness: number;
   dataPointsVisible: boolean;
+  showRasterDataOverlay: boolean;
 }
 
 const defaultSettings: VisualizationSettings = {
   globalOpacity: 80,
   barThickness: 0.2,
-  dataPointsVisible: true
+  dataPointsVisible: true,
+  showRasterDataOverlay: false
 };
 
 export function loadStoredSettings(): VisualizationSettings {
@@ -27,7 +29,8 @@ export function loadStoredSettings(): VisualizationSettings {
     return {
       globalOpacity: typeof parsed.globalOpacity === 'number' ? parsed.globalOpacity : defaultSettings.globalOpacity,
       barThickness: typeof parsed.barThickness === 'number' ? parsed.barThickness : defaultSettings.barThickness,
-      dataPointsVisible: typeof parsed.dataPointsVisible === 'boolean' ? parsed.dataPointsVisible : defaultSettings.dataPointsVisible
+      dataPointsVisible: typeof parsed.dataPointsVisible === 'boolean' ? parsed.dataPointsVisible : defaultSettings.dataPointsVisible,
+      showRasterDataOverlay: typeof parsed.showRasterDataOverlay === 'boolean' ? parsed.showRasterDataOverlay : defaultSettings.showRasterDataOverlay
     };
   } catch (error) {
     console.warn('Failed to load visualization settings from localStorage:', error);

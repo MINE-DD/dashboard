@@ -30,7 +30,7 @@ export function syncRasterLayers(
     const layerIsCurrentlyOnMap = currentMap.getLayer(layerId);
 
     if (layersOnMap.has(layerId) && layerIsCurrentlyOnMap) {
-      // Layer exists on map, check only visibility for removal
+      // Layer exists on map
       if (!layerShouldBeVisible) {
         // Layer should be hidden, but it's on the map -> Remove it
         console.log(`Map: Layer ${layerId} should be hidden. Removing.`);
@@ -41,6 +41,36 @@ export function syncRasterLayers(
           currentMapLayers.delete(layerId); // Untrack
         } catch (e) {
           console.error(`Map: Error removing layer ${layerId} for visibility:`, e);
+        }
+      } else {
+        // Visible and already on map: keep source/layer in sync with latest bounds/image
+        try {
+          if (layer.bounds && currentMap.getSource(sourceId)) {
+            const [west, south, east, north] = layer.bounds;
+            const coords: [
+              [number, number],
+              [number, number],
+              [number, number],
+              [number, number]
+            ] = [
+              [west, north],
+              [east, north],
+              [east, south],
+              [west, south]
+            ];
+            const src = currentMap.getSource(sourceId) as any;
+            if (typeof src.setCoordinates === 'function') {
+              console.log('RasterLayerSync: Updating image source coordinates for', layerId, coords);
+              src.setCoordinates(coords);
+            }
+            // If a new dataUrl is available, refresh the image as well
+            if (layer.dataUrl && typeof src.updateImage === 'function') {
+              console.log('RasterLayerSync: Updating image bitmap for', layerId);
+              src.updateImage({ url: layer.dataUrl });
+            }
+          }
+        } catch (e) {
+          console.error(`Map: Error syncing existing layer ${layerId}:`, e);
         }
       }
       // Opacity is handled separately
@@ -70,6 +100,8 @@ export function syncRasterLayers(
             let east = layer.bounds[2];
             let north = layer.bounds[3];
 
+            console.log('RasterLayerSync: BOUNDS USED FOR IMAGE:', [west, south, east, north]);
+
             // Create coordinates array for the image corners using standard lng,lat order
             // The order is critical: top-left, top-right, bottom-right, bottom-left
             const coordinates: [
@@ -83,6 +115,16 @@ export function syncRasterLayers(
                 [east, south], // bottom-right
                 [west, south] // bottom-left
               ];
+            
+            console.log(`RasterLayerSync: IMAGE CORNERS:`, {
+              layerId,
+              topLeft: `[${west}, ${north}]`,
+              topRight: `[${east}, ${north}]`,
+              bottomRight: `[${east}, ${south}]`,
+              bottomLeft: `[${west}, ${south}]`,
+              width: layer.width,
+              height: layer.height
+            });
 
             // Check for global bounds (±90° latitude)
             const isGlobalBounds =

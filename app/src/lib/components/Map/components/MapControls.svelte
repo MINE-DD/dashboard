@@ -70,6 +70,15 @@
 			</ul>
 		</div>
 
+		<!-- Reload Raster Layers Button (Temporary - for fixing bounds issue) -->
+		<button
+			class="btn btn-sm btn-warning m-1"
+			on:click={reprocessVisibleLayers}
+			title="Reload raster layers with corrected bounds"
+		>
+			Reload Rasters
+		</button>
+		
 		<!-- Debug Mode Toggle -->
 		<!-- <button
 			class="btn btn-sm m-1"

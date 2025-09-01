@@ -59,9 +59,9 @@
 	// Map instance and state
 	let map: MaplibreMap | null = null;
 	let isStyleLoaded = false;
-	
+
 	// Debug overlay state
-	let showRasterDataOverlay = true; // Show red pixels by default for testing
+	let showRasterDataOverlay = false; // Hide red pixels by default
 
 	// References to child components
 	let rasterLayerManager: RasterLayerManager;
@@ -512,7 +512,7 @@
 		(window as any).__mapComponent = {
 			ensureLayerOrder
 		};
-		
+
 		const urlParams = await preloadData();
 		if (urlParams.center) initialCenter = urlParams.center;
 		if (urlParams.zoom) initialZoom = urlParams.zoom;
@@ -537,7 +537,7 @@
 		if ((window as any).__mapComponent) {
 			delete (window as any).__mapComponent;
 		}
-		
+
 		// Clean up event listeners
 		if (map) {
 			map.off('mousemove', handleCursorChange);
@@ -559,7 +559,12 @@
 
 	// Function to ensure layer order after visualization changes
 	export function ensureLayerOrder() {
-		if (map && isStyleLoaded && rasterLayerManager && typeof rasterLayerManager.ensureCorrectLayerOrder === 'function') {
+		if (
+			map &&
+			isStyleLoaded &&
+			rasterLayerManager &&
+			typeof rasterLayerManager.ensureCorrectLayerOrder === 'function'
+		) {
 			console.log('Map.svelte: Ensuring layer order after visualization change');
 			// Use idle event to ensure map has finished rendering before adjusting layers
 			map.once('idle', () => {
@@ -570,7 +575,12 @@
 
 	// Function to handle raster visibility changes
 	export function handleRasterVisibilityChange() {
-		if (map && isStyleLoaded && rasterLayerManager && typeof rasterLayerManager.ensureCorrectLayerOrder === 'function') {
+		if (
+			map &&
+			isStyleLoaded &&
+			rasterLayerManager &&
+			typeof rasterLayerManager.ensureCorrectLayerOrder === 'function'
+		) {
 			console.log('Map.svelte: Raster visibility changed, ensuring layer order');
 			// Use idle event to ensure map has finished rendering
 			map.once('idle', () => {
@@ -609,6 +619,9 @@
 			bind:globalOpacity
 			on:opacitychange={handleOpacityChange}
 			on:visualizationchange={handleVisualizationChange}
+			on:overlaytoggle={(e) => {
+				showRasterDataOverlay = e.detail.visible;
+			}}
 		/>
 	</div>
 
@@ -650,13 +663,7 @@
 		<RasterDataOverlay {map} visible={showRasterDataOverlay} />
 	{/if}
 
-	<!-- Toggle button for raster overlay -->
-	<button
-		class="fixed bottom-20 right-4 z-[1000] rounded bg-red-500 px-3 py-2 text-xs text-white shadow-lg hover:bg-red-600"
-		on:click={() => showRasterDataOverlay = !showRasterDataOverlay}
-	>
-		{showRasterDataOverlay ? 'Hide' : 'Show'} Raster Pixels
-	</button>
+	<!-- Toggle moved to Settings modal -->
 
 	<!-- Debug Panel -->
 	<!-- 	<div
@@ -715,15 +722,16 @@
 
 	<!-- Hover Tooltip - follows mouse cursor -->
 	{#if debugInfo.hoverInRaster && debugInfo.hoverRasterValue !== null && debugInfo.hoverMousePos}
-		<!-- Red pixel indicator for testing -->
+		<!-- Red pixel indicator for testing - centered on mouse position -->
 		<div
 			class="pointer-events-none fixed z-[999] h-2 w-2 bg-red-500"
-			style="left: {debugInfo.hoverMousePos.x - 4}px; top: {debugInfo.hoverMousePos.y - 4}px; border: 1px solid white;"
-		>
-		</div>
+			style="left: {debugInfo.hoverMousePos.x - 4}px; top: {debugInfo.hoverMousePos.y -
+				4}px; border: 1px solid white;"
+		></div>
+		<!-- Tooltip positioned closer to cursor -->
 		<div
 			class="pointer-events-none fixed z-[1000] whitespace-nowrap rounded bg-black/90 px-2 py-1 text-xs text-white"
-			style="left: {debugInfo.hoverMousePos.x + 15}px; top: {debugInfo.hoverMousePos.y - 30}px;"
+			style="left: {debugInfo.hoverMousePos.x + 10}px; top: {debugInfo.hoverMousePos.y - 20}px;"
 		>
 			Prevalence: {debugInfo.hoverRasterValue}%
 		</div>
@@ -740,7 +748,10 @@
 			<div class="error-container">
 				<div class="error-icon">⚠️</div>
 				<div class="error-message">Error: {$dataError}</div>
-				<button class="retry-button" on:click={() => loadPointsData('/data/processed_geodata.geojson', true)}>
+				<button
+					class="retry-button"
+					on:click={() => loadPointsData('/data/processed_geodata.geojson', true)}
+				>
 					Retry
 				</button>
 			</div>

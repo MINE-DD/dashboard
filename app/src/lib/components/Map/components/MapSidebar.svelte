@@ -69,7 +69,7 @@
 		loadStoredSettings,
 		saveSettingsToStorage
 	} from '$lib/stores/visualizationSettings/localStorage';
-	
+
 	// Import data points visibility store and functions
 	import {
 		dataPointsVisible as dataPointsVisibleStore,
@@ -90,6 +90,7 @@
 	export let globalOpacity = 80; // Default to 80%, now exposed as a prop
 	let rasterLayersVisible = true; // Track if raster layers are visible
 	let dataPointsVisible = true; // Track if data points are visible
+	let showRasterDataOverlayLocal = false; // Debug overlay toggle (local state)
 
 	let pathogensWithRasterLayers = new Set<string>();
 
@@ -124,13 +125,13 @@
 		const opacity = rasterLayersVisible ? globalOpacity / 100 : 0;
 		updateAllRasterLayersOpacity(opacity);
 	}
-	
+
 	// Handle toggling data points visibility
 	function toggleDataPointsVisibility() {
 		dataPointsVisible = !dataPointsVisible;
 		dataPointsVisibleStore.set(dataPointsVisible);
 		applyDataPointsVisibility($mapInstance, dataPointsVisible);
-		
+
 		// Save to localStorage
 		saveSettingsToStorage({ dataPointsVisible });
 	}
@@ -170,19 +171,19 @@
 	// Sidebar configuration
 	let collapsed = false;
 	let showSettingsModal = false;
-	
+
 	// Format date for display
 	function formatDataDate(dateString: string | null): string {
 		if (!dateString) return '';
-		
+
 		const [year, month, day] = dateString.split('-');
 		const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-		
+
 		// Format as "Month DD, YYYY"
-		const options: Intl.DateTimeFormatOptions = { 
-			year: 'numeric', 
-			month: 'long', 
-			day: 'numeric' 
+		const options: Intl.DateTimeFormatOptions = {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric'
 		};
 		return date.toLocaleDateString('en-US', options);
 	}
@@ -232,7 +233,6 @@
 		}
 		return newSet;
 	}
-
 
 	// Helper function to toggle all values in a category
 	function toggleAll(category: 'pathogens' | 'ageGroups' | 'syndromes', checked: boolean) {
@@ -332,16 +332,23 @@
 
 		// Apply the opacity to all raster layers
 		updateAllRasterLayersOpacity(globalOpacity / 100);
-		
+
 		// Set initial checkbox state based on opacity
 		rasterLayersVisible = globalOpacity > 0;
-		
+
 		// Load data points visibility setting
 		dataPointsVisible = storedSettings.dataPointsVisible;
 		dataPointsVisibleStore.set(dataPointsVisible);
+		// Apply to map immediately
+		applyDataPointsVisibility($mapInstance, dataPointsVisible);
 
 		// Update barThickness store with stored value
 		barThickness.set(storedSettings.barThickness);
+
+		// Initialize debug overlay toggle from stored setting
+		showRasterDataOverlayLocal = storedSettings.showRasterDataOverlay;
+		// Inform parent on initial mount so Map can reflect persisted state
+		dispatch('overlaytoggle', { visible: showRasterDataOverlayLocal });
 	});
 
 	// Clean up subscription when component is destroyed
@@ -362,7 +369,7 @@
 			<div class="flex flex-col">
 				<h2 class="text-base-content text-md m-0 font-semibold">Data Explorer</h2>
 				{#if $dataUpdateDate}
-					<span class="text-base-content/60 text-xs mt-0.5">
+					<span class="text-base-content/60 mt-0.5 text-xs">
 						Data updated: {formatDataDate($dataUpdateDate)}
 					</span>
 				{/if}
@@ -474,18 +481,20 @@
 			<div class="text-base-content/70 mb-2 text-xs italic">
 				Options with map icons have associated raster layers.
 			</div>
-			
+
 			<!-- Pathogens Dropdown -->
 			<FilterDropdown
 				id="pathogen-select"
 				label="Pathogens"
 				placeholder="Select Pathogen"
-				options={Array.from($pathogens || []).sort().map(pathogen => ({
-					value: pathogen,
-					label: pathogen,
-					count: $pathogenCounts.get(pathogen) || 0,
-					hasRasterLayer: pathogensWithRasterLayers.has(pathogen)
-				}))}
+				options={Array.from($pathogens || [])
+					.sort()
+					.map((pathogen) => ({
+						value: pathogen,
+						label: pathogen,
+						count: $pathogenCounts.get(pathogen) || 0,
+						hasRasterLayer: pathogensWithRasterLayers.has(pathogen)
+					}))}
 				selectedValue={Array.from($selectedPathogens)[0] || ''}
 				onSelect={(value) => {
 					const newSet = new Set<string>();
@@ -499,16 +508,19 @@
 				id="agegroup-select"
 				label="Age Groups"
 				placeholder="Select Age Group"
-				options={Array.from($ageGroups || []).map(ageGroupVal => ({
-					value: ageGroupVal,  // VAL for filtering
-					label: $ageGroupValToLab.get(ageGroupVal) || ageGroupVal,  // LAB for display
+				options={Array.from($ageGroups || []).map((ageGroupVal) => ({
+					value: ageGroupVal, // VAL for filtering
+					label: $ageGroupValToLab.get(ageGroupVal) || ageGroupVal, // LAB for display
 					count: $ageGroupCounts.get(ageGroupVal) || 0,
-					hasRasterLayer: hasRasterLayers('ageGroup', $ageGroupValToLab.get(ageGroupVal)?.replace('^^', '') || ageGroupVal)
+					hasRasterLayer: hasRasterLayers(
+						'ageGroup',
+						$ageGroupValToLab.get(ageGroupVal)?.replace('^^', '') || ageGroupVal
+					)
 				}))}
 				selectedValue={Array.from($selectedAgeGroups)[0] || ''}
 				onSelect={(value) => {
 					const newSet = new Set<string>();
-					if (value) newSet.add(value);  // value is already VAL
+					if (value) newSet.add(value); // value is already VAL
 					updateAgeGroupSelection(newSet);
 				}}
 			/>
@@ -518,16 +530,19 @@
 				id="syndrome-select"
 				label="Syndromes"
 				placeholder="Select Syndrome"
-				options={Array.from($syndromes || []).map(syndromeVal => ({
-					value: syndromeVal,  // VAL for filtering
-					label: $syndromeValToLab.get(syndromeVal) || syndromeVal,  // LAB for display
+				options={Array.from($syndromes || []).map((syndromeVal) => ({
+					value: syndromeVal, // VAL for filtering
+					label: $syndromeValToLab.get(syndromeVal) || syndromeVal, // LAB for display
 					count: $syndromeCounts.get(syndromeVal) || 0,
-					hasRasterLayer: hasRasterLayers('syndrome', $syndromeValToLab.get(syndromeVal)?.replace('^^', '') || syndromeVal)
+					hasRasterLayer: hasRasterLayers(
+						'syndrome',
+						$syndromeValToLab.get(syndromeVal)?.replace('^^', '') || syndromeVal
+					)
 				}))}
 				selectedValue={Array.from($selectedSyndromes)[0] || ''}
 				onSelect={(value) => {
 					const newSet = new Set<string>();
-					if (value) newSet.add(value);  // value is already VAL
+					if (value) newSet.add(value); // value is already VAL
 					updateSyndromeSelection(newSet);
 				}}
 			/>
@@ -556,8 +571,8 @@
 							Active Raster Layers ({$autoVisibleRasterLayers.size})
 						</h3>
 						<label class="label cursor-pointer gap-2 p-0">
-							<input 
-								type="checkbox" 
+							<input
+								type="checkbox"
 								class="checkbox checkbox-primary checkbox-sm"
 								checked={rasterLayersVisible}
 								on:change={toggleRasterLayerVisibility}
@@ -565,7 +580,7 @@
 							/>
 						</label>
 					</div>
-					
+
 					<!-- Data Points visibility toggle -->
 					<div class="mt-3 flex items-center justify-between">
 						<h3 class="text-secondary-focus flex items-center text-base font-medium">
@@ -575,17 +590,17 @@
 								fill="currentColor"
 								viewBox="0 0 24 24"
 							>
-								<circle cx="5" cy="12" r="2"/>
-								<circle cx="12" cy="5" r="2"/>
-								<circle cx="19" cy="12" r="2"/>
-								<circle cx="12" cy="19" r="2"/>
-								<circle cx="12" cy="12" r="2"/>
+								<circle cx="5" cy="12" r="2" />
+								<circle cx="12" cy="5" r="2" />
+								<circle cx="19" cy="12" r="2" />
+								<circle cx="12" cy="19" r="2" />
+								<circle cx="12" cy="12" r="2" />
 							</svg>
 							Data Points
 						</h3>
 						<label class="label cursor-pointer gap-2 p-0">
-							<input 
-								type="checkbox" 
+							<input
+								type="checkbox"
 								class="checkbox checkbox-primary checkbox-sm"
 								checked={dataPointsVisible}
 								on:change={toggleDataPointsVisibility}
@@ -593,7 +608,7 @@
 							/>
 						</label>
 					</div>
-					
+
 					<!-- <div class="mb-3 max-h-[150px] overflow-y-auto rounded-md bg-white/70 p-2">
 						{#each Array.from($autoVisibleRasterLayers) as layerId}
 							{#if $rasterLayers.has(layerId)}
@@ -628,6 +643,25 @@
 		<div class="modal-box">
 			<h3 class="mb-4 text-lg font-bold">Visualization Settings</h3>
 
+			<!-- Raster Debug Overlay -->
+			<div class="form-control mb-4 w-full">
+				<label class="label cursor-pointer">
+					<span class="label-text font-medium">Show raster data pixels (debug)</span>
+					<input
+						type="checkbox"
+						class="toggle"
+						bind:checked={showRasterDataOverlayLocal}
+						on:change={() => {
+							saveSettingsToStorage({ showRasterDataOverlay: showRasterDataOverlayLocal });
+							dispatch('overlaytoggle', { visible: showRasterDataOverlayLocal });
+						}}
+					/>
+				</label>
+				<p class="text-base-content/60 mt-1 text-xs">
+					Renders small red dots over each pixel with data to verify alignment.
+				</p>
+			</div>
+
 			<!-- Global Raster Opacity Control -->
 			<div class="form-control mb-4 w-full">
 				<label class="label">
@@ -643,7 +677,7 @@
 						on:input={() => {
 							// Update opacity for all layers
 							updateAllRasterLayersOpacity(globalOpacity / 100);
-							
+
 							// Update checkbox state
 							rasterLayersVisible = globalOpacity > 0;
 

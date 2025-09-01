@@ -54,7 +54,7 @@ export async function loadGeoTIFF(url: string): Promise<{
   image: any;
   metadata: GeoTIFFMetadata;
 }> {
-  // console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
+  console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
   
   // Check if we're in the browser and GeoTIFF is available globally
   if (!browser) {
@@ -97,6 +97,26 @@ export async function loadGeoTIFF(url: string): Promise<{
   const imageWidth = image.getWidth();
   const imageHeight = image.getHeight();
   const imageBounds = image.getBoundingBox();
+  
+  console.log('GeoTIFF Metadata DIRECT FROM FILE:', {
+    width: imageWidth,
+    height: imageHeight,
+    boundsFromGeoTIFF: imageBounds,
+    boundsAsArray: Array.isArray(imageBounds) ? `[${imageBounds.join(', ')}]` : 'not an array',
+    origin: image.getOrigin(),
+    resolution: image.getResolution(),
+    fileDirectory: image.fileDirectory
+  });
+  
+  // Additional check for projection info
+  try {
+    const geoKeys = image.getGeoKeys();
+    if (geoKeys) {
+      console.log('GeoTIFF GeoKeys:', geoKeys);
+    }
+  } catch (e) {
+    console.log('Could not get GeoKeys from image');
+  }
 
   const metadata: GeoTIFFMetadata = {
     width: imageWidth,
@@ -139,6 +159,26 @@ export function mercatorToLatLng(mercatorX: number, mercatorY: number): [number,
 export const WEB_MERCATOR_MAX_LATITUDE = 85.051129;
 
 /**
+ * Standard GoogleMapsCompatible/Web Mercator tile extent in WGS84.
+ * Many global COGs (at low zoom levels) cover only this latitude band (±66.51326°).
+ */
+const WEB_MERCATOR_TILE_BOUNDS_WGS84: [number, number, number, number] = [
+  -180, -66.51326044311186, 180, 66.51326044311186
+];
+
+// Corresponding extent in meters for quick detection when bounds are in EPSG:3857
+const WEB_MERCATOR_TILE_BOUNDS_M = {
+  xMin: -20037508.34,
+  xMax: 20037508.34,
+  yMin: -10018754.17,
+  yMax: 10018754.17
+};
+
+function approx(a: number, b: number, tol: number) {
+  return Math.abs(a - b) <= tol;
+}
+
+/**
  * Validate and adjust bounds if needed, including handling latitude limits for global bounds
  * @param bounds The bounds to validate
  * @param projectionInfo Optional projection information (e.g., 'EPSG:3857')
@@ -146,8 +186,9 @@ export const WEB_MERCATOR_MAX_LATITUDE = 85.051129;
 export function validateBounds(bounds: number[], projectionInfo?: string): number[] {
   // Initialize bounds with a default value to avoid null issues
   if (!bounds || bounds.length !== 4) {
-    console.warn('GeoTIFF Processor: Missing or invalid bounds, using global bounds');
-    return [-180, -90, 180, 90];
+    console.warn('GeoTIFF Processor: Missing or invalid bounds, using Web Mercator tile bounds');
+    // Use standard Web Mercator tile extent, not full ±90°
+    return [-180, -66.51326044311186, 180, 66.51326044311186];
   }
 
   console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
@@ -161,6 +202,19 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
   if (isWebMercator) {
     console.log('GeoTIFF Processor: Detected Web Mercator coordinates, converting to WGS84');
 
+    // First, detect the common GoogleMapsCompatible tile extent in meters
+    // Example from GDAL: Y = ±10018754.17 m => lat = ±66.51326°
+    const isGMapsCompatibleTileExtent =
+      approx(bounds[0], WEB_MERCATOR_TILE_BOUNDS_M.xMin, 200) &&
+      approx(bounds[2], WEB_MERCATOR_TILE_BOUNDS_M.xMax, 200) &&
+      approx(bounds[1], WEB_MERCATOR_TILE_BOUNDS_M.yMin, 200) &&
+      approx(bounds[3], WEB_MERCATOR_TILE_BOUNDS_M.yMax, 200);
+
+    if (isGMapsCompatibleTileExtent) {
+      console.log('GeoTIFF Processor: Using Web Mercator tile extent (±66.51326°).');
+      return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
+    }
+
     // Convert Web Mercator bounds to lat/lng
     const sw = mercatorToLatLng(bounds[0], bounds[1]);
     const ne = mercatorToLatLng(bounds[2], bounds[3]);
@@ -169,40 +223,63 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     console.log(`  Original: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
     console.log(`  Converted: [${sw[0]}, ${sw[1]}, ${ne[0]}, ${ne[1]}]`);
 
-    return [sw[0], sw[1], ne[0], ne[1]];
+  return [sw[0], sw[1], ne[0], ne[1]];
   }
 
   // Check for Web Mercator global bounds (approximately ±20037508.34, ±10018754.17)
   const isWebMercatorGlobalBounds =
-    Math.abs(bounds[0] + 20037508.34) < 100 &&
-    Math.abs(bounds[1] + 10018754.17) < 100 &&
-    Math.abs(bounds[2] - 20037508.34) < 100 &&
-    Math.abs(bounds[3] - 10018754.17) < 100;
+    approx(bounds[0], -20037508.34, 100) &&
+    approx(bounds[1], -10018754.17, 100) &&
+    approx(bounds[2], 20037508.34, 100) &&
+    approx(bounds[3], 10018754.17, 100);
 
   if (isWebMercatorGlobalBounds) {
-    console.log('GeoTIFF Processor: Detected Web Mercator global bounds, using global WGS84');
-    return [-180, -90, 180, 90];
+    console.log('GeoTIFF Processor: Detected Web Mercator global bounds, converting properly');
+  // Use canonical tile bounds directly for clarity/consistency
+  console.log('GeoTIFF Processor: Using canonical Web Mercator tile bounds (WGS84).');
+  return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
   }
 
   // Check for invalid coordinates in WGS84
   if (bounds.some((coord) => typeof coord !== 'number' || !isFinite(coord))) {
-    console.warn('GeoTIFF Processor: Invalid bounds (NaN/Infinite), using global bounds:', bounds);
-    return [-180, -90, 180, 90];
+    console.warn('GeoTIFF Processor: Invalid bounds (NaN/Infinite), using Web Mercator tile bounds:', bounds);
+    // Use standard Web Mercator tile extent
+    return [-180, -66.51326044311186, 180, 66.51326044311186];
   }
 
   // IMPORTANT: Don't force global bounds for valid regional data!
   // The original logic was causing the positioning offset by stretching regional data globally
   
-  // Only check if bounds are exactly global (indicating global dataset)
+  // Check if bounds claim to be global
   const isExactlyGlobal =
     bounds[0] === -180 &&
     bounds[1] === -90 &&
     bounds[2] === 180 &&
     bounds[3] === 90;
 
+  // Check for near-global bounds that are from Web Mercator conversion
+  // The ±66.51326° latitude corresponds to Y=±10018754.17 meters in Web Mercator
+  // This is a standard extent for global Web Mercator tiles and should NOT be adjusted
+  const isNearGlobal = 
+    Math.abs(bounds[0] + 180) < 0.1 &&
+    Math.abs(bounds[2] - 180) < 0.1 &&
+    Math.abs(bounds[1] + 66.51) < 1 &&
+    Math.abs(bounds[3] - 66.51) < 1;
+
+  if (isNearGlobal) {
+    console.log(`GeoTIFF Processor: Detected Web Mercator global bounds ${JSON.stringify(bounds)}`);
+    console.log(`GeoTIFF Processor: Using original bounds without adjustment (±66.51° is correct for Web Mercator)`);
+    // Return the original bounds - they are correct!
+    return bounds;
+  }
+  
   if (isExactlyGlobal) {
-    console.log('GeoTIFF Processor: Using exact global bounds');
-    return [-180, -90, 180, 90];
+    // If bounds claim to be exactly global (-90 to 90), this is likely incorrect for Web Mercator data
+    // Web Mercator can only represent approximately ±85.05° (and commonly ±66.51° for tiles)
+    console.log(`GeoTIFF Processor: Detected claimed global bounds ${JSON.stringify(bounds)}`);
+    console.log(`GeoTIFF Processor: Adjusting to Web Mercator practical limits`);
+    // Use the standard Web Mercator tile extent
+  return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
   }
 
   // For all other cases, preserve the actual bounds from the GeoTIFF
@@ -293,6 +370,10 @@ export async function processGeoTIFF(
   let noDataCount = 0;
   let validDataCount = 0;
   
+  // Track actual data extent (for detecting if bounds are incorrect)
+  let minX = width, maxX = -1;
+  let minY = height, maxY = -1;
+  
   for (let i = 0; i < width * height; i++) {
     const value = rasterData[0][i]; // First band
     // Check for sentinel/no-data values
@@ -303,6 +384,14 @@ export async function processGeoTIFF(
     } else {
       rawDataCopy[i] = value; // Store raw value (including legitimate 0 values)
       validDataCount++;
+      
+      // Track actual data extent
+      const x = i % width;
+      const y = Math.floor(i / width);
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
     }
     
     // Only consider valid values for min/max calculation
@@ -311,6 +400,19 @@ export async function processGeoTIFF(
       minValue = Math.min(minValue, value);
       maxValue = Math.max(maxValue, value);
     }
+  }
+  
+  // Log actual data extent for debugging
+  if (validDataCount > 0) {
+    const xCoverage = (maxX - minX + 1) / width;
+    const yCoverage = (maxY - minY + 1) / height;
+    
+    console.log(`GeoTIFF Processor: Actual data extent - X: [${minX}, ${maxX}] (${maxX - minX + 1} pixels), Y: [${minY}, ${maxY}] (${maxY - minY + 1} pixels)`);
+    console.log(`GeoTIFF Processor: Full raster size: ${width} x ${height}`);
+    console.log(`GeoTIFF Processor: Data coverage - X: ${(xCoverage * 100).toFixed(1)}%, Y: ${(yCoverage * 100).toFixed(1)}%`);
+    
+    // Don't adjust bounds - the raster should use its declared bounds
+    // Even if data doesn't fill the entire extent (ocean areas are 0/NaN)
   }
 
   console.log(`GeoTIFF Processor: Data stats - Valid: ${validDataCount}, No-data: ${noDataCount}, Range: ${minValue} to ${maxValue}`);
@@ -363,7 +465,7 @@ export async function processGeoTIFF(
 
   // Convert canvas to data URL
   const dataUrl = canvas.toDataURL('image/png');
-  // console.log('GeoTIFF Processor: Created data URL');
+  console.log(`GeoTIFF Processor: Created canvas image ${width}x${height} pixels`);
 
   return { dataUrl, rasterData: rawDataCopy, width, height };
 }
@@ -410,6 +512,8 @@ export async function loadAndProcessGeoTIFF(
 
     // Validate and adjust bounds, passing projection info
     bounds = validateBounds(bounds, projectionInfo || undefined);
+    
+    console.log(`GeoTIFF Processor: FINAL bounds being returned: [${bounds.join(', ')}]`);
 
     // Process the GeoTIFF
     const { dataUrl, rasterData, width, height } = await processGeoTIFF(image, options);

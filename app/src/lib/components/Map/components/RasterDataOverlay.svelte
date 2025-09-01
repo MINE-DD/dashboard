@@ -2,7 +2,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import { rasterLayers } from '../store';
-	import type { RasterLayer } from '../store/types';
 	import { getRasterValueAtCoordinateFast } from '../utils/rasterPixelQuery';
 
 	export let map: MaplibreMap;
@@ -26,19 +25,24 @@
 			return;
 		}
 
-		const points: Array<{ x: number; y: number; value: number }> = [];
-		const canvas = map.getCanvas();
-		const canvasWidth = canvas.width;
-		const canvasHeight = canvas.height;
+	const points: Array<{ x: number; y: number; value: number }> = [];
+	const container = map.getContainer();
+	const rect = container.getBoundingClientRect();
+	// Use CSS pixel size, not device pixel canvas size, to avoid DPR mismatch
+	const cssWidth = container.clientWidth;
+	const cssHeight = container.clientHeight;
 		
 		// Sample screen pixels and check if they have raster data
 		const sampleRate = 5; // Sample every 5th pixel
 		
-		for (let x = 0; x < canvasWidth; x += sampleRate) {
-			for (let y = 0; y < canvasHeight; y += sampleRate) {
-				// Convert screen pixel to geographic coordinates
-				const lngLat = map.unproject([x, y]);
-				const lng = lngLat.lng;
+		for (let sx = 0; sx < cssWidth; sx += sampleRate) {
+			for (let sy = 0; sy < cssHeight; sy += sampleRate) {
+				// Convert CSS pixel (relative to map container) to geographic coordinates
+				const px = sx + sampleRate / 2;
+				const py = sy + sampleRate / 2;
+				const lngLat = map.unproject([px, py]);
+				// Normalize longitude to [-180, 180] for world copies
+				const lng = ((lngLat.lng + 180) % 360) - 180;
 				const lat = lngLat.lat;
 				
 				// Check each visible layer for data at this location
@@ -47,12 +51,33 @@
 						continue;
 					}
 					
+					// Log bounds once per update
+					if (sx === 0 && sy === 0) {
+						console.log('RasterDataOverlay - Layer info:', {
+							name: layer.name,
+							bounds: layer.bounds,
+							boundsAsString: `[${layer.bounds.join(', ')}]`,
+							width: layer.width,
+							height: layer.height,
+							aspectRatio: layer.width / layer.height,
+							degreesPerPixelX: (layer.bounds[2] - layer.bounds[0]) / layer.width,
+							degreesPerPixelY: (layer.bounds[3] - layer.bounds[1]) / layer.height
+						});
+					}
+					
+					// Clip to actual raster bounds before sampling to avoid outside-extent dots
+					const [west, south, east, north] = layer.bounds;
+					if (lat < south || lat > north || lng < west || lng > east) {
+						continue;
+					}
+
 					// Use the same function that the tooltip uses to get the value
 					const value = getRasterValueAtCoordinateFast(layer, lng, lat);
 					
 					if (value !== null && value > 0) {
-						// Found valid data at this screen position
-						points.push({ x, y, value });
+						// Found valid data at this geographic location; use map.project for exact screen coords
+						const screen = map.project([lng, lat]);
+						points.push({ x: rect.left + screen.x, y: rect.top + screen.y, value });
 						break; // Don't check other layers for this pixel
 					}
 				}

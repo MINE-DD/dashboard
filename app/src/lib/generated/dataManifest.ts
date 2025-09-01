@@ -1,6 +1,6 @@
 /**
  * Auto-generated data URL configuration
- * Generated at: 2025-09-01T07:46:45.128Z
+ * Generated at: 2025-09-01T09:38:25.332Z
  * DO NOT EDIT - This file is auto-generated
  */
 

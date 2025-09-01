@@ -10,6 +10,14 @@ export function isLatitudeInWebMercatorRange(lat: number): boolean {
   return Math.abs(lat) <= WEB_MERCATOR_MAX_LATITUDE;
 }
 
+// Convert latitude in degrees to Web Mercator "y" (unitless mercator) for consistent vertical mapping
+// y = ln(tan(pi/4 + phi/2)) where phi is latitude radians; clamp to Web Mercator max
+function latToMercatorY(latDeg: number): number {
+  const clamped = Math.max(-WEB_MERCATOR_MAX_LATITUDE, Math.min(WEB_MERCATOR_MAX_LATITUDE, latDeg));
+  const phi = (clamped * Math.PI) / 180;
+  return Math.log(Math.tan(Math.PI / 4 + phi / 2));
+}
+
 /**
  * Get the raster value at a specific geographic coordinate (ultra-fast version for real-time hover)
  * @param layer The raster layer containing the data
@@ -38,6 +46,10 @@ export function getRasterValueAtCoordinateFast(
     console.log(`  Bounds: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
   }
 
+  // Normalize longitude to [-180, 180] range to handle world copies
+  // This is needed because MapLibre with renderWorldCopies:true can return lng > 180
+  lng = ((lng + 180) % 360) - 180;
+  
   // Direct array access for bounds
   const west = bounds[0];
   const south = bounds[1];
@@ -47,17 +59,22 @@ export function getRasterValueAtCoordinateFast(
   // Bounds check
   if (lng < west || lng > east || lat < south || lat > north) return null;
 
-  // Calculate pixel X coordinate (same for both orientations)
+  // Calculate pixel coordinates
+  // Map coordinate to pixel, accounting for pixel boundaries
+  // Each pixel covers a range, and we want the pixel that contains this coordinate
   const xRatio = (lng - west) / (east - west);
-  const pixelX = ~~(xRatio * w); // ~~ is faster than Math.floor for positive numbers
+  const pixelX = Math.min(w - 1, Math.floor(xRatio * w));
   
   // Bounds check X
   if (pixelX < 0 || pixelX >= w) return null;
   
   // The raster data is stored top-to-bottom (row 0 = north edge)
-  // This matches the canvas representation
-  const yRatio = (north - lat) / (north - south);
-  const pixelY = ~~(yRatio * h);
+  // IMPORTANT: Use Mercator Y for vertical mapping to match map/image placement
+  const yNorth = latToMercatorY(north);
+  const ySouth = latToMercatorY(south);
+  const yLat = latToMercatorY(lat);
+  const yRatio = (yNorth - yLat) / (yNorth - ySouth);
+  const pixelY = Math.min(h - 1, Math.floor(yRatio * h));
   
   // Log critical coordinate mapping occasionally
   if (Math.random() < 0.01) { // Only log 1% of queries
@@ -100,6 +117,9 @@ export function getRasterValueAtCoordinate(
     return null;
   }
 
+  // Normalize longitude to [-180, 180] range to handle world copies
+  lng = ((lng + 180) % 360) - 180;
+
   const [west, south, east, north] = layer.bounds;
   
   // Check if coordinate is within bounds
@@ -111,12 +131,16 @@ export function getRasterValueAtCoordinate(
   // Convert geographic coordinates to pixel coordinates
   // X increases from west to east (left to right)
   const xRatio = (lng - west) / (east - west);
-  const pixelX = Math.floor(xRatio * layer.width);
+  const pixelX = Math.min(layer.width - 1, Math.floor(xRatio * layer.width));
   
   // Y-axis: Use consistent top-down orientation (Y=0 at north/top)
   // This matches how we create the canvas image
-  const yRatio = (north - lat) / (north - south);
-  const pixelY = Math.floor(yRatio * layer.height);
+  // IMPORTANT: Use Mercator Y for vertical mapping to match map/image placement
+  const yNorth = latToMercatorY(north);
+  const ySouth = latToMercatorY(south);
+  const yLat = latToMercatorY(lat);
+  const yRatio = (yNorth - yLat) / (yNorth - ySouth);
+  const pixelY = Math.min(layer.height - 1, Math.floor(yRatio * layer.height));
   
   // Ensure pixel coordinates are within bounds
   if (pixelX < 0 || pixelX >= layer.width || pixelY < 0 || pixelY >= layer.height) {
