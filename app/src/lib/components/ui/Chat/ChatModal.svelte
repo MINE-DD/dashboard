@@ -51,11 +51,17 @@
 	
 	const sessionId = getOrCreateSessionId();
 
+	interface ChatMessage {
+		id: string;
+		type: 'user' | 'bot';
+		content: string;
+		timestamp: Date;
+	}
+
 	let messageInput = $state('');
-	let messages = $state([]);
+	let messages = $state<ChatMessage[]>([]);
 	let isTyping = $state(false);
 	let chatContainer: HTMLElement;
-	let isLoading = $state(true);
 	
 	// Subscribe to settings and API key
 	$effect(() => {
@@ -123,7 +129,7 @@
 					timestamp: new Date(msg.timestamp)
 				}));
 			} else {
-				// If API fails, set default welcome message with markdown example
+				// If API fails, set default welcome message
 				messages = [
 					{
 						id: 'welcome-1',
@@ -154,7 +160,7 @@ I'm your AI assistant for epidemiological data analysis.
 					timestamp: new Date(msg.timestamp)
 				}));
 			} else {
-				// Fallback to default message with markdown example if no stored messages and API fails
+				// Fallback to default message if no stored messages and API fails
 				messages = [
 					{
 						id: 'fallback-1',
@@ -174,13 +180,14 @@ I'm your AI assistant for epidemiological data analysis.
 					}
 				];
 			}
-		} finally {
-			isLoading = false;
 		}
 	}
 
 	function getDataContext() {
-		if (!currentSettings.includeFilteredData) return null;
+		if (!currentSettings.includeFilteredData) {
+			console.log('📊 Data Context: Disabled (includeFilteredData is false)');
+			return null;
+		}
 		
 		const ageLabels = new Map<string, string>();
 		const syndromeLabels = new Map<string, string>();
@@ -196,13 +203,24 @@ I'm your AI assistant for epidemiological data analysis.
 			if (lab) syndromeLabels.set(val, lab);
 		});
 		
-		return {
+		const context = {
 			pathogens: $selectedPathogens,
 			ageGroups: new Set(Array.from(ageLabels.values())),
 			syndromes: new Set(Array.from(syndromeLabels.values())),
 			totalPoints: $pointsData.features.length,
 			filteredPoints: $filteredPointsData.features.length
 		};
+		
+		console.log('📊 Data Context Created:', {
+			pathogens: Array.from(context.pathogens),
+			ageGroups: Array.from(context.ageGroups),
+			syndromes: Array.from(context.syndromes),
+			totalPoints: context.totalPoints,
+			filteredPoints: context.filteredPoints,
+			hasFilters: context.pathogens.size > 0 || context.ageGroups.size > 0 || context.syndromes.size > 0
+		});
+		
+		return context;
 	}
 
 	async function sendMessage() {
@@ -234,6 +252,7 @@ I'm your AI assistant for epidemiological data analysis.
 			
 			// Check if we should use Gemini
 			if (currentSettings.useGemini && geminiService && geminiService.isInitialized()) {
+				console.log('🤖 Using Gemini API');
 				// Use Gemini API
 				let dataContextString = '';
 				
@@ -241,6 +260,8 @@ I'm your AI assistant for epidemiological data analysis.
 					const context = getDataContext();
 					if (context) {
 						dataContextString = geminiService.formatDataContext($filteredPointsData, context);
+						console.log('📝 Data Context String Length:', dataContextString.length);
+						console.log('📝 Data Context Preview:', dataContextString.substring(0, 500) + '...');
 					}
 				}
 				
@@ -249,6 +270,13 @@ I'm your AI assistant for epidemiological data analysis.
 					role: msg.type === 'user' ? 'user' : 'assistant',
 					content: msg.content
 				}));
+				
+				console.log('💬 Sending to Gemini:', {
+					userMessage: userMessageContent,
+					hasDataContext: !!dataContextString,
+					historyLength: conversationHistory.length,
+					filteredDataCount: $filteredPointsData.features.length
+				});
 				
 				botResponseContent = await geminiService.sendMessage(
 					userMessageContent,
@@ -277,7 +305,7 @@ I'm your AI assistant for epidemiological data analysis.
 			}
 			
 			// Add bot response to messages
-			const botMessage = {
+			const botMessage: ChatMessage = {
 				id: `bot-${Date.now()}`,
 				type: 'bot',
 				content: botResponseContent,
@@ -288,7 +316,7 @@ I'm your AI assistant for epidemiological data analysis.
 		} catch (error) {
 			console.error('Failed to send message:', error);
 			// Fallback response if API fails
-			const fallbackMessage = {
+			const fallbackMessage: ChatMessage = {
 				id: `fallback-${Date.now()}`,
 				type: 'bot',
 				content: error instanceof Error ? 
@@ -326,7 +354,7 @@ I'm your AI assistant for epidemiological data analysis.
 			breaks: true,
 			gfm: true
 		});
-		const html = marked(content);
+		const html = marked(content) as string;
 		// Sanitize HTML to prevent XSS attacks
 		return DOMPurify.sanitize(html);
 	}
@@ -337,7 +365,7 @@ I'm your AI assistant for epidemiological data analysis.
 			localStorage.removeItem(MESSAGES_STORAGE_KEY);
 			localStorage.removeItem(STORAGE_KEY);
 			
-			// Reset messages to welcome message with markdown example
+			// Reset messages to welcome message
 			messages = [
 				{
 					id: 'welcome-new',

@@ -27,9 +27,9 @@ export class GeminiService {
 
 		this.genAI = new GoogleGenerativeAI(apiKey);
 		
-		// Use Gemini 2.0 Flash model for fast responses
+		// Use Gemini 2.5 Flash-Lite (ultra-fast, lightweight model)
 		this.model = this.genAI.getGenerativeModel({
-			model: 'gemini-2.0-flash-exp',
+			model: 'gemini-2.5-flash-lite',
 			generationConfig: {
 				temperature: 0.7,
 				topK: 40,
@@ -76,27 +76,98 @@ export class GeminiService {
 
 		contextString += `\n**Data Points:** ${context.filteredPoints} out of ${context.totalPoints} total\n`;
 
-		// Add sample of data if available
+		// Add filtered data if available
 		if (filteredData && filteredData.features.length > 0) {
-			const sampleSize = Math.min(5, filteredData.features.length);
-			contextString += '\n### Sample Data Points:\n```json\n';
+			const totalPoints = filteredData.features.length;
 			
-			const sample = filteredData.features.slice(0, sampleSize).map(feature => ({
-				pathogen: feature.properties.PATHOGEN,
-				age: feature.properties.AGE_LAB,
-				syndrome: feature.properties.SYNDROME_LAB,
-				year: feature.properties.YEAR,
-				prevalence: feature.properties.PCT_POS,
-				positiveCount: feature.properties.POS_CNT,
-				totalCount: feature.properties.TOTAL_CNT,
-				location: {
-					lat: feature.geometry.coordinates[1],
-					lon: feature.geometry.coordinates[0]
+			// Determine how many points to include based on total count
+			// If less than 100 points, include all
+			// If more, include a representative sample plus aggregated statistics
+			const MAX_FULL_POINTS = 100; // Include all data if under this threshold
+			const SAMPLE_SIZE = 50; // Sample size for larger datasets
+			
+			if (totalPoints <= MAX_FULL_POINTS) {
+				// Include ALL data points for small datasets
+				contextString += `\n### Complete Filtered Dataset (${totalPoints} points):\n\`\`\`json\n`;
+				
+				const allDataPoints = filteredData.features.map(feature => ({
+					// Core identifiers
+					pathogen: feature.properties.pathogen,
+					ageGroup: feature.properties.ageGroupLab,
+					syndrome: feature.properties.syndromeLab,
+					
+					// Epidemiological data
+					prevalence: feature.properties.prevalenceValue * 100, // Convert to percentage
+					cases: feature.properties.cases,
+					samples: feature.properties.samples,
+					standardError: feature.properties.standardError,
+					
+					// Study metadata
+					studyDesign: feature.properties.design,
+					location: feature.properties.location,
+					duration: feature.properties.duration,
+					source: feature.properties.source,
+					ageRange: feature.properties.ageRange,
+					
+					// Geographic coordinates
+					coordinates: {
+						lat: feature.geometry.coordinates[1],
+						lon: feature.geometry.coordinates[0]
+					}
+				}));
+				
+				contextString += JSON.stringify(allDataPoints, null, 2);
+				contextString += '\n```\n';
+				
+				console.log(`📊 Including ALL ${totalPoints} filtered data points in context`);
+			} else {
+				// For larger datasets, include a sample plus aggregated data
+				contextString += `\n### Dataset Sample (${SAMPLE_SIZE} of ${totalPoints} points):\n\`\`\`json\n`;
+				
+				// Take a stratified sample to ensure representation
+				const sampleIndices = new Set<number>();
+				const step = Math.floor(totalPoints / SAMPLE_SIZE);
+				for (let i = 0; i < totalPoints && sampleIndices.size < SAMPLE_SIZE; i += step) {
+					sampleIndices.add(i);
 				}
-			}));
-			
-			contextString += JSON.stringify(sample, null, 2);
-			contextString += '\n```\n';
+				
+				const sampleDataPoints = Array.from(sampleIndices).map(idx => {
+					const feature = filteredData.features[idx];
+					return {
+						// Core identifiers
+						pathogen: feature.properties.pathogen,
+						ageGroup: feature.properties.ageGroupLab,
+						syndrome: feature.properties.syndromeLab,
+						
+						// Epidemiological data
+						prevalence: feature.properties.prevalenceValue * 100, // Convert to percentage
+						cases: feature.properties.cases,
+						samples: feature.properties.samples,
+						standardError: feature.properties.standardError,
+						
+						// Study metadata
+						studyDesign: feature.properties.design,
+						location: feature.properties.location,
+						duration: feature.properties.duration,
+						source: feature.properties.source,
+						ageRange: feature.properties.ageRange,
+						
+						// Geographic coordinates
+						coordinates: {
+							lat: feature.geometry.coordinates[1],
+							lon: feature.geometry.coordinates[0]
+						}
+					};
+				});
+				
+				contextString += JSON.stringify(sampleDataPoints, null, 2);
+				contextString += '\n```\n';
+				
+				console.log(`📊 Including ${SAMPLE_SIZE} sample points from ${totalPoints} total filtered data points`);
+				
+				// Add note about sampling
+				contextString += `\n*Note: Showing a representative sample of ${SAMPLE_SIZE} points from the total ${totalPoints} filtered data points to stay within token limits.*\n`;
+			}
 
 			// Add summary statistics
 			const stats = this.calculateStats(filteredData);
@@ -135,18 +206,24 @@ export class GeminiService {
 		data.features.forEach(feature => {
 			const props = feature.properties;
 			
-			if (props.POS_CNT) totalPositive += props.POS_CNT;
-			if (props.TOTAL_CNT) totalTests += props.TOTAL_CNT;
-			if (props.PCT_POS) prevalenceSum += props.PCT_POS;
+			// Use correct property names
+			if (props.cases) totalPositive += props.cases;
+			if (props.samples) totalTests += props.samples;
+			if (props.prevalenceValue) prevalenceSum += (props.prevalenceValue * 100); // Convert to percentage
 			
-			if (props.YEAR) {
-				minYear = Math.min(minYear, props.YEAR);
-				maxYear = Math.max(maxYear, props.YEAR);
+			// Extract year from duration field if available (e.g., "2018-2019")
+			if (props.duration) {
+				const yearMatch = props.duration.match(/\d{4}/);
+				if (yearMatch) {
+					const year = parseInt(yearMatch[0]);
+					minYear = Math.min(minYear, year);
+					maxYear = Math.max(maxYear, year);
+				}
 			}
 
-			if (props.PATHOGEN && props.POS_CNT) {
-				const current = pathogenCounts.get(props.PATHOGEN) || 0;
-				pathogenCounts.set(props.PATHOGEN, current + props.POS_CNT);
+			if (props.pathogen && props.cases) {
+				const current = pathogenCounts.get(props.pathogen) || 0;
+				pathogenCounts.set(props.pathogen, current + props.cases);
 			}
 		});
 
@@ -181,6 +258,7 @@ When discussing data, provide specific insights and actionable recommendations.`
 			// Add data context if provided
 			if (dataContext) {
 				fullPrompt += dataContext + '\n\n';
+				console.log('🔍 Data context added to prompt, length:', dataContext.length);
 			}
 
 			// Add conversation history if provided
@@ -195,10 +273,19 @@ When discussing data, provide specific insights and actionable recommendations.`
 			// Add current message
 			fullPrompt += `User: ${message}\n\nAssistant:`;
 
+			// Log the full prompt
+			console.log('📤 Full Prompt to Gemini:');
+			console.log('================================');
+			console.log(fullPrompt);
+			console.log('================================');
+			console.log('Prompt length:', fullPrompt.length, 'characters');
+
 			// Generate response
 			const result = await this.model.generateContent(fullPrompt);
 			const response = await result.response;
 			const text = response.text();
+			
+			console.log('📥 Gemini Response Length:', text.length, 'characters');
 
 			return text;
 		} catch (error) {

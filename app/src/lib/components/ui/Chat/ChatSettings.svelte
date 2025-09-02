@@ -185,6 +185,27 @@
 				</div>
 			</div>
 
+			<!-- Model Information -->
+			<div class="space-y-3">
+				<div class="rounded-lg bg-info/10 border border-info/20 p-4 space-y-2">
+					<div class="flex items-center gap-2">
+						<MaterialSymbolsInfo class="h-4 w-4 text-info" />
+						<p class="text-sm font-medium">Model & Pricing Information</p>
+					</div>
+					<div class="text-sm text-base-content/80 space-y-1">
+						<p><strong>Model:</strong> Gemini 2.5 Flash-Lite</p>
+						<p><strong>Speed:</strong> Ultra-fast lightweight model (&lt; 1 second)</p>
+						<p><strong>Context:</strong> 1M token context window</p>
+						<p><strong>Free Tier:</strong> 10 RPM, 4 million TPM, 1,500 RPD</p>
+						<p><strong>Pricing:</strong> Most cost-effective model - ideal for high-volume use</p>
+						<p class="text-xs opacity-70 mt-2">
+							Optimized for speed and efficiency with minimal resource usage. 
+							<a href="https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash-lite" target="_blank" rel="noopener noreferrer" class="link link-primary">View model documentation</a>
+						</p>
+					</div>
+				</div>
+			</div>
+
 			<!-- API Key Instructions -->
 			{#if !apiKey}
 				<div class="rounded-lg bg-base-200 p-4 space-y-2">
