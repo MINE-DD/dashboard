@@ -12,3 +12,7 @@ node_modules/
 /data
 chat-backend/__pycache__/
 
+# Generated manifest files (created at build time from R2)
+app/static/data-manifest.json
+app/src/lib/generated/dataManifest.ts
+
