@@ -5,14 +5,34 @@
 	import MaterialSymbolsSmartToy from '~icons/material-symbols/smart-toy';
 	import MaterialSymbolsPerson from '~icons/material-symbols/person';
 	import MaterialSymbolsAdd from '~icons/material-symbols/add';
+	import MaterialSymbolsSettings from '~icons/material-symbols/settings';
+	import MaterialSymbolsDataset from '~icons/material-symbols/dataset';
 	import { browser } from '$app/environment';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
+	import ChatSettings from './ChatSettings.svelte';
+	import { chatSettings, geminiApiKey } from '$lib/stores/chatSettings.store';
+	import { GeminiService } from '$lib/services/gemini.service';
+	import { 
+		selectedPathogens, 
+		selectedAgeGroups, 
+		selectedSyndromes,
+		filteredPointsData,
+		ageGroupValToLab,
+		syndromeValToLab
+	} from '$lib/stores/filter.store';
+	import { pointsData } from '$lib/stores/data.store';
 
 	const dispatch = createEventDispatcher();
 
 	// Chat API configuration
 	const CHAT_API_URL = browser ? 'http://localhost:4040' : 'http://chat-backend:4040';
+	
+	// Gemini service instance
+	let geminiService: GeminiService | null = null;
+	let showSettings = $state(false);
+	let currentSettings = $state({ useGemini: false, includeFilteredData: false });
+	let currentApiKey = $state('');
 
 	// Generate a session ID for this chat instance (persisted in localStorage)
 	const STORAGE_KEY = 'chatbot_session_id';
@@ -36,6 +56,29 @@
 	let isTyping = $state(false);
 	let chatContainer: HTMLElement;
 	let isLoading = $state(true);
+	
+	// Subscribe to settings and API key
+	$effect(() => {
+		if (browser) {
+			const unsubSettings = chatSettings.subscribe(settings => {
+				currentSettings = settings;
+			});
+			
+			const unsubKey = geminiApiKey.subscribe(key => {
+				currentApiKey = key;
+				if (key) {
+					geminiService = new GeminiService(key);
+				} else {
+					geminiService = null;
+				}
+			});
+			
+			return () => {
+				unsubSettings();
+				unsubKey();
+			};
+		}
+	});
 
 	// Save messages to localStorage whenever they change
 	$effect(() => {
@@ -85,29 +128,17 @@
 					{
 						id: 'welcome-1',
 						type: 'bot',
-						content: `# Welcome! 👋
+						content: `# Welcome to MINE-DD 🌍
 
-I'm your **AI assistant**. Here's what I can help you with:
+I'm your AI assistant for epidemiological data analysis.
 
-## Features
-- **Data Analysis** - Analyze CSV files and datasets
-- **Visualization** - Create charts and graphs
-- **Mapping** - Work with geographic data
+**Ask me about:**
+- Disease prevalence and trends
+- Risk factors by age and region  
+- Pathogen distribution patterns
+- Public health interventions
 
-### Quick Examples
-1. Upload a \`CSV file\` to get started
-2. Ask me to create visualizations
-3. Request data insights
-
-\`\`\`python
-# Example code
-data = pd.read_csv('file.csv')
-print(data.head())
-\`\`\`
-
-> **Tip:** You can ask me anything about your data!
-
-Need help? Just type your question below.`,
+> **Tip:** Enable "Include filtered data" in settings to analyze your specific data selection.`,
 						timestamp: new Date()
 					}
 				];
@@ -128,29 +159,17 @@ Need help? Just type your question below.`,
 					{
 						id: 'fallback-1',
 						type: 'bot',
-						content: `# Welcome! 👋
+						content: `# Welcome to MINE-DD 🌍
 
-I'm your **AI assistant**. Here's what I can help you with:
+I'm your AI assistant for epidemiological data analysis.
 
-## Features
-- **Data Analysis** - Analyze CSV files and datasets
-- **Visualization** - Create charts and graphs
-- **Mapping** - Work with geographic data
+**Ask me about:**
+- Disease prevalence and trends
+- Risk factors by age and region  
+- Pathogen distribution patterns
+- Public health interventions
 
-### Quick Examples
-1. Upload a \`CSV file\` to get started
-2. Ask me to create visualizations
-3. Request data insights
-
-\`\`\`python
-# Example code
-data = pd.read_csv('file.csv')
-print(data.head())
-\`\`\`
-
-> **Tip:** You can ask me anything about your data!
-
-Need help? Just type your question below.`,
+> **Tip:** Enable "Include filtered data" in settings to analyze your specific data selection.`,
 						timestamp: new Date()
 					}
 				];
@@ -158,6 +177,32 @@ Need help? Just type your question below.`,
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	function getDataContext() {
+		if (!currentSettings.includeFilteredData) return null;
+		
+		const ageLabels = new Map<string, string>();
+		const syndromeLabels = new Map<string, string>();
+		
+		// Convert VAL to LAB for display
+		$selectedAgeGroups.forEach(val => {
+			const lab = $ageGroupValToLab.get(val);
+			if (lab) ageLabels.set(val, lab);
+		});
+		
+		$selectedSyndromes.forEach(val => {
+			const lab = $syndromeValToLab.get(val);
+			if (lab) syndromeLabels.set(val, lab);
+		});
+		
+		return {
+			pathogens: $selectedPathogens,
+			ageGroups: new Set(Array.from(ageLabels.values())),
+			syndromes: new Set(Array.from(syndromeLabels.values())),
+			totalPoints: $pointsData.features.length,
+			filteredPoints: $filteredPointsData.features.length
+		};
 	}
 
 	async function sendMessage() {
@@ -185,39 +230,70 @@ Need help? Just type your question below.`,
 		}, 10);
 
 		try {
-			// Send message to API
-			const response = await fetch(`${CHAT_API_URL}/chat/${sessionId}/message`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					content: userMessageContent,
-					timestamp: new Date().toISOString()
-				})
-			});
-
-			if (response.ok) {
-				const botResponse = await response.json();
-				const botMessage = {
-					id: botResponse.id,
-					type: botResponse.type,
-					content: botResponse.content,
-					timestamp: new Date(botResponse.timestamp)
-				};
-
-				messages = [...messages, botMessage];
+			let botResponseContent = '';
+			
+			// Check if we should use Gemini
+			if (currentSettings.useGemini && geminiService && geminiService.isInitialized()) {
+				// Use Gemini API
+				let dataContextString = '';
+				
+				if (currentSettings.includeFilteredData) {
+					const context = getDataContext();
+					if (context) {
+						dataContextString = geminiService.formatDataContext($filteredPointsData, context);
+					}
+				}
+				
+				// Get conversation history (last 10 messages for context)
+				const conversationHistory = messages.slice(-10).map(msg => ({
+					role: msg.type === 'user' ? 'user' : 'assistant',
+					content: msg.content
+				}));
+				
+				botResponseContent = await geminiService.sendMessage(
+					userMessageContent,
+					dataContextString,
+					conversationHistory
+				);
 			} else {
-				throw new Error('Failed to send message');
+				// Use existing backend API
+				const response = await fetch(`${CHAT_API_URL}/chat/${sessionId}/message`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						content: userMessageContent,
+						timestamp: new Date().toISOString()
+					})
+				});
+
+				if (response.ok) {
+					const botResponse = await response.json();
+					botResponseContent = botResponse.content;
+				} else {
+					throw new Error('Failed to send message to backend');
+				}
 			}
+			
+			// Add bot response to messages
+			const botMessage = {
+				id: `bot-${Date.now()}`,
+				type: 'bot',
+				content: botResponseContent,
+				timestamp: new Date()
+			};
+			messages = [...messages, botMessage];
+			
 		} catch (error) {
 			console.error('Failed to send message:', error);
 			// Fallback response if API fails
 			const fallbackMessage = {
 				id: `fallback-${Date.now()}`,
 				type: 'bot',
-				content:
-					"I'm sorry, I'm having trouble connecting to the server right now. Please try again later.",
+				content: error instanceof Error ? 
+					`Error: ${error.message}` : 
+					"I'm sorry, I'm having trouble processing your request right now. Please try again later.",
 				timestamp: new Date()
 			};
 			messages = [...messages, fallbackMessage];
@@ -266,29 +342,17 @@ Need help? Just type your question below.`,
 				{
 					id: 'welcome-new',
 					type: 'bot',
-					content: `# Welcome! 👋
+					content: `# Welcome to MINE-DD 🌍
 
-I'm your **AI assistant**. Here's what I can help you with:
+I'm your AI assistant for epidemiological data analysis.
 
-## Features
-- **Data Analysis** - Analyze CSV files and datasets
-- **Visualization** - Create charts and graphs
-- **Mapping** - Work with geographic data
+**Ask me about:**
+- Disease prevalence and trends
+- Risk factors by age and region  
+- Pathogen distribution patterns
+- Public health interventions
 
-### Quick Examples
-1. Upload a \`CSV file\` to get started
-2. Ask me to create visualizations
-3. Request data insights
-
-\`\`\`python
-# Example code
-data = pd.read_csv('file.csv')
-print(data.head())
-\`\`\`
-
-> **Tip:** You can ask me anything about your data!
-
-Need help? Just type your question below.`,
+> **Tip:** Enable "Include filtered data" in settings to analyze your specific data selection.`,
 					timestamp: new Date()
 				}
 			];
@@ -313,8 +377,25 @@ Need help? Just type your question below.`,
 			<div class="flex items-center gap-2">
 				<MaterialSymbolsSmartToy class="h-5 w-5" />
 				<span class="font-semibold">AI Assistant</span>
+				{#if currentSettings.useGemini && currentApiKey}
+					<span class="badge badge-sm bg-primary-focus">Gemini</span>
+				{/if}
+				{#if currentSettings.includeFilteredData && currentSettings.useGemini}
+					<span class="badge badge-sm bg-primary-focus" title="Filtered data included">
+						<MaterialSymbolsDataset class="h-3 w-3 mr-1" />
+						Data
+					</span>
+				{/if}
 			</div>
 			<div class="flex items-center gap-1">
+				<button
+					class="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-focus"
+					on:click={() => showSettings = true}
+					aria-label="Settings"
+					title="Settings"
+				>
+					<MaterialSymbolsSettings class="h-4 w-4" />
+				</button>
 				<button
 					class="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-focus"
 					on:click={clearConversation}
@@ -409,27 +490,45 @@ Need help? Just type your question below.`,
 
 		<!-- Input Area -->
 		<div class="border-base-300 border-t p-4">
-			<div class="flex gap-2">
-				<textarea
-					bind:value={messageInput}
-					on:keydown={handleKeyPress}
-					placeholder="Type your message..."
-					class="textarea textarea-bordered max-h-32 min-h-[2.5rem] flex-1 resize-none"
-					rows="1"
-				></textarea>
-				<button
-					class="btn btn-primary btn-square"
-					on:click={sendMessage}
-					disabled={!messageInput.trim()}
-					aria-label="Send message"
-				>
-					<MaterialSymbolsSend class="h-4 w-4" />
-				</button>
-			</div>
-			<div class="mt-2 text-xs opacity-60">Press Enter to send, Shift + Enter for new line</div>
+			{#if !currentApiKey}
+				<div class="alert alert-warning text-sm">
+					<MaterialSymbolsSettings class="h-4 w-4" />
+					<span>Please configure your Gemini API key in settings to start chatting.</span>
+					<button 
+						class="btn btn-sm btn-primary"
+						on:click={() => showSettings = true}
+					>
+						Open Settings
+					</button>
+				</div>
+			{:else}
+				<div class="flex gap-2">
+					<textarea
+						bind:value={messageInput}
+						on:keydown={handleKeyPress}
+						placeholder="Type your message..."
+						class="textarea textarea-bordered max-h-32 min-h-[2.5rem] flex-1 resize-none"
+						rows="1"
+					></textarea>
+					<button
+						class="btn btn-primary btn-square"
+						on:click={sendMessage}
+						disabled={!messageInput.trim()}
+						aria-label="Send message"
+					>
+						<MaterialSymbolsSend class="h-4 w-4" />
+					</button>
+				</div>
+				<div class="mt-2 text-xs opacity-60">Press Enter to send, Shift + Enter for new line</div>
+			{/if}
 		</div>
 	</div>
 </div>
+
+<!-- Settings Modal -->
+{#if showSettings}
+	<ChatSettings on:close={() => showSettings = false} />
+{/if}
 
 <style>
 	@keyframes bounce {
