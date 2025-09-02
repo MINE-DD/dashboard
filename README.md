@@ -8,6 +8,8 @@ This project is the dashboard component for MINE-DD, an initiative by the Nether
 
 The dashboard provides an interactive interface for visualizing geographical data relevant to the MINE-DD project, including pathogen distribution, risk factors, and demographic analysis through both point data and raster overlays.
 
+Data updated: 1 Sep. 2025
+
 ## Tech Stack
 
 ![](./tech.excalidraw.png)
