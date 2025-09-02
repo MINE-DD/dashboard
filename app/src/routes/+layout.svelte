@@ -5,10 +5,11 @@
 	// import Analytics from '$components/ui/Analytics.svelte';
 	import SideMenu from '$components/ui/SideMenu.svelte';
 	import GlobalToast from '$components/ui/GlobalToast.svelte';
-	import PasswordModal from '$components/ui/PasswordModal.svelte';
+	// Password protection imports - commented out for production release
+	// import PasswordModal from '$components/ui/PasswordModal.svelte';
+	// import { isAuthenticated } from '$lib/stores/auth.store';
+	// import { browser, dev } from '$app/environment';
 	import ChatButton from '$components/ui/Chat/ChatButton.svelte';
-	import { isAuthenticated } from '$lib/stores/auth.store';
-	import { browser, dev } from '$app/environment';
 	// import { env } from '$env/dynamic/public';
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -17,9 +18,10 @@
 	let { children }: Props = $props();
 	// import FooterMain from '$components/ui/footerMain.svelte';
 
-	function handleAuthenticated() {
-		isAuthenticated.set(true);
-	}
+	// Password authentication handler - commented out for production release
+	// function handleAuthenticated() {
+	// 	isAuthenticated.set(true);
+	// }
 </script>
 
 <!-- <Analytics /> -->
@@ -32,23 +34,24 @@
 <div
 	class="relative grid h-dvh w-dvw grid-rows-[auto_auto_1fr] overflow-clip sm:grid-rows-[auto_1fr]"
 >
+	<!-- Password protection commented out for production release
 	{#if browser && !dev && !$isAuthenticated}
 		<PasswordModal on:authenticated={handleAuthenticated} />
 		<div class="blur-md filter">
 			<Header />
 			<SideMenu />
 			{#if children}{@render children()}{:else}
-				<!-- Content here -->
+				Content here
 			{/if}
 		</div>
-	{:else}
+	{:else} -->
 		<Header />
 		<SideMenu />
 		{#if children}{@render children()}{:else}
 			<!-- Content here -->
 		{/if}
 		<ChatButton />
-	{/if}
+	<!-- {/if} -->
 	<!-- <FooterMain /> -->
 	<!-- {#if env.PUBLIC_LOCALHOST}
 		<div class="bg-warning text-warning-content fixed bottom-0 left-0 w-full pl-4 text-xs">
