@@ -390,7 +390,7 @@ I'm your AI assistant for epidemiological data analysis.
 
 <!-- Modal backdrop -->
 <div
-	class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity"
+	class="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm transition-opacity"
 	on:click={closeModal}
 	role="button"
 	tabindex="0"
@@ -398,7 +398,7 @@ I'm your AI assistant for epidemiological data analysis.
 ></div>
 
 <!-- Chat Modal -->
-<div class="fixed bottom-6 right-6 z-50 w-[48rem] max-w-[calc(100vw-3rem)]">
+<div class="fixed bottom-6 right-6 z-[9999] w-[48rem] max-w-[calc(100vw-3rem)]">
 	<div class="bg-base-100 border-base-300 overflow-hidden rounded-lg border shadow-2xl">
 		<!-- Header -->
 		<div class="bg-primary text-primary-content flex items-center justify-between px-4 py-3">

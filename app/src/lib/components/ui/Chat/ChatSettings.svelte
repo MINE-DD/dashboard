@@ -75,7 +75,7 @@
 
 <!-- Modal backdrop -->
 <div
-	class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity"
+	class="fixed inset-0 z-[10000] bg-black/50 backdrop-blur-sm transition-opacity"
 	on:click={handleCancel}
 	role="button"
 	tabindex="0"
@@ -83,7 +83,7 @@
 ></div>
 
 <!-- Settings Modal -->
-<div class="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[32rem] max-w-[calc(100vw-2rem)]">
+<div class="fixed left-1/2 top-1/2 z-[10001] -translate-x-1/2 -translate-y-1/2 w-[32rem] max-w-[calc(100vw-2rem)]">
 	<div class="bg-base-100 border-base-300 rounded-lg border shadow-2xl">
 		<!-- Header -->
 		<div class="flex items-center justify-between border-b border-base-300 px-6 py-4">
