@@ -8,7 +8,7 @@
 	import IconamoonMenuBurgerHorizontalBold from '~icons/iconamoon/menu-burger-horizontal-bold';
 	import menuItems from '$lib/models/menu-itmes';
 
-	let activeCategory = '';
+	let activeCategory = 'Dashboard'; // Set Dashboard as active by default
 	let isDesktop = $state(true);
 
 	onMount(() => {
@@ -52,14 +52,26 @@
 			<!-- Desktop menu -->
 			<div class="z-10 w-full flex-1 justify-end space-x-4 sm:flex lg:space-x-8">
 				{#each menuItems as link}
-					<a
-						class="menu-link"
-						onclick={() => (active = link.title)}
-						class:active={activeCategory === link.title}
-						href="{base}{link.path}"
-					>
-						{link.displayTitle}
-					</a>
+					{#if link.external}
+						<a
+							class="menu-link !no-underline"
+							class:active={activeCategory === link.title}
+							href={link.path}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{link.displayTitle}
+						</a>
+					{:else}
+						<a
+							class="menu-link"
+							onclick={() => (activeCategory = link.title)}
+							class:active={activeCategory === link.title}
+							href="{base}{link.path}"
+						>
+							{link.displayTitle}
+						</a>
+					{/if}
 				{/each}
 			</div>
 
@@ -70,11 +82,13 @@
 
 <style lang="postcss">
 	.menu-link {
-		@apply text-base-content hover:text-secondary font-medium text-opacity-80 transition hover:text-opacity-100;
+		@apply text-base-content hover:text-secondary relative font-medium text-opacity-80 transition hover:text-opacity-100;
 	}
 
 	.menu-link.active {
-		@apply text-primary;
+		@apply text-base-content;
+		border-bottom: 2px solid #ff6b35;
+		padding-bottom: 2px;
 	}
 
 	/* Frosted navigation header */
