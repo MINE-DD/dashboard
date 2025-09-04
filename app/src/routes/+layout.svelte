@@ -10,12 +10,19 @@
 	// import { isAuthenticated } from '$lib/stores/auth.store';
 	// import { browser, dev } from '$app/environment';
 	import ChatButton from '$components/ui/Chat/ChatButton.svelte';
+	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
 	// import { env } from '$env/dynamic/public';
 	interface Props {
 		children?: import('svelte').Snippet;
 	}
 
 	let { children }: Props = $props();
+	
+	// Check if embed parameter is present in URL
+	let isEmbedded = $derived(
+		browser && $page.url.searchParams.get('embed') === 'true'
+	);
 	// import FooterMain from '$components/ui/footerMain.svelte';
 
 	// Password authentication handler - commented out for production release
@@ -32,7 +39,7 @@
 </svelte:head>
 
 <div
-	class="relative grid h-dvh w-dvw grid-rows-[auto_auto_1fr] overflow-clip sm:grid-rows-[auto_1fr]"
+	class="relative grid h-dvh w-dvw {isEmbedded ? 'grid-rows-[1fr]' : 'grid-rows-[auto_auto_1fr] sm:grid-rows-[auto_1fr]'} overflow-clip"
 >
 	<!-- Password protection commented out for production release
 	{#if browser && !dev && !$isAuthenticated}
@@ -45,12 +52,16 @@
 			{/if}
 		</div>
 	{:else} -->
-		<Header />
-		<SideMenu />
+		{#if !isEmbedded}
+			<Header />
+			<SideMenu />
+		{/if}
 		{#if children}{@render children()}{:else}
 			<!-- Content here -->
 		{/if}
-		<ChatButton />
+		{#if !isEmbedded}
+			<ChatButton />
+		{/if}
 	<!-- {/if} -->
 	<!-- <FooterMain /> -->
 	<!-- {#if env.PUBLIC_LOCALHOST}

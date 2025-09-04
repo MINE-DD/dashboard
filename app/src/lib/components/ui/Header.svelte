@@ -42,7 +42,9 @@
 			</button>
 			<a
 				class="no-drag mr-3 h-auto max-w-[140px] flex-initial flex-shrink-0 select-none sm:max-w-[160px]"
-				href="{base}/"
+				href="https://www.planeo.earth/"
+				target="_blank"
+				rel="noopener noreferrer"
 			>
 				<Logo />
 			</a>
