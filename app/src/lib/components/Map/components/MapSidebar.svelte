@@ -23,6 +23,7 @@
 		updateRasterLayerOpacity,
 		updateAllRasterLayersOpacity,
 		removeRasterLayer,
+		fetchAndSetLayerBounds,
 		// Import filter-to-raster mapping functionality
 		initFilterRasterConnection,
 		autoVisibleRasterLayers,
@@ -93,6 +94,48 @@
 	let showRasterDataOverlayLocal = false; // Debug overlay toggle (local state)
 
 	let pathogensWithRasterLayers = new Set<string>();
+	let showRiskFactors = false; // Toggle state for risk factors section
+
+	// Risk factor layer names (matching the names in raster.store.ts)
+	const riskFactorLayerNames = [
+		'Floor Finished Pr',
+		'Floor Finished SE', 
+		'Roofs Finished Pr',
+		'Roofs Finished SE',
+		'Walls Finished Pr',
+		'Walls Finished SE'
+	];
+
+	// Helper function to check if a layer is a risk factor
+	function isRiskFactorLayer(layerName: string): boolean {
+		return riskFactorLayerNames.includes(layerName);
+	}
+
+	// Get visibility state of a risk factor layer
+	function getRiskFactorVisibility(layerName: string): boolean {
+		// Find the layer by name
+		const layers = Array.from($rasterLayers.values());
+		const layer = layers.find(l => l.name === layerName);
+		return layer?.isVisible || false;
+	}
+
+	// Toggle a specific risk factor layer
+	async function toggleRiskFactorLayer(layerName: string) {
+		// Find the layer by name
+		const layers = Array.from($rasterLayers.entries());
+		const layerEntry = layers.find(([_, layer]) => layer.name === layerName);
+		
+		if (layerEntry) {
+			const [layerId, layer] = layerEntry;
+			const newVisibility = !layer.isVisible;
+			updateRasterLayerVisibility(layerId, newVisibility);
+			
+			// Fetch bounds if needed and layer is being made visible
+			if (newVisibility && !layer.bounds) {
+				await fetchAndSetLayerBounds(layerId);
+			}
+		}
+	}
 
 	// Initialize a set of pathogens that have raster layers
 	function initPathogensWithRasterLayers() {
@@ -379,7 +422,7 @@
 				<button
 					class="btn btn-sm btn-ghost btn-square"
 					title="Visualization Settings"
-					on:click={() => (showSettingsModal = true)}
+					onclick={() => (showSettingsModal = true)}
 				>
 					<MaterialSymbolsSettingsOutlineRounded />
 				</button>
@@ -387,7 +430,7 @@
 				<button
 					class="btn btn-sm btn-ghost btn-square"
 					title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-					on:click={() => (collapsed = !collapsed)}
+					onclick={() => (collapsed = !collapsed)}
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
@@ -434,7 +477,7 @@
 							{/if}
 						</div>
 						{#if hasActiveFilters}
-							<button class="btn btn-sm" on:click={clearAllFilters}>Clear Filters</button>
+							<button class="btn btn-sm" onclick={clearAllFilters}>Clear Filters</button>
 						{/if}
 					</div>
 				</div>
@@ -459,7 +502,7 @@
 					<select
 						id="visualization-type"
 						value={$visualizationType}
-						on:change={handleVisualizationTypeChange}
+						onchange={handleVisualizationTypeChange}
 						class="select select-bordered focus:border-primary focus:ring-primary/30 w-full bg-white/80 focus:ring"
 					>
 						{#each visualizationOptions as option}
@@ -547,6 +590,128 @@
 				}}
 			/>
 
+			<!-- Risk Factors Section -->
+			<div class="mt-4 rounded-lg border border-warning/30 bg-warning/10 p-3">
+				<div class="mb-2 flex items-center justify-between">
+					<h3 class="text-base-content flex items-center text-base font-medium">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="mr-1 h-5 w-5 text-warning"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+							/>
+						</svg>
+						Environmental Risk Factors
+					</h3>
+					<button
+						class="btn btn-ghost btn-xs"
+						onclick={() => showRiskFactors = !showRiskFactors}
+						title="Toggle risk factors"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-4 w-4 transition-transform"
+							class:rotate-180={!showRiskFactors}
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
+				</div>
+				
+				{#if showRiskFactors}
+					<div class="space-y-3 pt-2">
+						<!-- Floor Risk Factors -->
+						<div class="rounded bg-base-100/50 p-2">
+							<h4 class="mb-2 text-sm font-semibold">Floor Finish</h4>
+							<div class="space-y-1">
+								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+									<input
+										type="checkbox"
+										class="checkbox checkbox-warning checkbox-xs"
+										checked={getRiskFactorVisibility('Floor Finished Pr')}
+										onchange={() => toggleRiskFactorLayer('Floor Finished Pr')}
+									/>
+									<span>Prevalence</span>
+								</label>
+								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+									<input
+										type="checkbox"
+										class="checkbox checkbox-warning checkbox-xs"
+										checked={getRiskFactorVisibility('Floor Finished SE')}
+										onchange={() => toggleRiskFactorLayer('Floor Finished SE')}
+									/>
+									<span>Standard Error</span>
+								</label>
+							</div>
+						</div>
+
+						<!-- Roofs Risk Factors -->
+						<div class="rounded bg-base-100/50 p-2">
+							<h4 class="mb-2 text-sm font-semibold">Roof Finish</h4>
+							<div class="space-y-1">
+								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+									<input
+										type="checkbox"
+										class="checkbox checkbox-warning checkbox-xs"
+										checked={getRiskFactorVisibility('Roofs Finished Pr')}
+										onchange={() => toggleRiskFactorLayer('Roofs Finished Pr')}
+									/>
+									<span>Prevalence</span>
+								</label>
+								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+									<input
+										type="checkbox"
+										class="checkbox checkbox-warning checkbox-xs"
+										checked={getRiskFactorVisibility('Roofs Finished SE')}
+										onchange={() => toggleRiskFactorLayer('Roofs Finished SE')}
+									/>
+									<span>Standard Error</span>
+								</label>
+							</div>
+						</div>
+
+						<!-- Walls Risk Factors -->
+						<div class="rounded bg-base-100/50 p-2">
+							<h4 class="mb-2 text-sm font-semibold">Wall Finish</h4>
+							<div class="space-y-1">
+								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+									<input
+										type="checkbox"
+										class="checkbox checkbox-warning checkbox-xs"
+										checked={getRiskFactorVisibility('Walls Finished Pr')}
+										onchange={() => toggleRiskFactorLayer('Walls Finished Pr')}
+									/>
+									<span>Prevalence</span>
+								</label>
+								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+									<input
+										type="checkbox"
+										class="checkbox checkbox-warning checkbox-xs"
+										checked={getRiskFactorVisibility('Walls Finished SE')}
+										onchange={() => toggleRiskFactorLayer('Walls Finished SE')}
+									/>
+									<span>Standard Error</span>
+								</label>
+							</div>
+						</div>
+					</div>
+					
+					<div class="mt-3 text-xs text-base-content/60 italic">
+						Housing material quality indicators affecting disease transmission
+					</div>
+				{/if}
+			</div>
+
 			<!-- Active Raster Layers Info -->
 			{#if $autoVisibleRasterLayers.size > 0}
 				<div
@@ -575,7 +740,7 @@
 								type="checkbox"
 								class="checkbox checkbox-primary checkbox-sm"
 								checked={rasterLayersVisible}
-								on:change={toggleRasterLayerVisibility}
+								onchange={toggleRasterLayerVisibility}
 								title="Toggle raster layer visibility"
 							/>
 						</label>
@@ -603,7 +768,7 @@
 								type="checkbox"
 								class="checkbox checkbox-primary checkbox-sm"
 								checked={dataPointsVisible}
-								on:change={toggleDataPointsVisibility}
+								onchange={toggleDataPointsVisibility}
 								title="Toggle data points visibility"
 							/>
 						</label>
@@ -651,7 +816,7 @@
 						type="checkbox"
 						class="toggle"
 						bind:checked={showRasterDataOverlayLocal}
-						on:change={() => {
+						onchange={() => {
 							saveSettingsToStorage({ showRasterDataOverlay: showRasterDataOverlayLocal });
 							dispatch('overlaytoggle', { visible: showRasterDataOverlayLocal });
 						}}
@@ -674,7 +839,7 @@
 						min="0"
 						max="100"
 						bind:value={globalOpacity}
-						on:input={() => {
+						oninput={() => {
 							// Update opacity for all layers
 							updateAllRasterLayersOpacity(globalOpacity / 100);
 
@@ -721,7 +886,7 @@
 						max="0.5"
 						step="0.01"
 						bind:value={$barThickness}
-						on:input={async () => {
+						oninput={async () => {
 							// Save to localStorage
 							saveSettingsToStorage({ barThickness: $barThickness });
 
@@ -751,9 +916,9 @@
 			{/if}
 
 			<div class="modal-action">
-				<button class="btn btn-primary" on:click={() => (showSettingsModal = false)}>Done</button>
+				<button class="btn btn-primary" onclick={() => (showSettingsModal = false)}>Done</button>
 			</div>
 		</div>
-		<div class="modal-backdrop" on:click={() => (showSettingsModal = false)}></div>
+		<div class="modal-backdrop" onclick={() => (showSettingsModal = false)}></div>
 	</div>
 {/if}
