@@ -66,6 +66,21 @@ export type FeatureIndex = Map<string, Set<number>>;
 
 // --- Raster Layer Types ---
 
+// Metadata from CSV for raster layers
+export interface RasterLayerMetadata {
+  type?: 'Pathogen' | 'Risk Factor';
+  variableName?: string;
+  fileName?: string;
+  ageGroup?: string;
+  syndrome?: string;
+  indicator?: string;
+  definition?: string;
+  period?: string;
+  study?: string;
+  source?: string;
+  hyperlink?: string;
+}
+
 export interface RasterLayer {
   id: string; // Unique identifier for the layer
   name: string; // Display name (e.g., derived from URL or metadata)
@@ -83,6 +98,7 @@ export interface RasterLayer {
   rasterData?: Float32Array; // Raw raster data values
   width?: number; // Raster width in pixels
   height?: number; // Raster height in pixels
+  layerMetadata?: RasterLayerMetadata; // Scientific metadata from CSV
 }
 
 // Mapping types for filter to raster layer connections

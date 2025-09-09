@@ -3,6 +3,7 @@ import type { RasterLayer } from '$lib/types';
 import { toastStore } from '$lib/stores/toast.store';
 // Adjust the import path for geoTiffProcessor relative to the new store location
 import { loadAndProcessGeoTIFF } from '$lib/components/Map/utils/geoTiffProcessor';
+import { getRasterMetadataByUrl } from '$lib/services/rasterMetadata';
 
 // Default rescale values no longer forced; processing will auto-detect from data
 
@@ -31,6 +32,9 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
   ];
 
   layersToAdd.forEach((layerData) => {
+    // Get metadata for this layer
+    const layerMetadata = getRasterMetadataByUrl(layerData.sourceUrl);
+    
     const layer: RasterLayer = {
       id: `cog-${layerData.sourceUrl.replace(/[\/\.]/g, '-')}`, // Generate ID from path
       name: layerData.name,
@@ -40,7 +44,8 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
       bounds: undefined,
       isLoading: false,
       error: null,
-      colormap: 'viridis' // Default colormap
+      colormap: 'viridis', // Default colormap
+      layerMetadata: layerMetadata
     };
     initialMap.set(layer.id, layer);
   });
@@ -58,6 +63,9 @@ export const rasterDebugMode = writable<boolean>(false);
 
 export async function addRasterLayerFromUrl(url: string): Promise<void> {
   const layerId = `cog-url-${Date.now()}`;
+  // Try to get metadata for this URL
+  const layerMetadata = getRasterMetadataByUrl(url);
+  
   const tempLayer: RasterLayer = {
     id: layerId,
     name: `Loading: ${url.substring(url.lastIndexOf('/') + 1)}...`,
@@ -66,7 +74,8 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
     opacity: 0.8,
     isLoading: true,
     error: null,
-    colormap: 'viridis'
+    colormap: 'viridis',
+    layerMetadata: layerMetadata
   };
 
   rasterLayers.update((layers) => {

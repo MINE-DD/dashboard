@@ -46,7 +46,8 @@
 	import MultiPointPopover from './components/MultiPointPopover.svelte';
 	import RasterLegend from './components/RasterLegend.svelte';
 	import RasterDataOverlay from './components/RasterDataOverlay.svelte';
-	import type { VisualizationType, RasterLayer } from './store/types';
+	import type { VisualizationType } from './store';
+	import type { RasterLayer } from '$lib/types';
 	import { detectOverlappingFeatures } from './utils/overlapDetection';
 
 	// Props that can be passed to the component
@@ -491,26 +492,67 @@
 				console.warn('Could not compute CI from SE raster:', ciErr);
 			}
 
+			// Get metadata for this layer if available
+			const metadata = visibleRasterLayer.layerMetadata;
+			
+			// Determine the heading and subheading based on metadata
+			let heading = `${pathogen} Prevalence`;
+			let subheading = 'Raster layer data';
+			let studySource = 'Raster Layer';
+			let studyLink = '#';
+			let duration = '-';
+			let design = 'Geospatial model';
+			
+			if (metadata) {
+				// Use metadata to populate fields
+				if (metadata.type === 'Pathogen') {
+					heading = metadata.study || `${pathogen} Prevalence`;
+					subheading = metadata.definition || 'Predicted prevalence';
+				} else if (metadata.type === 'Risk Factor') {
+					heading = metadata.study || `${metadata.variableName} Coverage`;
+					subheading = metadata.definition || 'Predicted coverage';
+					// For risk factors, use variable name as pathogen field
+					pathogen = metadata.variableName || pathogen;
+				}
+				
+				// Use metadata for source and link
+				studySource = metadata.source || 'Raster Layer';
+				studyLink = metadata.hyperlink || '#';
+				duration = metadata.period || '-';
+				
+				// Update syndrome if available in metadata
+				if (metadata.syndrome) {
+					syndrome = metadata.syndrome;
+				}
+				
+				// Update age group if available in metadata
+				if (metadata.ageGroup) {
+					ageGroup = metadata.ageGroup;
+				}
+			}
+
 			// Create properties that match the expected structure for MapPopover
 			popoverProperties = {
 				// Required fields for popup display
-				heading: `${pathogen} Prevalence`,
-				subheading: 'Raster layer data',
+				heading: heading,
+				subheading: subheading,
 				pathogen: pathogen,
 				prevalenceValue: prevalencePercent / 100, // Decimal for color scale
 				// Label for display (with CI if available); numbers without % (unit in label)
 				prevalence: prevalenceLabel || `${prevalencePercent.toFixed(2)}`,
 				ageGroup: ageGroup || 'All ages',
 				ageRange: ageGroup || 'All ages',
-				syndrome: syndrome || 'Diarrhea',
+				syndrome: syndrome || (metadata?.type === 'Risk Factor' ? 'N/A' : 'Diarrhea'),
 				location: `${formattedLat}°, ${formattedLng}°`,
 
-				// Additional fields
-				duration: '-',
-				design: 'Geospatial model',
-				source: 'Raster Layer',
-				hyperlink: '#',
-				footnote: `Exact prevalence value from raster layer "${layerName}" at coordinates ${formattedLng}°, ${formattedLat}°.`
+				// Additional fields with real metadata
+				duration: duration,
+				design: design,
+				source: studySource,
+				hyperlink: studyLink,
+				footnote: metadata 
+					? `${metadata.indicator || 'Value'} from "${layerName}" at ${formattedLng}°, ${formattedLat}°.`
+					: `Exact prevalence value from raster layer "${layerName}" at coordinates ${formattedLng}°, ${formattedLat}°.`
 			};
 
 			popoverCoordinates = clickCoordinates;
