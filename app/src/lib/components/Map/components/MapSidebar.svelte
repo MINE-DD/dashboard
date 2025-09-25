@@ -99,7 +99,7 @@
 	// Risk factor layer names (matching the names in raster.store.ts)
 	const riskFactorLayerNames = [
 		'Floor Finished Pr',
-		'Floor Finished SE', 
+		'Floor Finished SE',
 		'Roofs Finished Pr',
 		'Roofs Finished SE',
 		'Walls Finished Pr',
@@ -115,7 +115,7 @@
 	function getRiskFactorVisibility(layerName: string): boolean {
 		// Find the layer by name
 		const layers = Array.from($rasterLayers.values());
-		const layer = layers.find(l => l.name === layerName);
+		const layer = layers.find((l) => l.name === layerName);
 		return layer?.isVisible || false;
 	}
 
@@ -124,12 +124,12 @@
 		// Find the layer by name
 		const layers = Array.from($rasterLayers.entries());
 		const layerEntry = layers.find(([_, layer]) => layer.name === layerName);
-		
+
 		if (layerEntry) {
 			const [layerId, layer] = layerEntry;
 			const newVisibility = !layer.isVisible;
 			updateRasterLayerVisibility(layerId, newVisibility);
-			
+
 			// Fetch bounds if needed and layer is being made visible
 			if (newVisibility && !layer.bounds) {
 				await fetchAndSetLayerBounds(layerId);
@@ -591,12 +591,12 @@
 			/>
 
 			<!-- Risk Factors Section -->
-			<div class="mt-4 rounded-lg border border-warning/30 bg-warning/10 p-3">
+			<div class="border-warning/30 bg-warning/10 mt-4 rounded-lg border p-3">
 				<div class="mb-2 flex items-center justify-between">
 					<h3 class="text-base-content flex items-center text-base font-medium">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
-							class="mr-1 h-5 w-5 text-warning"
+							class="text-warning mr-1 h-5 w-5"
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
@@ -608,11 +608,11 @@
 								d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
 							/>
 						</svg>
-						Environmental Risk Factors
+						Risk factors / Interventions
 					</h3>
 					<button
 						class="btn btn-ghost btn-xs"
-						onclick={() => showRiskFactors = !showRiskFactors}
+						onclick={() => (showRiskFactors = !showRiskFactors)}
 						title="Toggle risk factors"
 					>
 						<svg
@@ -623,18 +623,25 @@
 							viewBox="0 0 24 24"
 							stroke="currentColor"
 						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M19 9l-7 7-7-7"
+							/>
 						</svg>
 					</button>
 				</div>
-				
+
 				{#if showRiskFactors}
 					<div class="space-y-3 pt-2">
 						<!-- Floor Risk Factors -->
-						<div class="rounded bg-base-100/50 p-2">
+						<div class="bg-base-100/50 rounded p-2">
 							<h4 class="mb-2 text-sm font-semibold">Floor Finish</h4>
 							<div class="space-y-1">
-								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+								<label
+									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+								>
 									<input
 										type="checkbox"
 										class="checkbox checkbox-warning checkbox-xs"
@@ -643,7 +650,9 @@
 									/>
 									<span>Prevalence</span>
 								</label>
-								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+								<label
+									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+								>
 									<input
 										type="checkbox"
 										class="checkbox checkbox-warning checkbox-xs"
@@ -656,10 +665,12 @@
 						</div>
 
 						<!-- Roofs Risk Factors -->
-						<div class="rounded bg-base-100/50 p-2">
+						<div class="bg-base-100/50 rounded p-2">
 							<h4 class="mb-2 text-sm font-semibold">Roof Finish</h4>
 							<div class="space-y-1">
-								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+								<label
+									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+								>
 									<input
 										type="checkbox"
 										class="checkbox checkbox-warning checkbox-xs"
@@ -668,7 +679,9 @@
 									/>
 									<span>Prevalence</span>
 								</label>
-								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+								<label
+									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+								>
 									<input
 										type="checkbox"
 										class="checkbox checkbox-warning checkbox-xs"
@@ -681,10 +694,12 @@
 						</div>
 
 						<!-- Walls Risk Factors -->
-						<div class="rounded bg-base-100/50 p-2">
+						<div class="bg-base-100/50 rounded p-2">
 							<h4 class="mb-2 text-sm font-semibold">Wall Finish</h4>
 							<div class="space-y-1">
-								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+								<label
+									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+								>
 									<input
 										type="checkbox"
 										class="checkbox checkbox-warning checkbox-xs"
@@ -693,7 +708,9 @@
 									/>
 									<span>Prevalence</span>
 								</label>
-								<label class="flex cursor-pointer items-center gap-2 text-sm hover:bg-base-200/50 rounded px-1">
+								<label
+									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+								>
 									<input
 										type="checkbox"
 										class="checkbox checkbox-warning checkbox-xs"
@@ -705,8 +722,8 @@
 							</div>
 						</div>
 					</div>
-					
-					<div class="mt-3 text-xs text-base-content/60 italic">
+
+					<div class="text-base-content/60 mt-3 text-xs italic">
 						Housing material quality indicators affecting disease transmission
 					</div>
 				{/if}
