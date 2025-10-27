@@ -33,12 +33,9 @@ function createInitialRasterLayers(): Map<string, RasterLayer> {
     { name: 'Walls Finished Pr', sourceUrl: `${baseR2url}02_Risk_factors/Walls/Wll_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
     { name: 'Walls Finished SE', sourceUrl: `${baseR2url}02_Risk_factors/Walls/Wll_Fin_SE.tif`, isVisible: false, opacity: 0.8 },
     // Animal Interventions
-    { name: 'Poultry Pr', sourceUrl: `${baseR2url}03_Animal_interventions/Poultry/Poultry_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Poultry SE', sourceUrl: `${baseR2url}03_Animal_interventions/Poultry/Poultry_SE.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Ruminant Pr', sourceUrl: `${baseR2url}03_Animal_interventions/Ruminant/Ruminant_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Ruminant SE', sourceUrl: `${baseR2url}03_Animal_interventions/Ruminant/Ruminant_SE.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Swine Pr', sourceUrl: `${baseR2url}03_Animal_interventions/Swine/Swine_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Swine SE', sourceUrl: `${baseR2url}03_Animal_interventions/Swine/Swine_SE.tif`, isVisible: false, opacity: 0.8 }
+    { name: 'Poultry Pr', sourceUrl: `${baseR2url}02_Risk_factors/Poultry/Pty_Yes_Pr.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'Ruminant Pr', sourceUrl: `${baseR2url}02_Risk_factors/Ruminant/Rum_Yes_Pr.tif`, isVisible: false, opacity: 0.8 },
+    { name: 'Swine Pr', sourceUrl: `${baseR2url}02_Risk_factors/Swine/Pig_Yes_Pr.tif`, isVisible: false, opacity: 0.8 }
   ];
 
   layersToAdd.forEach((layerData) => {

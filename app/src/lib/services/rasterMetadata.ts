@@ -260,6 +260,34 @@ function initializeMetadata() {
 		definition: 'Standard error of predicted coverage',
 		hyperlink: 'https://doi.org/10.1371/journal.pgph.0003343'
 	});
+
+	// Animal Interventions
+	metadataMap.set('Pty_Yes_Pr', {
+		...riskFactorMeta,
+		variableName: 'Poultry',
+		fileName: 'Pty_Yes_Pr',
+		indicator: 'Coverage (%)',
+		definition: 'Predicted coverage of poultry ownership',
+		hyperlink: 'https://doi.org/10.1371/journal.pgph.0003338'
+	});
+
+	metadataMap.set('Rum_Yes_Pr', {
+		...riskFactorMeta,
+		variableName: 'Ruminant',
+		fileName: 'Rum_Yes_Pr',
+		indicator: 'Coverage (%)',
+		definition: 'Predicted coverage of ruminant ownership',
+		hyperlink: 'https://doi.org/10.1371/journal.pgph.0003338'
+	});
+
+	metadataMap.set('Pig_Yes_Pr', {
+		...riskFactorMeta,
+		variableName: 'Swine',
+		fileName: 'Pig_Yes_Pr',
+		indicator: 'Coverage (%)',
+		definition: 'Predicted coverage of swine ownership',
+		hyperlink: 'https://doi.org/10.1371/journal.pgph.0003338'
+	});
 }
 
 // Initialize on module load
