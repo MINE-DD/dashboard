@@ -34,7 +34,7 @@
 
 		<!-- Design types section - Horizontal layout -->
 		<div class="flex items-center gap-4">
-			<span class="text-sm font-bold">Design types</span>
+			<span class="flex-none text-sm font-bold">Design types</span>
 			<div class="flex items-center gap-3">
 				{#each designColors as item}
 					<div class="flex items-center gap-1.5">
