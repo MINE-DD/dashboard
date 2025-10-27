@@ -96,15 +96,21 @@
 	let pathogensWithRasterLayers = new Set<string>();
 	let showRiskFactors = false; // Toggle state for risk factors section
 
-	// Risk factor layer names (matching the names in raster.store.ts)
-	const riskFactorLayerNames = [
+	// Risk factor and intervention layer names (matching the names in raster.store.ts)
+	// Only tracking Prevalence (Pr) layers, not Standard Error (SE)
+	const housingLayerNames = [
 		'Floor Finished Pr',
-		'Floor Finished SE',
 		'Roofs Finished Pr',
-		'Roofs Finished SE',
-		'Walls Finished Pr',
-		'Walls Finished SE'
+		'Walls Finished Pr'
 	];
+
+	const animalInterventionLayerNames = [
+		'Poultry Pr',
+		'Ruminant Pr',
+		'Swine Pr'
+	];
+
+	const riskFactorLayerNames = [...housingLayerNames, ...animalInterventionLayerNames];
 
 	// Helper function to check if a layer is a risk factor
 	function isRiskFactorLayer(layerName: string): boolean {
@@ -590,7 +596,7 @@
 				}}
 			/>
 
-			<!-- Risk Factors Section -->
+			<!-- Risk Factors / Interventions Section -->
 			<div class="border-warning/30 bg-warning/10 mt-4 rounded-lg border p-3">
 				<div class="mb-2 flex items-center justify-between">
 					<h3 class="text-base-content flex items-center text-base font-medium">
@@ -634,97 +640,85 @@
 				</div>
 
 				{#if showRiskFactors}
-					<div class="space-y-3 pt-2">
-						<!-- Floor Risk Factors -->
-						<div class="bg-base-100/50 rounded p-2">
-							<h4 class="mb-2 text-sm font-semibold">Floor Finish</h4>
-							<div class="space-y-1">
-								<label
-									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
-								>
-									<input
-										type="checkbox"
-										class="checkbox checkbox-warning checkbox-xs"
-										checked={getRiskFactorVisibility('Floor Finished Pr')}
-										onchange={() => toggleRiskFactorLayer('Floor Finished Pr')}
-									/>
-									<span>Prevalence</span>
-								</label>
-								<label
-									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
-								>
-									<input
-										type="checkbox"
-										class="checkbox checkbox-warning checkbox-xs"
-										checked={getRiskFactorVisibility('Floor Finished SE')}
-										onchange={() => toggleRiskFactorLayer('Floor Finished SE')}
-									/>
-									<span>Standard Error</span>
-								</label>
-							</div>
+					<div class="space-y-2 pt-2">
+						<!-- Housing Material Quality Section -->
+						<div class="space-y-1.5">
+							<label
+								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+							>
+								<input
+									type="checkbox"
+									class="checkbox checkbox-warning checkbox-xs"
+									checked={getRiskFactorVisibility('Floor Finished Pr')}
+									onchange={() => toggleRiskFactorLayer('Floor Finished Pr')}
+								/>
+								<span class="font-semibold">Floor Finish</span>
+							</label>
+							<label
+								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+							>
+								<input
+									type="checkbox"
+									class="checkbox checkbox-warning checkbox-xs"
+									checked={getRiskFactorVisibility('Roofs Finished Pr')}
+									onchange={() => toggleRiskFactorLayer('Roofs Finished Pr')}
+								/>
+								<span class="font-semibold">Roof Finish</span>
+							</label>
+							<label
+								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+							>
+								<input
+									type="checkbox"
+									class="checkbox checkbox-warning checkbox-xs"
+									checked={getRiskFactorVisibility('Walls Finished Pr')}
+									onchange={() => toggleRiskFactorLayer('Walls Finished Pr')}
+								/>
+								<span class="font-semibold">Wall Finish</span>
+							</label>
 						</div>
 
-						<!-- Roofs Risk Factors -->
-						<div class="bg-base-100/50 rounded p-2">
-							<h4 class="mb-2 text-sm font-semibold">Roof Finish</h4>
-							<div class="space-y-1">
-								<label
-									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
-								>
-									<input
-										type="checkbox"
-										class="checkbox checkbox-warning checkbox-xs"
-										checked={getRiskFactorVisibility('Roofs Finished Pr')}
-										onchange={() => toggleRiskFactorLayer('Roofs Finished Pr')}
-									/>
-									<span>Prevalence</span>
-								</label>
-								<label
-									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
-								>
-									<input
-										type="checkbox"
-										class="checkbox checkbox-warning checkbox-xs"
-										checked={getRiskFactorVisibility('Roofs Finished SE')}
-										onchange={() => toggleRiskFactorLayer('Roofs Finished SE')}
-									/>
-									<span>Standard Error</span>
-								</label>
-							</div>
-						</div>
-
-						<!-- Walls Risk Factors -->
-						<div class="bg-base-100/50 rounded p-2">
-							<h4 class="mb-2 text-sm font-semibold">Wall Finish</h4>
-							<div class="space-y-1">
-								<label
-									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
-								>
-									<input
-										type="checkbox"
-										class="checkbox checkbox-warning checkbox-xs"
-										checked={getRiskFactorVisibility('Walls Finished Pr')}
-										onchange={() => toggleRiskFactorLayer('Walls Finished Pr')}
-									/>
-									<span>Prevalence</span>
-								</label>
-								<label
-									class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
-								>
-									<input
-										type="checkbox"
-										class="checkbox checkbox-warning checkbox-xs"
-										checked={getRiskFactorVisibility('Walls Finished SE')}
-										onchange={() => toggleRiskFactorLayer('Walls Finished SE')}
-									/>
-									<span>Standard Error</span>
-								</label>
-							</div>
+						<!-- Animal Interventions Section -->
+						<div class="mt-3 space-y-1.5">
+							<h4 class="text-warning/80 mb-1 text-sm font-medium">Animal Interventions</h4>
+							<label
+								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+							>
+								<input
+									type="checkbox"
+									class="checkbox checkbox-warning checkbox-xs"
+									checked={getRiskFactorVisibility('Poultry Pr')}
+									onchange={() => toggleRiskFactorLayer('Poultry Pr')}
+								/>
+								<span class="font-semibold">Poultry</span>
+							</label>
+							<label
+								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+							>
+								<input
+									type="checkbox"
+									class="checkbox checkbox-warning checkbox-xs"
+									checked={getRiskFactorVisibility('Ruminant Pr')}
+									onchange={() => toggleRiskFactorLayer('Ruminant Pr')}
+								/>
+								<span class="font-semibold">Ruminant</span>
+							</label>
+							<label
+								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
+							>
+								<input
+									type="checkbox"
+									class="checkbox checkbox-warning checkbox-xs"
+									checked={getRiskFactorVisibility('Swine Pr')}
+									onchange={() => toggleRiskFactorLayer('Swine Pr')}
+								/>
+								<span class="font-semibold">Swine</span>
+							</label>
 						</div>
 					</div>
 
 					<div class="text-base-content/60 mt-3 text-xs italic">
-						Housing material quality indicators affecting disease transmission
+						Housing material quality and animal husbandry interventions affecting disease transmission
 					</div>
 				{/if}
 			</div>
