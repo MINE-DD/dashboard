@@ -125,6 +125,14 @@
 		return layer?.isVisible || false;
 	}
 
+	// Get loading state of a risk factor layer
+	function getRiskFactorLoading(layerName: string): boolean {
+		// Find the layer by name
+		const layers = Array.from($rasterLayers.values());
+		const layer = layers.find((l) => l.name === layerName);
+		return layer?.isLoading || false;
+	}
+
 	// Toggle a specific risk factor layer
 	async function toggleRiskFactorLayer(layerName: string) {
 		// Find the layer by name
@@ -649,6 +657,9 @@
 									onchange={() => toggleRiskFactorLayer('Floor Finished Pr')}
 								/>
 								<span class="font-semibold">Floor Finish</span>
+								{#if getRiskFactorLoading('Floor Finished Pr')}
+									<span class="loading loading-spinner loading-xs"></span>
+								{/if}
 							</label>
 							<label
 								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
@@ -660,6 +671,9 @@
 									onchange={() => toggleRiskFactorLayer('Roofs Finished Pr')}
 								/>
 								<span class="font-semibold">Roof Finish</span>
+								{#if getRiskFactorLoading('Roofs Finished Pr')}
+									<span class="loading loading-spinner loading-xs"></span>
+								{/if}
 							</label>
 							<label
 								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
@@ -671,6 +685,9 @@
 									onchange={() => toggleRiskFactorLayer('Walls Finished Pr')}
 								/>
 								<span class="font-semibold">Wall Finish</span>
+								{#if getRiskFactorLoading('Walls Finished Pr')}
+									<span class="loading loading-spinner loading-xs"></span>
+								{/if}
 							</label>
 						</div>
 
@@ -687,6 +704,9 @@
 									onchange={() => toggleRiskFactorLayer('Poultry Pr')}
 								/>
 								<span class="font-semibold">Poultry</span>
+								{#if getRiskFactorLoading('Poultry Pr')}
+									<span class="loading loading-spinner loading-xs"></span>
+								{/if}
 							</label>
 							<label
 								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
@@ -698,6 +718,9 @@
 									onchange={() => toggleRiskFactorLayer('Ruminant Pr')}
 								/>
 								<span class="font-semibold">Ruminant</span>
+								{#if getRiskFactorLoading('Ruminant Pr')}
+									<span class="loading loading-spinner loading-xs"></span>
+								{/if}
 							</label>
 							<label
 								class="hover:bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-1 text-sm"
@@ -709,6 +732,9 @@
 									onchange={() => toggleRiskFactorLayer('Swine Pr')}
 								/>
 								<span class="font-semibold">Swine</span>
+								{#if getRiskFactorLoading('Swine Pr')}
+									<span class="loading loading-spinner loading-xs"></span>
+								{/if}
 							</label>
 						</div>
 					</div>
