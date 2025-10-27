@@ -94,7 +94,7 @@
 <style>
 	.raster-legend {
 		position: absolute;
-		bottom: 40px;
+		bottom: 120px;
 		left: 50%;
 		transform: translateX(-50%);
 		background: white;
@@ -102,8 +102,6 @@
 		border-radius: 8px;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 		z-index: 10;
-		min-width: 300px;
-		max-width: 400px;
 	}
 
 	.legend-title {

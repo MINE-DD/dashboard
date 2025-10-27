@@ -20,7 +20,7 @@
 
 {#if visible}
 	<div
-		class={`z-1 absolute bottom-10 left-3 rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter`}
+		class="{`absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter`}}"
 	>
 		<!-- Positive/Negative section -->
 		<!-- <div class="mb-3">
@@ -32,15 +32,17 @@
 			{/each}
 		</div> -->
 
-		<!-- Design types section -->
-		<span class=" text-sm font-bold">Design types</span>
-		<div>
-			{#each designColors as item}
-				<div class="mb-1 flex items-center">
-					<div class="mr-2 h-4 w-4 rounded-sm" style="background-color: {item.color};"></div>
-					<span class="text-base-content text-sm">{item.label}</span>
-				</div>
-			{/each}
+		<!-- Design types section - Horizontal layout -->
+		<div class="flex items-center gap-4">
+			<span class="text-sm font-bold">Design types</span>
+			<div class="flex items-center gap-3">
+				{#each designColors as item}
+					<div class="flex items-center gap-1.5">
+						<div class="h-3 w-3 rounded-sm" style="background-color: {item.color};"></div>
+						<span class="text-base-content whitespace-nowrap text-xs">{item.label}</span>
+					</div>
+				{/each}
+			</div>
 		</div>
 	</div>
 {/if}
