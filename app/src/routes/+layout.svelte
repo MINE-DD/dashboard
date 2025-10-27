@@ -11,18 +11,16 @@
 	// import { browser, dev } from '$app/environment';
 	import ChatButton from '$components/ui/Chat/ChatButton.svelte';
 	import { page } from '$app/stores';
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	// import { env } from '$env/dynamic/public';
 	interface Props {
 		children?: import('svelte').Snippet;
 	}
 
 	let { children }: Props = $props();
-	
+
 	// Check if embed parameter is present in URL
-	let isEmbedded = $derived(
-		browser && $page.url.searchParams.get('embed') === 'true'
-	);
+	let isEmbedded = $derived(browser && $page.url.searchParams.get('embed') === 'true');
 	// import FooterMain from '$components/ui/footerMain.svelte';
 
 	// Password authentication handler - commented out for production release
@@ -35,11 +33,13 @@
 <GlobalToast />
 
 <svelte:head>
-	<title>PLAN-EO</title>
+	<title>{dev ? 'DEV - ' : ''}PLAN-EO</title>
 </svelte:head>
 
 <div
-	class="relative grid h-dvh w-dvw {isEmbedded ? 'grid-rows-[1fr]' : 'grid-rows-[auto_auto_1fr] sm:grid-rows-[auto_1fr]'} overflow-clip"
+	class="relative grid h-dvh w-dvw {isEmbedded
+		? 'grid-rows-[1fr]'
+		: 'grid-rows-[auto_auto_1fr] sm:grid-rows-[auto_1fr]'} overflow-clip"
 >
 	<!-- Password protection commented out for production release
 	{#if browser && !dev && !$isAuthenticated}
@@ -52,16 +52,16 @@
 			{/if}
 		</div>
 	{:else} -->
-		{#if !isEmbedded}
-			<Header />
-			<SideMenu />
-		{/if}
-		{#if children}{@render children()}{:else}
-			<!-- Content here -->
-		{/if}
-		{#if !isEmbedded}
-			<ChatButton />
-		{/if}
+	{#if !isEmbedded}
+		<Header />
+		<SideMenu />
+	{/if}
+	{#if children}{@render children()}{:else}
+		<!-- Content here -->
+	{/if}
+	{#if !isEmbedded}
+		<ChatButton />
+	{/if}
 	<!-- {/if} -->
 	<!-- <FooterMain /> -->
 	<!-- {#if env.PUBLIC_LOCALHOST}

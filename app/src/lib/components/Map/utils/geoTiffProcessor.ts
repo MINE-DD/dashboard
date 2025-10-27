@@ -159,6 +159,25 @@ export function mercatorToLatLng(mercatorX: number, mercatorY: number): [number,
 export const WEB_MERCATOR_MAX_LATITUDE = 85.051129;
 
 /**
+ * Function to convert Lat/Lng coordinates to Web Mercator (meters)
+ */
+export function latLngToMercator(lng: number, lat: number): [number, number] {
+  // Earth's radius in meters at the equator
+  const earthRadius = 6378137;
+
+  // Clamp latitude to valid Web Mercator range
+  const clampedLat = Math.max(-WEB_MERCATOR_MAX_LATITUDE, Math.min(WEB_MERCATOR_MAX_LATITUDE, lat));
+
+  // Convert longitude from degrees to meters
+  const mercatorX = (lng * earthRadius * Math.PI) / 180;
+
+  // Convert latitude from degrees to meters using Mercator projection formula
+  const mercatorY = earthRadius * Math.log(Math.tan((Math.PI / 4) + (clampedLat * Math.PI / 360)));
+
+  return [mercatorX, mercatorY];
+}
+
+/**
  * Standard GoogleMapsCompatible/Web Mercator tile extent in WGS84.
  * Many global COGs (at low zoom levels) cover only this latitude band (±66.51326°).
  */
@@ -337,19 +356,184 @@ function getViridisColor(value: number, rescale: [number, number]): [number, num
 }
 
 /**
+ * Reproject EPSG:4326 (geographic) raster data to EPSG:3857 (Web Mercator)
+ * This fixes vertical stretching when displaying geographic rasters on Web Mercator basemaps
+ */
+async function processEPSG4326ToMercator(
+  sourceData: any,
+  sourceWidth: number,
+  sourceHeight: number,
+  geoBounds: number[], // [west, south, east, north] in degrees
+  options: ProcessingOptions = {}
+): Promise<{ dataUrl: string; rasterData: Float32Array; width: number; height: number; rescaleUsed: [number, number] }> {
+  console.log('GeoTIFF Processor: Starting EPSG:4326 to EPSG:3857 reprojection');
+  console.log('  Source dimensions:', sourceWidth, 'x', sourceHeight);
+  console.log('  Geographic bounds:', geoBounds);
+
+  const [west, south, east, north] = geoBounds;
+
+  // Convert geographic bounds to Web Mercator bounds
+  const [mercWest, mercSouth] = latLngToMercator(west, south);
+  const [mercEast, mercNorth] = latLngToMercator(east, north);
+
+  console.log('  Web Mercator bounds:', [mercWest, mercSouth, mercEast, mercNorth]);
+
+  // Calculate output dimensions - maintain similar pixel density
+  // For EPSG:4326, each pixel represents equal degrees
+  // For EPSG:3857, we need to account for Mercator distortion
+  const mercWidth = mercEast - mercWest;
+  const mercHeight = mercNorth - mercSouth;
+
+  // Use source dimensions as a starting point, but adjust aspect ratio for Mercator
+  const mercAspectRatio = mercWidth / mercHeight;
+  const sourceAspectRatio = sourceWidth / sourceHeight;
+
+  let outputWidth = sourceWidth;
+  let outputHeight = sourceHeight;
+
+  // Adjust dimensions to match Mercator aspect ratio
+  if (mercAspectRatio > sourceAspectRatio) {
+    // Mercator is wider than source, increase output width
+    outputWidth = Math.round(sourceHeight * mercAspectRatio);
+  } else {
+    // Mercator is taller than source, increase output height
+    outputHeight = Math.round(sourceWidth / mercAspectRatio);
+  }
+
+  console.log('  Output dimensions:', outputWidth, 'x', outputHeight);
+
+  // Find min/max values for rescaling
+  let minValue = Infinity;
+  let maxValue = -Infinity;
+  const rawDataCopy = new Float32Array(outputWidth * outputHeight);
+
+  for (let i = 0; i < sourceWidth * sourceHeight; i++) {
+    const value = sourceData[0][i];
+    if (!isNaN(value) && value > -1e10 && value < 1e10 && value !== -9999 && value !== -999) {
+      minValue = Math.min(minValue, value);
+      maxValue = Math.max(maxValue, value);
+    }
+  }
+
+  const rescale: [number, number] = options.rescale || [minValue, maxValue];
+  console.log('  Data range:', minValue, 'to', maxValue);
+
+  // Create output canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get canvas context');
+
+  const imageData = ctx.createImageData(outputWidth, outputHeight);
+
+  // Resample: for each output pixel, find corresponding input pixel
+  for (let outY = 0; outY < outputHeight; outY++) {
+    for (let outX = 0; outX < outputWidth; outX++) {
+      // Calculate Web Mercator coordinates for this output pixel
+      const mercX = mercWest + (outX / outputWidth) * mercWidth;
+      const mercY = mercNorth - (outY / outputHeight) * mercHeight; // Y is flipped (top = north)
+
+      // Convert Web Mercator to lat/lng
+      const [lng, lat] = mercatorToLatLng(mercX, mercY);
+
+      // Find corresponding pixel in source raster (EPSG:4326)
+      // Source pixels are evenly distributed in degrees
+      const normalizedX = (lng - west) / (east - west);
+      const normalizedY = (north - lat) / (north - south);
+
+      // Clamp to valid range
+      if (normalizedX < 0 || normalizedX > 1 || normalizedY < 0 || normalizedY > 1) {
+        // Outside source bounds - mark as no-data
+        const outIndex = outY * outputWidth + outX;
+        rawDataCopy[outIndex] = NaN;
+        imageData.data[outIndex * 4] = 0;
+        imageData.data[outIndex * 4 + 1] = 0;
+        imageData.data[outIndex * 4 + 2] = 0;
+        imageData.data[outIndex * 4 + 3] = 0; // Transparent
+        continue;
+      }
+
+      // Sample from source using nearest neighbor
+      const srcX = Math.floor(normalizedX * sourceWidth);
+      const srcY = Math.floor(normalizedY * sourceHeight);
+      const srcIndex = srcY * sourceWidth + srcX;
+
+      const value = sourceData[0][srcIndex];
+      const outIndex = outY * outputWidth + outX;
+
+      // Store raw value
+      rawDataCopy[outIndex] = value;
+
+      // Check for no-data
+      if (isNaN(value) || value < -1e10 || value > 1e10 || value === -9999 || value === -999) {
+        imageData.data[outIndex * 4] = 0;
+        imageData.data[outIndex * 4 + 1] = 0;
+        imageData.data[outIndex * 4 + 2] = 0;
+        imageData.data[outIndex * 4 + 3] = 0; // Transparent
+      } else {
+        // Apply colormap
+        if (options.debugMode) {
+          imageData.data[outIndex * 4] = 0;
+          imageData.data[outIndex * 4 + 1] = 0;
+          imageData.data[outIndex * 4 + 2] = 0;
+          imageData.data[outIndex * 4 + 3] = 255;
+        } else {
+          const [r, g, b] = getViridisColor(value, rescale);
+          imageData.data[outIndex * 4] = r;
+          imageData.data[outIndex * 4 + 1] = g;
+          imageData.data[outIndex * 4 + 2] = b;
+          imageData.data[outIndex * 4 + 3] = 255;
+        }
+      }
+    }
+  }
+
+  // Render to canvas
+  ctx.putImageData(imageData, 0, 0);
+
+  const dataUrl = canvas.toDataURL('image/png');
+  console.log('GeoTIFF Processor: Reprojection complete, created', outputWidth, 'x', outputHeight, 'image');
+
+  return { dataUrl, rasterData: rawDataCopy, width: outputWidth, height: outputHeight, rescaleUsed: rescale };
+}
+
+/**
  * Process GeoTIFF data and return a data URL and raw data
+ * @param image The GeoTIFF image object
+ * @param options Processing options
+ * @param projectionInfo Optional projection information (e.g., 'EPSG:4326' or 'EPSG:3857')
+ * @param originalBounds Optional bounds in the original projection [west, south, east, north]
  */
 export async function processGeoTIFF(
   image: any,
-  options: ProcessingOptions = {}
+  options: ProcessingOptions = {},
+  projectionInfo?: string | null,
+  originalBounds?: number[]
 ): Promise<{ dataUrl: string; rasterData: Float32Array; width: number; height: number; rescaleUsed: [number, number] }> {
   const width = image.getWidth();
   const height = image.getHeight();
 
   // console.log('GeoTIFF Processor: Reading raster data...');
   const data = await image.readRasters();
+  const rasterData = data as any;
 
-  // Create a canvas to render the data
+  // Check if reprojection from EPSG:4326 to EPSG:3857 is needed
+  const needsReprojection = projectionInfo === 'EPSG:4326' && originalBounds && originalBounds.length === 4;
+
+  if (needsReprojection && originalBounds) {
+    console.log('GeoTIFF Processor: Reprojecting EPSG:4326 to EPSG:3857 for proper display');
+    return await processEPSG4326ToMercator(
+      rasterData,
+      width,
+      height,
+      originalBounds,
+      options
+    );
+  }
+
+  // Create a canvas to render the data (for EPSG:3857 or unknown projections)
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -361,7 +545,6 @@ export async function processGeoTIFF(
   const imageData = ctx.createImageData(width, height);
 
   // Find data range to determine no-data values
-  const rasterData = data as any;
   let minValue = Infinity;
   let maxValue = -Infinity;
 
@@ -492,19 +675,53 @@ export async function loadAndProcessGeoTIFF(
     const { image, metadata } = await loadGeoTIFF(url);
 
     // Extract projection information from GeoTIFF metadata
-    let projectionInfo = null;
+    let projectionInfo: string | null = null;
     try {
       const geoKeys = image.getGeoKeys();
-      if (geoKeys && geoKeys.ProjectedCSTypeGeoKey) {
-        projectionInfo = `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`;
-        // console.log(`GeoTIFF Processor: Detected projection ${projectionInfo}`);
-      } else if (geoKeys && geoKeys.GeographicTypeGeoKey) {
-        projectionInfo = `EPSG:${geoKeys.GeographicTypeGeoKey}`;
-        // console.log(`GeoTIFF Processor: Detected geographic CRS ${projectionInfo}`);
+      if (geoKeys) {
+        // Check for projected coordinate system (like EPSG:3857)
+        if (geoKeys.ProjectedCSTypeGeoKey) {
+          projectionInfo = `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`;
+          console.log(`GeoTIFF Processor: Detected projection from ProjectedCSTypeGeoKey: ${projectionInfo}`);
+        }
+        // Check for geographic coordinate system (like EPSG:4326)
+        else if (geoKeys.GeographicTypeGeoKey) {
+          projectionInfo = `EPSG:${geoKeys.GeographicTypeGeoKey}`;
+          console.log(`GeoTIFF Processor: Detected projection from GeographicTypeGeoKey: ${projectionInfo}`);
+        }
+        // Check GTModelTypeGeoKey to distinguish between geographic and projected
+        else if (geoKeys.GTModelTypeGeoKey) {
+          if (geoKeys.GTModelTypeGeoKey === 1) {
+            // ModelTypeProjected
+            projectionInfo = 'EPSG:3857'; // Assume Web Mercator if projected but no specific key
+            console.log(`GeoTIFF Processor: GTModelTypeGeoKey indicates projected, assuming EPSG:3857`);
+          } else if (geoKeys.GTModelTypeGeoKey === 2) {
+            // ModelTypeGeographic
+            projectionInfo = 'EPSG:4326'; // Assume WGS84 if geographic but no specific key
+            console.log(`GeoTIFF Processor: GTModelTypeGeoKey indicates geographic, assuming EPSG:4326`);
+          }
+        }
+      }
+
+      // Fallback: detect projection from bounds magnitude
+      if (!projectionInfo && metadata.bounds) {
+        const bounds = metadata.bounds as number[];
+        const maxAbsValue = Math.max(...bounds.map(Math.abs));
+
+        if (maxAbsValue > 200) {
+          // Bounds are in meters (Web Mercator range is ~±20,037,508)
+          projectionInfo = 'EPSG:3857';
+          console.log(`GeoTIFF Processor: Detected EPSG:3857 from bounds magnitude (max: ${maxAbsValue})`);
+        } else if (maxAbsValue <= 180) {
+          // Bounds are in degrees (WGS84 range is ±180°)
+          projectionInfo = 'EPSG:4326';
+          console.log(`GeoTIFF Processor: Detected EPSG:4326 from bounds magnitude (max: ${maxAbsValue})`);
+        }
       }
 
       // Store projection info in metadata
       metadata.projection = projectionInfo;
+      console.log(`GeoTIFF Processor: Final detected projection: ${projectionInfo || 'unknown'}`);
     } catch (err) {
       console.warn('GeoTIFF Processor: Error extracting projection info:', err);
     }
@@ -518,8 +735,14 @@ export async function loadAndProcessGeoTIFF(
 
     console.log(`GeoTIFF Processor: FINAL bounds being returned: [${bounds.join(', ')}]`);
 
-    // Process the GeoTIFF
-    const { dataUrl, rasterData, width, height, rescaleUsed } = await processGeoTIFF(image, options);
+    // Process the GeoTIFF, passing projection info and original bounds for reprojection if needed
+    const originalBounds = metadata.bounds as number[];
+    const { dataUrl, rasterData, width, height, rescaleUsed } = await processGeoTIFF(
+      image,
+      options,
+      projectionInfo,
+      originalBounds
+    );
 
     return { dataUrl, metadata, bounds, rasterData, width, height, rescaleUsed };
   } catch (error) {
