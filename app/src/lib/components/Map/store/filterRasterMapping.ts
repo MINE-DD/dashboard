@@ -112,7 +112,7 @@ export function initFilterRasterConnection() {
             if (layer) {
               layer.autoShown = false;
             }
-            return layers;
+            return new Map(layers);
           });
         }
       }
@@ -132,7 +132,7 @@ export function initFilterRasterConnection() {
             if (layer) {
               layer.autoShown = true;
             }
-            return layers;
+            return new Map(layers);
           });
         }
       }

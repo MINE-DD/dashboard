@@ -87,7 +87,7 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
 
   rasterLayers.update((layers) => {
     layers.set(layerId, tempLayer);
-    return layers;
+    return new Map(layers);
   });
 
   try {
@@ -109,7 +109,7 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
     };
     rasterLayers.update((layers) => {
       layers.set(layerId, finalLayer);
-      return layers;
+      return new Map(layers);
     });
     toastStore.success(`Loaded layer: ${finalLayer.name}`);
   } catch (err: any) {
@@ -121,7 +121,7 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
         layerWithError.error = errorMessage;
         layerWithError.name = `Error loading: ${url.substring(url.lastIndexOf('/') + 1)}`;
       }
-      return layers;
+      return new Map(layers);
     });
     toastStore.error(errorMessage);
   }
@@ -146,7 +146,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
       layerToUpdate.isLoading = true;
       layerToUpdate.error = null;
     }
-    return currentLayers;
+    return new Map(currentLayers);
   });
 
   try {
@@ -166,7 +166,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
         layerToUpdate.isLoading = false;
         layerToUpdate.rescale = rescaleUsed;
       }
-      return currentLayers;
+      return new Map(currentLayers);
     });
   } catch (err: any) {
     const errorMessage = err.message || 'Failed to process GeoTIFF.';
@@ -177,7 +177,7 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
         layerToUpdate.error = errorMessage;
         layerToUpdate.name = `Error: ${layerToUpdate.name}`;
       }
-      return currentLayers;
+      return new Map(currentLayers);
     });
     toastStore.error(`Error processing GeoTIFF for ${layer?.name || layerId}: ${errorMessage}`);
   }
@@ -189,7 +189,7 @@ export function updateRasterLayerVisibility(id: string, isVisible: boolean): voi
     if (layer) {
       layer.isVisible = isVisible;
     }
-    return layers;
+    return new Map(layers); // Create new Map instance for reactivity
   });
 }
 
@@ -199,7 +199,7 @@ export function updateRasterLayerOpacity(id: string, opacity: number): void {
     if (layer) {
       layer.opacity = Math.max(0, Math.min(1, opacity));
     }
-    return layers;
+    return new Map(layers); // Create new Map instance for reactivity
   });
 }
 
@@ -210,14 +210,14 @@ export function updateAllRasterLayersOpacity(opacity: number): void {
         layer.opacity = Math.max(0, Math.min(1, opacity));
       }
     });
-    return layers;
+    return new Map(layers); // Create new Map instance for reactivity
   });
 }
 
 export function removeRasterLayer(id: string): void {
   rasterLayers.update((layers) => {
     layers.delete(id);
-    return layers;
+    return new Map(layers);
   });
 }
 

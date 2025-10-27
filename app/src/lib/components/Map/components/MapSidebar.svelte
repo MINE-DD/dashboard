@@ -42,7 +42,7 @@
 		// Import data update date
 		dataUpdateDate
 	} from '../store';
-	import { writable } from 'svelte/store';
+	import { writable, derived } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
@@ -111,6 +111,45 @@
 	];
 
 	const riskFactorLayerNames = [...housingLayerNames, ...animalInterventionLayerNames];
+
+	// Derived store that checks if ANY raster layers are visible (auto-shown OR risk factors)
+	const hasVisibleRasterLayers = derived(
+		[autoVisibleRasterLayers, rasterLayers],
+		([$autoVisibleRasterLayers, $rasterLayers]) => {
+			// Check if there are auto-shown pathogen layers
+			if ($autoVisibleRasterLayers.size > 0) {
+				return true;
+			}
+
+			// Check if any risk factor layers are visible
+			const visibleRiskFactors = Array.from($rasterLayers.values()).some(
+				layer => riskFactorLayerNames.includes(layer.name) && layer.isVisible
+			);
+
+			return visibleRiskFactors;
+		}
+	);
+
+	// Derived store that counts visible raster layers (combining auto-shown and manual)
+	const visibleRasterLayersCount = derived(
+		[autoVisibleRasterLayers, rasterLayers],
+		([$autoVisibleRasterLayers, $rasterLayers]) => {
+			let count = 0;
+
+			// Count auto-shown pathogen layers
+			count += $autoVisibleRasterLayers.size;
+
+			// Count manually toggled risk factor layers (that aren't auto-shown)
+			const visibleRiskFactors = Array.from($rasterLayers.values()).filter(
+				layer => riskFactorLayerNames.includes(layer.name) &&
+				         layer.isVisible &&
+				         !$autoVisibleRasterLayers.has(layer.id)
+			);
+			count += visibleRiskFactors.length;
+
+			return count;
+		}
+	);
 
 	// Helper function to check if a layer is a risk factor
 	function isRiskFactorLayer(layerName: string): boolean {
@@ -746,7 +785,7 @@
 			</div>
 
 			<!-- Active Raster Layers Info -->
-			{#if $autoVisibleRasterLayers.size > 0}
+			{#if $hasVisibleRasterLayers}
 				<div
 					class="border-secondary/30 from-secondary/10 to-primary/10 rounded-lg border bg-gradient-to-r p-4 shadow-sm"
 				>
@@ -766,7 +805,7 @@
 									d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
 								/>
 							</svg>
-							Active Raster Layers ({$autoVisibleRasterLayers.size})
+							Active Raster Layers ({$visibleRasterLayersCount})
 						</h3>
 						<label class="label cursor-pointer gap-2 p-0">
 							<input
@@ -826,7 +865,7 @@
 					</div> -->
 
 					<div class="text-secondary/80 mt-4 text-xs italic">
-						Raster layers are automatically shown based on your filter selections.
+						Raster layers include pathogen data (auto-shown by filters) and risk factors (manually toggled).
 					</div>
 				</div>
 			{/if}
