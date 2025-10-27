@@ -95,14 +95,12 @@ export function setMapInstance(map: MaplibreMap | null) {
 }
 
 function setMapReady(ready: boolean) {
-  console.log('Setting map ready:', ready);
   mapIsReady.set(ready);
-  
+
   // Check if we should initialize with a small delay to ensure everything is ready
   if (ready) {
     // Use setTimeout to ensure this happens after the current execution stack
     setTimeout(() => {
-      console.log('Delayed initialization check after map ready');
       checkAndInitialize();
     }, 100);
   }
@@ -148,7 +146,6 @@ export async function checkAndInitialize(isRetry = false) {
   const hasData = get(filteredPointsData)?.features?.length > 0;
   const pointsAdded = get(pointsAddedToMap);
   const state = get(initializationState);
-  const vizType = get(visualizationType);
   
   // console.log('Checking initialization conditions:', {
   //   hasMap: !!map,
@@ -163,8 +160,6 @@ export async function checkAndInitialize(isRetry = false) {
   
   // Check if all conditions are met
   if (map && ready && hasData && !pointsAdded && state === 'idle') {
-    console.log('All conditions met, initializing visualization...');
-    
     const { addInitialPointsToMap } = await getMapVisualizationManager();
     initializationState.set('initializing');
     const data = get(filteredPointsData);
@@ -176,12 +171,11 @@ export async function checkAndInitialize(isRetry = false) {
       initializationRetryCount = 0; // Reset retry count on success
     } else {
       initializationState.set('error');
-      
+
       // Retry if we haven't exceeded max retries
       if (!isRetry && initializationRetryCount < MAX_INITIALIZATION_RETRIES) {
         initializationRetryCount++;
-        console.log(`Initialization failed, retrying (attempt ${initializationRetryCount}/${MAX_INITIALIZATION_RETRIES})...`);
-        
+
         // Reset state and retry after a delay
         setTimeout(() => {
           initializationState.set('idle');
@@ -193,8 +187,7 @@ export async function checkAndInitialize(isRetry = false) {
     // If conditions aren't met but we should have points, schedule a retry
     if (!isRetry) {
       initializationRetryCount++;
-      console.log(`Conditions not met, scheduling retry (attempt ${initializationRetryCount}/${MAX_INITIALIZATION_RETRIES})...`);
-      
+
       setTimeout(() => {
         checkAndInitialize(true);
       }, 500 * initializationRetryCount);
@@ -208,45 +201,23 @@ export async function handleFilterChange() {
   const ready = get(mapIsReady);
   const pointsAdded = get(pointsAddedToMap);
   const state = get(initializationState);
-  const hasData = get(filteredPointsData)?.features?.length > 0;
   const vizType = get(visualizationType);
   const updating = get(isUpdatingVisualization);
-  
-  console.log('Filter change detected:', {
-    hasMap: !!map,
-    mapReady: ready,
-    pointsAdded,
-    state,
-    hasData,
-    vizType,
-    updating
-  });
-  
+
   // If not initialized yet, just wait for initialization
   if (!pointsAdded || state !== 'ready' || !map || !ready) {
-    console.log('Not ready for filter update, waiting for initialization');
     return;
   }
-  
+
   // If already updating, skip
   if (updating) {
-    console.log('Already updating, skipping filter change');
     return;
   }
-  
-  // Update the visualization with new filtered data
-  console.log('Updating visualization with filtered data...');
-  
+
   try {
     const { updateMapVisualization } = await getMapVisualizationManager();
     const data = get(filteredPointsData);
-    const success = await updateMapVisualization(map, data, vizType, pointsAdded);
-    
-    if (success) {
-      console.log('Filter update successful');
-    } else {
-      console.error('Filter update failed');
-    }
+    await updateMapVisualization(map, data, vizType, pointsAdded);
   } catch (error) {
     console.error('Error updating filters:', error);
   }
@@ -259,35 +230,16 @@ export async function handleVisualizationTypeChange(oldType: string, newType: st
   const pointsAdded = get(pointsAddedToMap);
   const state = get(initializationState);
   const updating = get(isUpdatingVisualization);
-  
-  console.log('Visualization type change detected:', {
-    oldType,
-    newType,
-    hasMap: !!map,
-    mapReady: ready,
-    pointsAdded,
-    state,
-    updating
-  });
-  
+
   // If not initialized yet or already updating, skip
   if (!pointsAdded || state !== 'ready' || !map || !ready || updating) {
-    console.log('Not ready for visualization type change');
     return;
   }
-  
-  console.log(`Switching visualization from ${oldType} to ${newType}`);
-  
+
   try {
     const { switchVisualizationType } = await getMapVisualizationManager();
     const data = get(filteredPointsData);
-    const success = await switchVisualizationType(map, oldType, newType, data);
-    
-    if (success) {
-      console.log('Visualization type switch successful');
-    } else {
-      console.error('Visualization type switch failed');
-    }
+    await switchVisualizationType(map, oldType, newType, data);
   } catch (error) {
     console.error('Error switching visualization type:', error);
   }
@@ -327,15 +279,13 @@ filteredPointsData.subscribe((data) => {
   if (hasData) {
     if (!pointsAdded && ready) {
       // First load or reinitialization needed
-      console.log('Data available, checking initialization...');
       // Add a small delay to ensure visualization type is loaded from localStorage
       setTimeout(() => {
         checkAndInitialize();
       }, 50);
-    } else if (pointsAdded && ready && state === 'ready' && 
+    } else if (pointsAdded && ready && state === 'ready' &&
               (currentDataLength !== previousDataLength || currentFilterState !== previousFilterState)) {
       // Data changed after initialization (filter change)
-      console.log('Filter data changed, updating visualization...');
       handleFilterChange();
     }
     previousDataLength = currentDataLength;

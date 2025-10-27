@@ -251,25 +251,21 @@
 
 	// Action functions that update stores and trigger map updates
 	async function updatePathogenSelection(newSelection: Set<string>) {
-		console.log('Updating pathogen selection:', newSelection);
 		selectedPathogens.set(newSelection);
 		await handleMapContentChange();
 	}
 
 	async function updateAgeGroupSelection(newSelection: Set<string>) {
-		console.log('Updating age group selection:', newSelection);
 		selectedAgeGroups.set(newSelection);
 		await handleMapContentChange();
 	}
 
 	async function updateSyndromeSelection(newSelection: Set<string>) {
-		console.log('Updating syndrome selection:', newSelection);
 		selectedSyndromes.set(newSelection);
 		await handleMapContentChange();
 	}
 
 	function updateVisualizationType(newType: VisualizationType) {
-		console.log('Requesting switch to visualization type:', newType);
 		// Just update the store - the centralized handler will do the actual switch
 		visualizationType.set(newType);
 	}

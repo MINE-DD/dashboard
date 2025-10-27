@@ -33,7 +33,6 @@ export function syncRasterLayers(
       // Layer exists on map
       if (!layerShouldBeVisible) {
         // Layer should be hidden, but it's on the map -> Remove it
-        console.log(`Map: Layer ${layerId} should be hidden. Removing.`);
         try {
           // Remove existing layer and source using currentMap
           if (currentMap.getLayer(layerId)) currentMap.removeLayer(layerId);
@@ -60,12 +59,10 @@ export function syncRasterLayers(
               ];
             const src = currentMap.getSource(sourceId) as any;
             if (typeof src.setCoordinates === 'function') {
-              console.log('RasterLayerSync: Updating image source coordinates for', layerId, coords);
               src.setCoordinates(coords);
             }
             // If a new dataUrl is available, refresh the image as well
             if (layer.dataUrl && typeof src.updateImage === 'function') {
-              console.log('RasterLayerSync: Updating image bitmap for', layerId);
               src.updateImage({ url: layer.dataUrl });
             }
           }
@@ -100,7 +97,6 @@ export function syncRasterLayers(
             let east = layer.bounds[2];
             let north = layer.bounds[3];
 
-            console.log('RasterLayerSync: BOUNDS USED FOR IMAGE:', [west, south, east, north]);
 
             // Create coordinates array for the image corners using standard lng,lat order
             // The order is critical: top-left, top-right, bottom-right, bottom-left
@@ -116,16 +112,6 @@ export function syncRasterLayers(
                 [west, south] // bottom-left
               ];
 
-            console.log(`RasterLayerSync: IMAGE CORNERS:`, {
-              layerId,
-              topLeft: `[${west}, ${north}]`,
-              topRight: `[${east}, ${north}]`,
-              bottomRight: `[${east}, ${south}]`,
-              bottomLeft: `[${west}, ${south}]`,
-              width: layer.width,
-              height: layer.height
-            });
-
             // Check for global bounds (±90° latitude)
             const isGlobalBounds =
               layer.bounds[0] === -180 &&
@@ -134,9 +120,7 @@ export function syncRasterLayers(
               layer.bounds[3] === 90;
 
             if (isGlobalBounds) {
-              console.log(
-                `Raster: Using image source ${sourceId} with global bounds.`
-              );
+              // Using image source with global bounds
             }
 
             // Define sourceDef WITH coordinates, as layer.bounds is guaranteed here
@@ -201,12 +185,10 @@ export function syncRasterLayers(
     try {
       if (currentMap?.getLayer(layerIdToRemove)) {
         currentMap.removeLayer(layerIdToRemove);
-        console.log(`Raster: Removed layer ${layerIdToRemove}`);
       }
       const sourceIdToRemove = layerIdToRemove; // Assuming source ID matches layer ID
       if (currentMap?.getSource(sourceIdToRemove)) {
         currentMap.removeSource(sourceIdToRemove);
-        console.log(`Raster: Removed source ${sourceIdToRemove}`);
       }
       currentMapLayers.delete(layerIdToRemove); // Untrack
     } catch (error) {
@@ -234,9 +216,7 @@ export function updateRasterLayerOpacity(
       try {
         const currentOpacity = map.getPaintProperty(layerId, 'raster-opacity') ?? 1;
         if (currentOpacity !== layer.opacity) {
-          // console.log(`Map (Opacity): Attempting to set opacity for ${layerId} to ${layer.opacity}`);
           map.setPaintProperty(layerId, 'raster-opacity', layer.opacity);
-          // console.log(`Map (Opacity): Successfully set opacity for ${layerId}`);
         }
       } catch (error) {
         // Ignore errors if layer doesn't exist (might happen during transitions)

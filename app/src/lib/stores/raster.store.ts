@@ -157,8 +157,6 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
     const { dataUrl, metadata, bounds, rasterData, width, height, rescaleUsed } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
       debugMode: debugMode
     });
-    console.log(`Raster store: Setting bounds for ${layerId}: [${bounds.join(', ')}]`);
-    console.log(`Raster store: Bounds type check - Array.isArray: ${Array.isArray(bounds)}, values: ${bounds.map(b => typeof b).join(', ')}`);
     rasterLayers.update((currentLayers) => {
       const layerToUpdate = currentLayers.get(layerId);
       if (layerToUpdate) {

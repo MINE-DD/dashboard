@@ -54,7 +54,6 @@ export async function loadGeoTIFF(url: string): Promise<{
   image: any;
   metadata: GeoTIFFMetadata;
 }> {
-  console.log(`GeoTIFF Processor: Loading from URL: ${url}`);
 
   // Check if we're in the browser and GeoTIFF is available globally
   if (!browser) {
@@ -98,24 +97,12 @@ export async function loadGeoTIFF(url: string): Promise<{
   const imageHeight = image.getHeight();
   const imageBounds = image.getBoundingBox();
 
-  console.log('GeoTIFF Metadata DIRECT FROM FILE:', {
-    width: imageWidth,
-    height: imageHeight,
-    boundsFromGeoTIFF: imageBounds,
-    boundsAsArray: Array.isArray(imageBounds) ? `[${imageBounds.join(', ')}]` : 'not an array',
-    origin: image.getOrigin(),
-    resolution: image.getResolution(),
-    fileDirectory: image.fileDirectory
-  });
-
   // Additional check for projection info
   try {
     const geoKeys = image.getGeoKeys();
     if (geoKeys) {
-      console.log('GeoTIFF GeoKeys:', geoKeys);
     }
   } catch (e) {
-    console.log('Could not get GeoKeys from image');
   }
 
   const metadata: GeoTIFFMetadata = {
@@ -210,8 +197,6 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     return [-180, -66.51326044311186, 180, 66.51326044311186];
   }
 
-  console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
-  console.log('GeoTIFF Processor: Projection info:', projectionInfo);
 
   // Check if projection is Web Mercator or if coordinates are outside WGS84 range
   const isWebMercator = projectionInfo === 'EPSG:3857' ||
@@ -219,7 +204,6 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     Math.abs(bounds[2]) > 180;
 
   if (isWebMercator) {
-    console.log('GeoTIFF Processor: Detected Web Mercator coordinates, converting to WGS84');
 
     // First, detect the common GoogleMapsCompatible tile extent in meters
     // Example from GDAL: Y = ±10018754.17 m => lat = ±66.51326°
@@ -230,7 +214,6 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
       approx(bounds[3], WEB_MERCATOR_TILE_BOUNDS_M.yMax, 200);
 
     if (isGMapsCompatibleTileExtent) {
-      console.log('GeoTIFF Processor: Using Web Mercator tile extent (±66.51326°).');
       return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
     }
 
@@ -238,9 +221,6 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     const sw = mercatorToLatLng(bounds[0], bounds[1]);
     const ne = mercatorToLatLng(bounds[2], bounds[3]);
 
-    console.log('GeoTIFF Processor: Converted Web Mercator bounds:');
-    console.log(`  Original: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
-    console.log(`  Converted: [${sw[0]}, ${sw[1]}, ${ne[0]}, ${ne[1]}]`);
 
     return [sw[0], sw[1], ne[0], ne[1]];
   }
@@ -253,9 +233,7 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     approx(bounds[3], 10018754.17, 100);
 
   if (isWebMercatorGlobalBounds) {
-    console.log('GeoTIFF Processor: Detected Web Mercator global bounds, converting properly');
     // Use canonical tile bounds directly for clarity/consistency
-    console.log('GeoTIFF Processor: Using canonical Web Mercator tile bounds (WGS84).');
     return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
   }
 
@@ -286,8 +264,6 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     Math.abs(bounds[3] - 66.51) < 1;
 
   if (isNearGlobal) {
-    console.log(`GeoTIFF Processor: Detected Web Mercator global bounds ${JSON.stringify(bounds)}`);
-    console.log(`GeoTIFF Processor: Using original bounds without adjustment (±66.51° is correct for Web Mercator)`);
     // Return the original bounds - they are correct!
     return bounds;
   }
@@ -295,8 +271,6 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
   if (isExactlyGlobal) {
     // If bounds claim to be exactly global (-90 to 90), this is likely incorrect for Web Mercator data
     // Web Mercator can only represent approximately ±85.05° (and commonly ±66.51° for tiles)
-    console.log(`GeoTIFF Processor: Detected claimed global bounds ${JSON.stringify(bounds)}`);
-    console.log(`GeoTIFF Processor: Adjusting to Web Mercator practical limits`);
     // Use the standard Web Mercator tile extent
     return [...WEB_MERCATOR_TILE_BOUNDS_WGS84];
   }
@@ -317,7 +291,6 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
     north = Math.max(-90, Math.min(90, north));
   }
 
-  console.log('GeoTIFF Processor: ✅ Using actual GeoTIFF bounds:', [west, south, east, north]);
   return [west, south, east, north];
 }
 
@@ -366,9 +339,6 @@ async function processEPSG4326ToMercator(
   geoBounds: number[], // [west, south, east, north] in degrees
   options: ProcessingOptions = {}
 ): Promise<{ dataUrl: string; rasterData: Float32Array; width: number; height: number; rescaleUsed: [number, number] }> {
-  console.log('GeoTIFF Processor: Starting EPSG:4326 to EPSG:3857 reprojection');
-  console.log('  Source dimensions:', sourceWidth, 'x', sourceHeight);
-  console.log('  Geographic bounds:', geoBounds);
 
   const [west, south, east, north] = geoBounds;
 
@@ -376,7 +346,6 @@ async function processEPSG4326ToMercator(
   const [mercWest, mercSouth] = latLngToMercator(west, south);
   const [mercEast, mercNorth] = latLngToMercator(east, north);
 
-  console.log('  Web Mercator bounds:', [mercWest, mercSouth, mercEast, mercNorth]);
 
   // Calculate output dimensions - maintain similar pixel density
   // For EPSG:4326, each pixel represents equal degrees
@@ -400,7 +369,6 @@ async function processEPSG4326ToMercator(
     outputHeight = Math.round(sourceWidth / mercAspectRatio);
   }
 
-  console.log('  Output dimensions:', outputWidth, 'x', outputHeight);
 
   // Find min/max values for rescaling
   let minValue = Infinity;
@@ -416,7 +384,6 @@ async function processEPSG4326ToMercator(
   }
 
   const rescale: [number, number] = options.rescale || [minValue, maxValue];
-  console.log('  Data range:', minValue, 'to', maxValue);
 
   // Create output canvas
   const canvas = document.createElement('canvas');
@@ -494,7 +461,6 @@ async function processEPSG4326ToMercator(
   ctx.putImageData(imageData, 0, 0);
 
   const dataUrl = canvas.toDataURL('image/png');
-  console.log('GeoTIFF Processor: Reprojection complete, created', outputWidth, 'x', outputHeight, 'image');
 
   return { dataUrl, rasterData: rawDataCopy, width: outputWidth, height: outputHeight, rescaleUsed: rescale };
 }
@@ -515,7 +481,6 @@ export async function processGeoTIFF(
   const width = image.getWidth();
   const height = image.getHeight();
 
-  // console.log('GeoTIFF Processor: Reading raster data...');
   const data = await image.readRasters();
   const rasterData = data as any;
 
@@ -523,7 +488,6 @@ export async function processGeoTIFF(
   const needsReprojection = projectionInfo === 'EPSG:4326' && originalBounds && originalBounds.length === 4;
 
   if (needsReprojection && originalBounds) {
-    console.log('GeoTIFF Processor: Reprojecting EPSG:4326 to EPSG:3857 for proper display');
     return await processEPSG4326ToMercator(
       rasterData,
       width,
@@ -592,15 +556,11 @@ export async function processGeoTIFF(
     const xCoverage = (maxX - minX + 1) / width;
     const yCoverage = (maxY - minY + 1) / height;
 
-    console.log(`GeoTIFF Processor: Actual data extent - X: [${minX}, ${maxX}] (${maxX - minX + 1} pixels), Y: [${minY}, ${maxY}] (${maxY - minY + 1} pixels)`);
-    console.log(`GeoTIFF Processor: Full raster size: ${width} x ${height}`);
-    console.log(`GeoTIFF Processor: Data coverage - X: ${(xCoverage * 100).toFixed(1)}%, Y: ${(yCoverage * 100).toFixed(1)}%`);
 
     // Don't adjust bounds - the raster should use its declared bounds
     // Even if data doesn't fill the entire extent (ocean areas are 0/NaN)
   }
 
-  console.log(`GeoTIFF Processor: Data stats - Valid: ${validDataCount}, No-data: ${noDataCount}, Range: ${minValue} to ${maxValue}`);
 
   // Use provided rescale values or default to the detected range
   const rescale: [number, number] = options.rescale || [minValue, maxValue];
@@ -650,7 +610,6 @@ export async function processGeoTIFF(
 
   // Convert canvas to data URL
   const dataUrl = canvas.toDataURL('image/png');
-  console.log(`GeoTIFF Processor: Created canvas image ${width}x${height} pixels`);
 
   return { dataUrl, rasterData: rawDataCopy, width, height, rescaleUsed: rescale };
 }
@@ -682,23 +641,19 @@ export async function loadAndProcessGeoTIFF(
         // Check for projected coordinate system (like EPSG:3857)
         if (geoKeys.ProjectedCSTypeGeoKey) {
           projectionInfo = `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`;
-          console.log(`GeoTIFF Processor: Detected projection from ProjectedCSTypeGeoKey: ${projectionInfo}`);
         }
         // Check for geographic coordinate system (like EPSG:4326)
         else if (geoKeys.GeographicTypeGeoKey) {
           projectionInfo = `EPSG:${geoKeys.GeographicTypeGeoKey}`;
-          console.log(`GeoTIFF Processor: Detected projection from GeographicTypeGeoKey: ${projectionInfo}`);
         }
         // Check GTModelTypeGeoKey to distinguish between geographic and projected
         else if (geoKeys.GTModelTypeGeoKey) {
           if (geoKeys.GTModelTypeGeoKey === 1) {
             // ModelTypeProjected
             projectionInfo = 'EPSG:3857'; // Assume Web Mercator if projected but no specific key
-            console.log(`GeoTIFF Processor: GTModelTypeGeoKey indicates projected, assuming EPSG:3857`);
           } else if (geoKeys.GTModelTypeGeoKey === 2) {
             // ModelTypeGeographic
             projectionInfo = 'EPSG:4326'; // Assume WGS84 if geographic but no specific key
-            console.log(`GeoTIFF Processor: GTModelTypeGeoKey indicates geographic, assuming EPSG:4326`);
           }
         }
       }
@@ -711,29 +666,24 @@ export async function loadAndProcessGeoTIFF(
         if (maxAbsValue > 200) {
           // Bounds are in meters (Web Mercator range is ~±20,037,508)
           projectionInfo = 'EPSG:3857';
-          console.log(`GeoTIFF Processor: Detected EPSG:3857 from bounds magnitude (max: ${maxAbsValue})`);
         } else if (maxAbsValue <= 180) {
           // Bounds are in degrees (WGS84 range is ±180°)
           projectionInfo = 'EPSG:4326';
-          console.log(`GeoTIFF Processor: Detected EPSG:4326 from bounds magnitude (max: ${maxAbsValue})`);
         }
       }
 
       // Store projection info in metadata
       metadata.projection = projectionInfo;
-      console.log(`GeoTIFF Processor: Final detected projection: ${projectionInfo || 'unknown'}`);
     } catch (err) {
       console.warn('GeoTIFF Processor: Error extracting projection info:', err);
     }
 
     // Initialize bounds with a default value to avoid null issues
     let bounds = (metadata.bounds as number[]) || [-180, -90, 180, 90]; // Default to global bounds if null
-    // console.log('GeoTIFF Processor: Raw bounds from GeoTIFF:', bounds);
 
     // Validate and adjust bounds, passing projection info
     bounds = validateBounds(bounds, projectionInfo || undefined);
 
-    console.log(`GeoTIFF Processor: FINAL bounds being returned: [${bounds.join(', ')}]`);
 
     // Process the GeoTIFF, passing projection info and original bounds for reprojection if needed
     const originalBounds = metadata.bounds as number[];

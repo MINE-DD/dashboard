@@ -42,8 +42,6 @@ export function getRasterValueAtCoordinateFast(
 
   // Debug logging for coordinate mapping (reduced for performance)
   if (Math.random() < 0.01) { // Only log 1% of queries
-    console.log(`🔍 Query at (${lng.toFixed(3)}, ${lat.toFixed(3)}) for layer: ${layer.name}`);
-    console.log(`  Bounds: [${bounds[0]}, ${bounds[1]}, ${bounds[2]}, ${bounds[3]}]`);
   }
 
   // Normalize longitude to [-180, 180] range to handle world copies
@@ -78,9 +76,6 @@ export function getRasterValueAtCoordinateFast(
 
   // Log critical coordinate mapping occasionally
   if (Math.random() < 0.01) { // Only log 1% of queries
-    console.log(`Query (${lng.toFixed(3)}, ${lat.toFixed(3)}) -> Pixel (${pixelX}, ${pixelY})`);
-    console.log(`  Bounds: [${west}, ${south}, ${east}, ${north}]`);
-    console.log(`  Ratios: x=${xRatio.toFixed(3)}, y=${yRatio.toFixed(3)}`);
   }
 
   // Bounds check Y
@@ -124,7 +119,6 @@ export function getRasterValueAtCoordinate(
 
   // Check if coordinate is within bounds
   if (lng < west || lng > east || lat < south || lat > north) {
-    console.log(`Coordinate (${lng}, ${lat}) is outside raster bounds [${west}, ${south}, ${east}, ${north}]`);
     return null;
   }
 
@@ -144,7 +138,6 @@ export function getRasterValueAtCoordinate(
 
   // Ensure pixel coordinates are within bounds
   if (pixelX < 0 || pixelX >= layer.width || pixelY < 0 || pixelY >= layer.height) {
-    console.log(`Pixel coordinates out of bounds: (${pixelX}, ${pixelY})`);
     return null;
   }
 
@@ -158,7 +151,6 @@ export function getRasterValueAtCoordinate(
   // NaN indicates no data (ocean, outside coverage area, etc.)
   // 0 is a valid value (0% prevalence)
   if (isNaN(value) || value < -1e10 || value > 1e10) {
-    console.log(`No data at pixel (${pixelX}, ${pixelY}): value is ${value}`);
     return null;
   }
 

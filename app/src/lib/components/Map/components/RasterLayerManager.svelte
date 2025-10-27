@@ -73,18 +73,15 @@
 		
 		// Only proceed if reordering is actually needed
 		if (!needsReordering) {
-			console.log('RasterLayerManager: Layers already in correct order, skipping reorder');
 			return;
 		}
 		
-		console.log('RasterLayerManager: Reordering layers...');
 		isAdjustingLayerOrder.set(true);
 		
 		try {
 			// First, move country boundaries (will be below points/data layers)
 			if (map.getLayer('country-boundaries-layer')) {
 				map.moveLayer('country-boundaries-layer');
-				console.log('RasterLayerManager: Moved country-boundaries-layer above rasters');
 			}
 			
 			// Then move all possible data visualization layers to top
@@ -93,25 +90,21 @@
 			// Heatmap layer (should be below dots/pies if they exist)
 			if (map.getLayer('heatmap-layer')) {
 				map.moveLayer('heatmap-layer');
-				console.log('RasterLayerManager: Moved heatmap-layer to top');
 			}
 			
 			// 3D bars layer
 			if (map.getLayer('3d-bars-layer')) {
 				map.moveLayer('3d-bars-layer');
-				console.log('RasterLayerManager: Moved 3d-bars-layer to top');
 			}
 			
 			// Dots layer
 			if (map.getLayer('points-layer')) {
 				map.moveLayer('points-layer');
-				console.log('RasterLayerManager: Moved points-layer to top');
 			}
 			
 			// Single pie chart layer (new approach)
 			if (map.getLayer('pie-charts')) {
 				map.moveLayer('pie-charts');
-				console.log('RasterLayerManager: Moved pie-charts to top');
 			}
 			
 			// Multiple pie chart layers (legacy approach, just in case)
@@ -119,7 +112,6 @@
 			pieChartLayerIds.forEach((layerId) => {
 				if (map.getLayer(layerId)) {
 					map.moveLayer(layerId);
-					console.log(`RasterLayerManager: Moved ${layerId} to top`);
 				}
 			});
 		} catch (e) {

@@ -49,29 +49,20 @@ export async function updateMapVisualization(
 
   // Prevent concurrent updates
   if (get(isUpdatingVisualization)) {
-    console.log('Skipping visualization update: already updating');
     return false;
   }
 
   if (!map || !map.isStyleLoaded()) {
-    console.log('Skipping visualization update: map not ready', {
-      mapExists: !!map,
-      mapLoaded: map?.loaded()
-    });
     return false;
   }
 
   if (!pointsAdded) {
-    console.log('Skipping visualization update: points not yet added to map', {
-      pointsAdded: pointsAdded
-    });
     return false;
   }
 
   isUpdatingVisualization.set(true);
 
   try {
-    console.log('Updating map visualization for', vizType);
 
     // Check if source exists
     let sourceExists = false;
@@ -106,7 +97,6 @@ export async function updateMapVisualization(
     const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
     if (source && source.setData) {
       source.setData(dataToUpdate);
-      console.log('Updated map source with filtered data');
     } else {
       console.error('Source does not have setData method');
       return false;
@@ -114,7 +104,6 @@ export async function updateMapVisualization(
 
     // Handle pie chart specific updates
     if (vizType === 'pie-charts') {
-      console.log('Updating pie chart visualization...');
 
       // Clean up existing pie chart images
       cleanupPieChartImages(map);
@@ -135,10 +124,6 @@ export async function updateMapVisualization(
       } catch (e) {
         console.warn('Failed to update icon expression for pie charts layer:', e);
       }
-
-      console.log('Pie chart visualization updated');
-    } else {
-      console.log('Circle visualization updated');
     }
 
     // Ensure points are on top
@@ -201,8 +186,6 @@ function ensurePointsOnTop(map: MaplibreMap) {
         map.moveLayer(layerId);
       }
     });
-    
-    console.log('MapVisualizationManager: Ensured data layers are on top');
   } catch (e) {
     console.error('MapVisualizationManager: Error ensuring layer order:', e);
   }
@@ -216,26 +199,20 @@ export async function addInitialPointsToMap(
   checkPointsAdded: boolean = true
 ): Promise<boolean> {
 
-  console.log('Adding initial points to map...');
-
   if (!map) {
-    console.log('No map instance available');
     return false;
   }
 
   if (!map.isStyleLoaded()) {
-    console.log('Map not loaded yet');
     return false;
   }
 
   // Check if we should verify points are not already added
   if (checkPointsAdded && get(pointsAddedToMap)) {
-    console.log('Points already added to map');
     return false;
   }
 
   if (filteredData.features.length === 0) {
-    console.log('No filtered data features available');
     return false;
   }
 
@@ -249,7 +226,6 @@ export async function addInitialPointsToMap(
     }
 
     if (sourceExists) {
-      console.log('Points source already exists, fixing state consistency');
       // If source exists but pointsAdded is false, it means we're in an inconsistent state
       // Fix this by setting pointsAdded to true
       setPointsAddedToMap(true);
@@ -260,26 +236,15 @@ export async function addInitialPointsToMap(
     let dataToUse = filteredData;
     if (vizType === 'pie-charts') {
       dataToUse = getSeparatePieChartData(filteredData) as any;
-      console.log('📊 Using separate pie chart data:', dataToUse.features.length, 'features');
     } else if (vizType === '3d-bars') {
       dataToUse = convertPointsToPolygons(filteredData) as any;
-      console.log('🏗️ Using 3D bar polygon data:', dataToUse.features.length, 'features');
-    } else if (vizType === 'heatmap') {
-      // Heatmap uses point data directly
-      console.log('🔥 Using point data for heatmap:', dataToUse.features.length, 'features');
     }
 
-    console.log('🎯 Adding source to map with data:', {
-      features: dataToUse.features.length,
-      firstFeature: dataToUse.features[0]
-    });
     // Add the source
     map.addSource('points-source', {
       type: 'geojson',
       data: dataToUse
     });
-
-    console.log('🎨 Adding layers based on visualization type:', vizType);
 
     // Add layers based on visualization type
     if (vizType === 'pie-charts') {
@@ -369,13 +334,8 @@ export async function switchVisualizationType(
 ): Promise<boolean> {
 
   if (!map || !map.isStyleLoaded() || currentType === newType) {
-    console.warn(
-      `Switch aborted or unnecessary: mapInstance exists: ${!!map}, map loaded: ${map ? map.isStyleLoaded() : 'N/A'}, currentType: ${currentType}, newType: ${newType}, types are same: ${currentType === newType}`
-    );
     return false;
   }
-
-  console.log(`Switching visualization from ${currentType} to ${newType}`);
 
   isUpdatingVisualization.set(true);
   isProgrammaticSwitching.set(true); // Set flag
@@ -489,8 +449,7 @@ export async function switchVisualizationType(
     if (mapComponent && typeof mapComponent.ensureLayerOrder === 'function') {
       mapComponent.ensureLayerOrder();
     }
-    
-    console.log(`Successfully switched to ${newType} visualization`);
+
     return true;
 
   } catch (error) {
@@ -509,8 +468,6 @@ export async function forceVisualizationUpdate(
   vizType: VisualizationType,
   pointsAdded: boolean
 ): Promise<boolean> {
-  console.log('Forcing visualization update...');
-
   const result = await updateMapVisualization(map, filteredData, vizType, pointsAdded);
   return result;
 }
@@ -524,8 +481,6 @@ export async function handleMapContentChange(
   vizType: VisualizationType,
   pointsAdded: boolean
 ): Promise<boolean> {
-  console.log('handleMapContentChange called');
-  
   if (!map || !filteredData) {
     return false;
   }
@@ -538,24 +493,13 @@ export async function handleMapContentChange(
       vizParam: VisualizationType,
       pointsParam: boolean
     ) => {
-      console.log('Debounced map content change detected:', {
-        mapReady: mapParam.loaded(),
-        pointsAdded: pointsParam
-      });
-
       if (!pointsParam) {
-        const initSuccess = await addInitialPointsToMap(mapParam, dataParam, vizParam);
-        if (initSuccess) {
-          console.log('Debounced: Successfully initialized map with new content');
-        } else {
-          console.log('Debounced: Failed to initialize map with new content');
-        }
+        await addInitialPointsToMap(mapParam, dataParam, vizParam);
         return;
       }
 
       // If points are already added, update the visualization
-      const updateSuccess = await updateMapVisualization(mapParam, dataParam, vizParam, pointsParam);
-      console.log('Debounced: Map content update result:', updateSuccess);
+      await updateMapVisualization(mapParam, dataParam, vizParam, pointsParam);
     }, 150);
   }
 

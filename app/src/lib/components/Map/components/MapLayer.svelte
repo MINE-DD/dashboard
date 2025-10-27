@@ -35,26 +35,20 @@
 
 	// Set the map instance in the store when it becomes available
 	$: if (map && !localMapSet) {
-		console.log('Setting map instance in store');
 		setMapInstance(map);
 		localMapSet = true;
 
 		// Wait for map to be fully loaded and idle before marking as ready
 		if (map.loaded()) {
 			// Map is already loaded, wait for idle state
-			console.log('Map already loaded, waiting for idle state');
 			map.once('idle', () => {
-				console.log('Map is idle and ready - setting map as ready');
 				setMapReady(true);
 				setInitializationState('idle');
 			});
 		} else {
 			// Wait for map load event, then idle
-			console.log('Waiting for map to load...');
 			map.once('load', () => {
-				console.log('Map loaded, waiting for idle state');
 				map.once('idle', () => {
-					console.log('Map is idle and ready - setting map as ready');
 					setMapReady(true);
 					setInitializationState('idle');
 				});
@@ -64,7 +58,6 @@
 		// Listen for source data events to track when layers are added
 		map.on('sourcedata', (e) => {
 			if (e.isSourceLoaded && e.sourceId === 'points-source' && e.source) {
-				console.log('Points source data loaded');
 				// Source has been added, setup event handlers
 				if ($initializationState === 'ready' && !localEventHandlersSet) {
 					setupEventHandlers();
@@ -99,10 +92,8 @@
 
 	// Define event handlers
 	function handlePointClick(e: any) {
-		console.log('Point clicked! Event:', e);
 		if (e.features && e.features.length > 0) {
 			const feature = e.features[0];
-			console.log('Feature found:', feature);
 			let coordinates;
 
 			// Handle different geometry types
@@ -128,10 +119,6 @@
 
 			const properties = feature.properties;
 
-			console.log('Dispatching pointclick event with:', {
-				coordinates,
-				properties
-			});
 			dispatch('pointclick', {
 				feature,
 				coordinates,
