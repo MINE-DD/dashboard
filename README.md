@@ -166,6 +166,42 @@ bun run format       # Auto-format code
 bun run build        # Generate static site
 ```
 
+## Testing
+
+The application includes a comprehensive Bun-native test suite covering unit and integration tests.
+
+### Running Tests
+
+```bash
+# Run all tests
+bun test
+
+# Run tests in watch mode
+bun test:watch
+
+# Run tests with coverage
+bun test:coverage
+
+# Run tests and check coverage thresholds
+bun test:coverage:check
+```
+
+### Test Organization
+
+- **Unit Tests**: Tests for isolated functions, utilities, and stores (`tests/unit/`)
+- **Integration Tests**: End-to-end workflow tests (`tests/integration/`)
+- **Fixtures**: Sample data for testing (`tests/fixtures/`)
+- **Mocks**: Browser API and library mocks (`tests/helpers/mocks/`)
+
+### Coverage Goals
+
+- Statements: 85%
+- Branches: 80%
+- Lines: 85%
+- Functions: 85%
+
+For detailed testing documentation, see [tests/README.md](app/tests/README.md).
+
 ## Processing Raster Maps
 
 The repository includes a script for processing raster maps into Cloud Optimized GeoTIFFs (COGs) suitable for web visualization.

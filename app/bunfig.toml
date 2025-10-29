@@ -1,0 +1,5 @@
+# Bun configuration for the project
+
+[test]
+# Preload test setup before running tests
+preload = ["./tests/setup/global-setup.ts"]
