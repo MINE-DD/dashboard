@@ -168,32 +168,85 @@ bun run build        # Generate static site
 
 ## Testing
 
-The application includes a comprehensive Bun-native test suite covering unit and integration tests.
+The application includes a comprehensive Bun-native test suite covering unit and integration tests. All tests use Bun's built-in test runner - no additional testing frameworks are required.
 
 ### Running Tests
+
+Navigate to the `app` directory and run:
 
 ```bash
 # Run all tests
 bun test
 
-# Run tests in watch mode
-bun test:watch
+# Run tests in watch mode (automatically reruns on file changes)
+bun test --watch
 
-# Run tests with coverage
-bun test:coverage
+# Run tests with coverage report
+bun test --coverage
 
-# Run tests and check coverage thresholds
-bun test:coverage:check
+# Run tests and verify coverage thresholds
+bun test --coverage && bun run tests/helpers/check-coverage.ts
 ```
 
 ### Test Organization
 
-- **Unit Tests**: Tests for isolated functions, utilities, and stores (`tests/unit/`)
-- **Integration Tests**: End-to-end workflow tests (`tests/integration/`)
-- **Fixtures**: Sample data for testing (`tests/fixtures/`)
-- **Mocks**: Browser API and library mocks (`tests/helpers/mocks/`)
+Tests are organized in the `app/tests/` directory with the following structure:
+
+- **Unit Tests** (`tests/unit/`): Tests for isolated functions, utilities, and stores
+  - `utils/` - Utility function tests (textFormatter, colorManager, etc.)
+  - `stores/` - Store and state management tests
+
+- **Integration Tests** (`tests/integration/`): End-to-end workflow tests
+  - `data-processing/` - Full data pipeline tests
+
+- **Test Support** (`tests/`):
+  - `fixtures/` - Sample data files for testing
+  - `helpers/` - Test utilities and mocks
+  - `setup/` - Test environment configuration
+
+### Available Test Files
+
+The test suite includes comprehensive coverage for:
+
+- **Text Formatting** (`textFormatter.test.ts`): Italic markers, indentation, dropdown formatting, label extraction
+- **3D Bar Visualization** (`barExtrusionUtils.test.ts`): Polygon conversion, height calculation, color mapping
+- **Heatmap** (`heatmapUtils.test.ts`): Paint properties, data suitability checks
+- **URL Parameters** (`urlParams.test.ts`): Debouncing, URL serialization
+- **Overlap Detection** (`overlapDetection.test.ts`): Pie chart radius calculation, distance calculations
+- **General Utilities** (`utils.test.ts`): Slug extraction, substring operations, date formatting
+- **Raster Processing** (`rasterDataProcessor.test.ts`): Layer name parsing, pathogen/age/syndrome extraction
+- **Color Management** (`colorManager.test.ts`): Color generation and assignment
+- **Pie Charts** (`pieChartUtils.test.ts`): Chart sizing and rendering
+- **CSV Processing** (`csvDataProcessor.test.ts`): Data validation and transformation
+- **GeoTIFF Processing** (`geoTiffProcessor.test.ts`): Raster data handling
+- **GeoJSON Conversion** (`geoJsonConverter.test.ts`): CSV to GeoJSON transformation
+
+### Writing New Tests
+
+Tests use Bun's native test framework. Example test structure:
+
+```typescript
+import { describe, test, expect } from 'bun:test';
+import { myFunction } from '$lib/utils/myModule';
+
+describe('myModule', () => {
+  describe('myFunction', () => {
+    test('does something expected', () => {
+      const result = myFunction('input');
+      expect(result).toBe('expected output');
+    });
+
+    test('handles edge cases', () => {
+      expect(myFunction('')).toBe('');
+      expect(myFunction(null)).toBeNull();
+    });
+  });
+});
+```
 
 ### Coverage Goals
+
+The project maintains the following coverage thresholds:
 
 - Statements: 85%
 - Branches: 80%
