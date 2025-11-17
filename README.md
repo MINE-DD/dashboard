@@ -8,7 +8,7 @@ This project is the dashboard component for MINE-DD, an initiative by the Nether
 
 The dashboard provides an interactive interface for visualizing geographical data relevant to the MINE-DD project, including pathogen distribution, risk factors, and demographic analysis through both point data and raster overlays.
 
-Data updated: 1 Sep. 2025
+Data updated: 17 Nov. 2025
 
 ## Tech Stack
 
@@ -17,7 +17,7 @@ Data updated: 1 Sep. 2025
 The application is built using the following technologies:
 
 *   **Frontend:**
-    *   SvelteKit (using Svelte 5 runes API) 
+    *   SvelteKit (using Svelte 5 runes API)
     *   TypeScript (strict mode)
     *   Tailwind CSS + DaisyUI (custom "ctw" theme)
     *   MapLibre GL JS (for the interactive map)
@@ -332,7 +332,7 @@ let derived = $derived(state.data?.length > 0);
 export const exampleStore = {
   get state() { return state; },
   get derived() { return derived; },
-  async fetchData() { 
+  async fetchData() {
     state.loading = true;
     // API call logic
     state.loading = false;
@@ -349,11 +349,11 @@ export const exampleStore = {
     data: DataType;
     optional?: string;
   }
-  
+
   let { children, data, optional = 'default' }: Props = $props();
   let localState = $state(false);
   let computed = $derived(data.length > 0);
-  
+
   $effect(() => {
     // React to changes
     console.log('Data changed:', data);
