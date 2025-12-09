@@ -4,23 +4,46 @@ import type { MapStyle } from '../MapStyles';
 import { parseUrlFilters } from './urlParams';
 import { loadPointsData } from '../store';
 import { dataUpdateDate } from '$lib/stores/data.store';
-import { latestDataDate, latestDataFile } from '$lib/generated/dataManifest';
 
 // Get R2 base URL from environment
 const R2_BASE_URL = import.meta.env.VITE_R2_POINTS_BASE_URL || 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/01_Points';
 
+// Fallback values if runtime detection fails
+const FALLBACK_DATE = '2025-12-07';
+const FALLBACK_FILE = '2025-12-07_Plan-EO_Dashboard_point_data.csv';
+
 /**
  * Get the main CSV data file path from R2 storage
- * The file uses semicolon (;) as delimiter and contains pathogen prevalence data.
- * Note: Some pathogen names include markdown-style formatting (__name__) 
- * for italic rendering of genus names (e.g., __Campylobacter__, __E. coli__).
+ * Fetches manifest.json directly from R2 to determine the latest file
  * Files follow pattern: YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv
  */
 async function getLatestDataFile(): Promise<string> {
-  // Use embedded manifest data from build time
-  dataUpdateDate.set(latestDataDate);
-  const url = `${R2_BASE_URL}/${latestDataFile}`;
-  console.log(`Using data file: ${latestDataFile} (${latestDataDate})`);
+  try {
+    // Fetch manifest.json directly from R2 (works with static hosting)
+    const manifestUrl = `${R2_BASE_URL}/manifest.json`;
+    const response = await fetch(manifestUrl);
+
+    if (response.ok) {
+      const manifest = await response.json();
+
+      if (manifest.files && manifest.files.length > 0) {
+        const latestFile = manifest.files[0];
+        dataUpdateDate.set(latestFile.date);
+        const url = `${R2_BASE_URL}/${latestFile.fileName}`;
+        console.log(`Using latest data file: ${latestFile.fileName} (${latestFile.date})`);
+        return url;
+      }
+    }
+
+    console.warn('Failed to fetch manifest.json, using fallback');
+  } catch (error) {
+    console.error('Error fetching manifest:', error);
+  }
+
+  // Fallback if manifest fetch fails
+  dataUpdateDate.set(FALLBACK_DATE);
+  const url = `${R2_BASE_URL}/${FALLBACK_FILE}`;
+  console.log(`Using fallback data file: ${FALLBACK_FILE} (${FALLBACK_DATE})`);
   return url;
 }
 

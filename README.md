@@ -10,6 +10,35 @@ The dashboard provides an interactive interface for visualizing geographical dat
 
 Data updated: 17 Nov. 2025
 
+## Updating Point Data
+
+Point data is stored in Cloudflare R2 and loaded dynamically at runtime. **No rebuild required** when adding new data.
+
+### How to update:
+
+1. **Upload new CSV file** to R2 bucket folder `01_Points/`
+   - File must follow naming pattern: `YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv`
+   - Example: `2025-12-15_Plan-EO_Dashboard_point_data.csv`
+
+2. **Update the manifest** - Edit `manifest.json` in the same R2 folder:
+   ```json
+   {
+     "files": [
+       { "date": "2025-12-15", "fileName": "2025-12-15_Plan-EO_Dashboard_point_data.csv" },
+       { "date": "2025-12-07", "fileName": "2025-12-07_Plan-EO_Dashboard_point_data.csv" },
+       ...existing entries...
+     ]
+   }
+   ```
+   - Add the new file at the **top** of the `files` array (newest first)
+
+3. **Done** - The app will automatically use the latest file on next page load
+
+### R2 Bucket Location
+- Bucket: `mine-dd-data`
+- Folder: `01_Points/`
+- Public URL: `https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/01_Points/`
+
 ## Tech Stack
 
 ![](./tech.excalidraw.png)
