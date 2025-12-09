@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "MINE-DD Dashboard"
+abstract: "Interactive dashboard for visualizing mining-related geographical data, including pathogen distribution, risk factors, and demographic analysis through point data and raster overlays."
+version: 0.0.1
+date-released: '2025-12-08'
+license: MIT
+repository-code: https://github.com/MINE-DD/dashboard
+url: https://mine-dd.github.io/dashboard/
+keywords:
+  - dashboard
+  - visualization
+  - geospatial
+  - mining
+  - sveltekit
+  - maplibre
+authors:
+  - name: "Netherlands eScience Center"
+    website: https://www.esciencecenter.nl/
+  - name: "MINE-DD Team"
