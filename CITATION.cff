@@ -3,7 +3,7 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "MINE-DD Dashboard"
 abstract: "Interactive dashboard for visualizing mining-related geographical data, including pathogen distribution, risk factors, and demographic analysis through point data and raster overlays."
-version: 0.1.0
+version: 0.1.1
 date-released: '2025-12-09'
 license: MIT
 repository-code: https://github.com/MINE-DD/dashboard
