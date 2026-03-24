@@ -1,75 +1,60 @@
-name: Docker Build CI
+name: Docker Build & Push
 
 on:
   push:
-    tags: ['*.*']
+    branches:
+      - main        # Trigger on main branch pushes
+    tags:
+      - '*'         # Trigger on any tag push
 
 jobs:
-  build-for-git:
+  build-and-push:
     runs-on: ubuntu-latest
+
     permissions:
-      contents: write
+      contents: read
       packages: write
 
     steps:
-      # 1️⃣ Checkout the code
+      # 1️⃣ Checkout code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up QEMU for cross-platform builds
+      # 2️⃣ Setup QEMU for cross-platform builds
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 3️⃣ Set up Docker Buildx
+      # 3️⃣ Setup Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 4️⃣ Define environment variables
-      - name: Set environment variables
-        run: echo "BUILD_PROJ=fasta" >> $GITHUB_ENV
-
-      # 5️⃣ Extract tag version from Git tags and update Helm values
-      - name: Get Tag Version
-        run: |
-          IMAGE_TAG=${GITHUB_REF#refs/tags/}
-          echo "IMAGE_TAG: ${IMAGE_TAG}"
-          yq eval ".image.tag = \"${IMAGE_TAG}\"" -i kubernetes/prod/values.yaml
-          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
-
-      # 6️⃣ Login to GitHub Container Registry (GHCR)
-      - name: Login to GitHub Container Registry
+      # 4️⃣ Login to GitHub Container Registry (GHCR)
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 7️⃣ Cache Docker layers to speed up builds
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/docker-cache
-          key: docker-${{ github.sha }}
-          restore-keys: docker-
+      # 5️⃣ Determine image tag
+      - name: Set Docker image tag
+        id: tag
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          else
+            SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+            echo "TAG=${SHORT_SHA}" >> $GITHUB_ENV
+          fi
+          echo "Docker image tag set to $TAG"
 
-      # 8️⃣ Build and push Docker image
-      - name: Build and push
+      # 6️⃣ Build and push Docker image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./docker/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          file: docker/Dockerfile
+          push: true
           tags: |
-            ghcr.io/wrpearsonuva/${{ env.BUILD_PROJ }}:latest
-            ghcr.io/wrpearsonuva/${{ env.BUILD_PROJ }}:${{ env.IMAGE_TAG }}
-
-      # 9️⃣ Commit updated Helm values.yaml back to repo
-      - name: Push Version to Repository
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "[skip ci] Update Version to Helm - ${{ env.IMAGE_TAG }}"
-          branch: main
-          file_pattern: 'kubernetes/prod/values.yaml'
-          commit_user_name: GitHub Actions Bot
-          commit_user_email: github@virginia.edu
-          commit_author: GitHub Actions <github@virginia.edu>
+            ghcr.io/${{ github.repository_owner }}/dashboard:latest
+            ghcr.io/${{ github.repository_owner }}/dashboard:${{ env.TAG }}
