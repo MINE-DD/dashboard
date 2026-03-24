@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "Plan-EO.fullname" . }}-app
+  name: {{ include "plan-eo.fullname" . }}-app
   labels:
-    {{- include "Plan-EO.labels" . | nindent 4 }}
+    {{- include "plan-eo.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "Plan-EO.selectorLabels" . | nindent 6 }}
+      {{- include "plan-eo.selectorLabels" . | nindent 6 }}
 
   template:
     metadata:
@@ -17,7 +17,7 @@ spec:
           {{- toYaml . | nindent 8 }}
           {{- end }}
       labels:
-        {{- include "Plan-EO.labels" . | nindent 8 }}
+        {{- include "plan-eo.labels" . | nindent 8 }}
           {{- with .Values.podLabels }}
           {{- toYaml . | nindent 8 }}
           {{- end }}
@@ -48,18 +48,18 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
 
 #          volumeMounts:
-#            - name: Plan-EO-slib2-pvc
+#            - name: plan-eo-slib2-pvc
 #              mountPath: /slib2
-#            - name: Plan-EO-weblog-pvc
+#            - name: plan-eo-weblog-pvc
 #              mountPath: /var/log/nginx/web
 #
 #      volumes:
-#        - name: Plan-EO-slib2-pvc
+#        - name: plan-eo-slib2-pvc
 #          persistentVolumeClaim:
-#            claimName: Plan-EO-slib2-pvc
-#        - name: Plan-EO-weblog-pvc
+#            claimName: plan-eo-slib2-pvc
+#        - name: plan-eo-weblog-pvc
 #          persistentVolumeClaim:
-#            claimName: Plan-EO-weblog-pvc
+#            claimName: plan-eo-weblog-pvc
 
       {{- with .Values.nodeSelector }}
       nodeSelector:

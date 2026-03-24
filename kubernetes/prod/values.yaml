@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  repository: ghcr.io/MINE-DD/Plan-EO
+  repository: ghcr.io/MINE-DD/plan-eo
   pullPolicy: Always
   tag: prod-0.0.10
 imagePullSecrets:
