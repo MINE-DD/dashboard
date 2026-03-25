@@ -2,10 +2,13 @@
 #kind: Ingress
 #metadata:
 #  name: plan-eo-ingress
+#  namespace: plan-eo
 #  annotations:
 #    kubernetes.io/ingress.class: nginx
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.org/websocket-services: "plan-eo"
+#    acme.cert-manager.io/http01-edit-in-place: "true"
+#    cert-manager.io/cluster-issuer: letsencrypt-cluster-issuer
 #    nginx.org/proxy-connect-timeout: "600s"
 #    nginx.org/proxy-read-timeout: "600s"
 #    nginx.org/proxy-send-timeout: "600s"
@@ -21,11 +24,7 @@
 #                name: plan-eo
 #                port:
 #                  number: 80
-#
-#
-#
 #  tls:
 #    - hosts:
 #        - plan-eo.pods.uvarc.io
 #      secretName: plan-eo-nginx-tls-ingress-secret
-#
