@@ -8,16 +8,10 @@ image:
 imagePullSecrets:
   - name: ghcr-regcred
 
-nameOverride: ""
-fullnameOverride: ""
-podAnnotations: {}
-podLabels: {}
-podSecurityContext: {}
-securityContext: {}
-
 service:
   type: ClusterIP
   port: 80
+  targetPort: 4000
 
 resources:
   limits:
@@ -26,7 +20,3 @@ resources:
   requests:
     cpu: 0.5
     memory: 1Gi
-
-nodeSelector: {}
-tolerations: []
-affinity: {}
