@@ -1,0 +1,20 @@
+name: plan-eo-dashboard
+
+services:
+  dashboard:
+    image: ghcr.io/YOUR_ORG/plan-eo-dashboard:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  # Optional: auto-pull new images when researchers upload new data
+  # Uncomment the section below to enable automatic updates
+  #
+  # watchtower:
+  #   image: containrrr/watchtower
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   environment:
+  #     - WATCHTOWER_CLEANUP=true
+  #     - WATCHTOWER_POLL_INTERVAL=300  # check every 5 minutes
+  #   restart: unless-stopped

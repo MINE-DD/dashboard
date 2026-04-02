@@ -42,7 +42,7 @@ try {
       const date = dateMatch ? dateMatch[1] : null;
       
       return {
-        filename,
+        fileName: filename,
         date,
         displayDate: date ? formatDate(date) : 'Unknown Date'
       };
@@ -52,7 +52,7 @@ try {
   
   // Create manifest object
   const manifest = {
-    dataFiles,
+    files: dataFiles,
     lastUpdated: new Date().toISOString(),
     generatedBy: 'generate-data-manifest.js'
   };
@@ -63,7 +63,7 @@ try {
   console.log(`✅ Manifest generated successfully at: ${manifestPath}`);
   console.log(`📊 Found ${dataFiles.length} data files:`);
   dataFiles.forEach(file => {
-    console.log(`   - ${file.filename} (${file.displayDate})`);
+    console.log(`   - ${file.fileName} (${file.displayDate})`);
   });
   
 } catch (error) {

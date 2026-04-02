@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+app/node_modules
+app/build
+app/.svelte-kit
+kubernetes
+docs
+chat-backend
+*.md
+!app/static/data/**
