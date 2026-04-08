@@ -1,78 +1,55 @@
 import { writable, get } from 'svelte/store';
 import type { RasterLayer } from '$lib/types';
 import { toastStore } from '$lib/stores/toast.store';
-// Adjust the import path for geoTiffProcessor relative to the new store location
 import { loadAndProcessGeoTIFF } from '$lib/components/Map/utils/geoTiffProcessor';
-import { getRasterMetadataByUrl } from '$lib/services/rasterMetadata';
+import { loadRasterConfig, getLayerSourceUrl, getLayerId, configToMetadata } from '$lib/services/rasterConfig';
 
-// Default rescale values no longer forced; processing will auto-detect from data
+// Main store for all raster layers — starts empty, populated by loadRasterLayersFromConfig()
+export const rasterLayers = writable<Map<string, RasterLayer>>(new Map());
 
-// Helper to create the initial raster layers map
-function createInitialRasterLayers(): Map<string, RasterLayer> {
-  const initialMap = new Map<string, RasterLayer>();
-  const baseR2url = 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/';
-
-  const layersToAdd: Omit<RasterLayer, 'id' | 'bounds' | 'isLoading' | 'error' | 'metadata' | 'colormap' | 'rescale'>[] = [
-    // Pathogens - SHIG
-    { name: 'SHIG 0-11 Asym Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Comm Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_0011_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 0-11 Medi Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_0011_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Asym Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_1223_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Comm Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_1223_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 12-23 Medi Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_1223_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Asym Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_2459_Asym_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Comm Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_2459_Comm_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'SHIG 24-59 Medi Pr', sourceUrl: `${baseR2url}01_Pathogens/SHIG/SHIG_2459_Medi_Pr.tif`, isVisible: false, opacity: 0.8 },
-    // Risk Factors - Floor
-    { name: 'Floor Finished Pr', sourceUrl: `${baseR2url}02_Risk_factors/Floor/Flr_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Floor Finished SE', sourceUrl: `${baseR2url}02_Risk_factors/Floor/Flr_Fin_SE.tif`, isVisible: false, opacity: 0.8 },
-    // Risk Factors - Roofs
-    { name: 'Roofs Finished Pr', sourceUrl: `${baseR2url}02_Risk_factors/Roofs/Rfs_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Roofs Finished SE', sourceUrl: `${baseR2url}02_Risk_factors/Roofs/Rfs_Fin_SE.tif`, isVisible: false, opacity: 0.8 },
-    // Risk Factors - Walls
-    { name: 'Walls Finished Pr', sourceUrl: `${baseR2url}02_Risk_factors/Walls/Wll_Fin_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Walls Finished SE', sourceUrl: `${baseR2url}02_Risk_factors/Walls/Wll_Fin_SE.tif`, isVisible: false, opacity: 0.8 },
-    // Animal Interventions
-    { name: 'Poultry Pr', sourceUrl: `${baseR2url}02_Risk_factors/Poultry/Pty_Yes_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Ruminant Pr', sourceUrl: `${baseR2url}02_Risk_factors/Ruminant/Rum_Yes_Pr.tif`, isVisible: false, opacity: 0.8 },
-    { name: 'Swine Pr', sourceUrl: `${baseR2url}02_Risk_factors/Swine/Pig_Yes_Pr.tif`, isVisible: false, opacity: 0.8 }
-  ];
-
-  layersToAdd.forEach((layerData) => {
-    // Get metadata for this layer
-    const layerMetadata = getRasterMetadataByUrl(layerData.sourceUrl);
-    
-    const layer: RasterLayer = {
-      id: `cog-${layerData.sourceUrl.replace(/[\/\.]/g, '-')}`, // Generate ID from path
-      name: layerData.name,
-      sourceUrl: layerData.sourceUrl,
-      isVisible: layerData.isVisible,
-      opacity: layerData.opacity,
-      bounds: undefined,
-      isLoading: false,
-      error: null,
-      colormap: 'viridis', // Default colormap
-      layerMetadata: layerMetadata
-    };
-    initialMap.set(layer.id, layer);
-  });
-
-  return initialMap;
-}
-
-// Main store for all raster layers
-export const rasterLayers = writable<Map<string, RasterLayer>>(createInitialRasterLayers());
+// Track whether config has been loaded
+export const rasterConfigLoaded = writable<boolean>(false);
 
 // Debug mode store for visualizing data positioning
 export const rasterDebugMode = writable<boolean>(false);
+
+/**
+ * Fetch raster-layers.json and populate the raster layers store.
+ * Called once at app startup (from MapSidebar onMount).
+ */
+export async function loadRasterLayersFromConfig(): Promise<void> {
+  const config = await loadRasterConfig();
+  const layerMap = new Map<string, RasterLayer>();
+
+  for (const layerConfig of config.layers) {
+    const sourceUrl = getLayerSourceUrl(layerConfig.path);
+    const id = getLayerId(layerConfig.path);
+    const layerMetadata = configToMetadata(layerConfig);
+
+    const layer: RasterLayer = {
+      id,
+      name: layerConfig.name,
+      sourceUrl,
+      isVisible: false,
+      opacity: 0.8,
+      bounds: undefined,
+      isLoading: false,
+      error: null,
+      colormap: 'viridis',
+      layerMetadata
+    };
+    layerMap.set(id, layer);
+  }
+
+  rasterLayers.set(layerMap);
+  rasterConfigLoaded.set(true);
+}
 
 // --- Raster Layer Helper Functions ---
 
 export async function addRasterLayerFromUrl(url: string): Promise<void> {
   const layerId = `cog-url-${Date.now()}`;
-  // Try to get metadata for this URL
-  const layerMetadata = getRasterMetadataByUrl(url);
-  
+
   const tempLayer: RasterLayer = {
     id: layerId,
     name: `Loading: ${url.substring(url.lastIndexOf('/') + 1)}...`,
@@ -82,7 +59,7 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
     isLoading: true,
     error: null,
     colormap: 'viridis',
-    layerMetadata: layerMetadata
+    layerMetadata: undefined
   };
 
   rasterLayers.update((layers) => {
