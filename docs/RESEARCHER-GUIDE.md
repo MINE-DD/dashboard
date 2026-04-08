@@ -1,0 +1,199 @@
+# Researcher Guide: Managing Dashboard Data
+
+This guide is for researchers who need to add, update, or remove data displayed on the Plan-EO Dashboard. No programming experience is required.
+
+The dashboard displays two kinds of data:
+
+- **Point data** (CSV files) — individual study locations shown as dots on the map
+- **Raster layers** (GeoTIFF files) — heatmap-style layers that cover larger areas
+
+---
+
+## Table of Contents
+
+1. [Point Data (CSV Files)](#point-data-csv-files)
+2. [Raster Layers (GeoTIFF Files)](#raster-layers-geotiff-files)
+3. [Troubleshooting](#troubleshooting)
+4. [Important Notes](#important-notes)
+
+---
+
+## Point Data (CSV Files)
+
+Point data files are CSV spreadsheets stored directly in the GitHub repository. When you upload a new file, the dashboard rebuilds and updates automatically within about 5 minutes.
+
+### Adding New Point Data
+
+1. Prepare your CSV file. It **must** be named using this pattern:
+
+   ```
+   YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv
+   ```
+
+   For example: `2026-04-01_Plan-EO_Dashboard_point_data.csv`
+
+2. Make sure your CSV contains all of the required columns:
+
+   | Column | Description |
+   |--------|-------------|
+   | `EST_ID` | Unique study identifier |
+   | `Pathogen` | Pathogen name (e.g., SHIG) |
+   | `AGE_VAL` | Age group value code |
+   | `AGE_LAB` | Age group label |
+   | `SYNDROME_VAL` | Syndrome value code |
+   | `SYNDROME_LAB` | Syndrome label |
+   | `PREV` | Prevalence estimate |
+   | `SE` | Standard error |
+   | `SITE_LAT` | Site latitude |
+   | `SITE_LON` | Site longitude |
+   | `CASES` | Number of cases |
+   | `SAMPLES` | Number of samples |
+
+3. Go to your repository on GitHub.com.
+
+4. Navigate to **app** > **static** > **data** > **01_Points**.
+
+5. Click **Add file** > **Upload files**.
+
+6. Drag your CSV file into the upload area, or click "choose your files" to browse.
+
+7. At the bottom of the page, leave the commit message as-is (or write something like "Add April 2026 data"), make sure **"Commit directly to the main branch"** is selected, and click **Commit changes**.
+
+8. The dashboard will update automatically in about 5 minutes.
+
+### Removing Point Data
+
+1. Go to your repository on GitHub.com.
+2. Navigate to **app** > **static** > **data** > **01_Points**.
+3. Click the file you want to remove.
+4. Click the trash can icon in the top-right corner of the file view.
+5. Click **Commit changes**.
+6. The dashboard will rebuild without that file.
+
+---
+
+## Raster Layers (GeoTIFF Files)
+
+Raster layers are managed through **two things working together**:
+
+1. **The `.tif` files** — the actual map data (Cloud Optimized GeoTIFFs)
+2. **The `raster-layers.json` file** — a configuration file that tells the dashboard which layers exist and how to display them
+
+Both of these live in the **raster data directory on the server** (typically `raster-data/` next to the Docker Compose file). Unlike point data, raster files are not stored in GitHub — they are placed directly on the server by your IT admin or by you if you have server access.
+
+### The raster-layers.json File
+
+This is the file that controls which raster layers appear in the dashboard. Each layer is described by a set of fields.
+
+#### Field Reference
+
+| Field | Required For | Description |
+|-------|-------------|-------------|
+| `name` | All layers | Display name shown in the dashboard |
+| `path` | All layers | File path relative to the raster data directory (e.g., `01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif`) |
+| `type` | All layers | Either `"pathogen"` or `"risk_factor"` |
+| `indicator` | All layers | Short code or label for the indicator |
+| `definition` | All layers | Human-readable description of what this layer shows |
+| `pathogen` | Pathogens | Pathogen code — **must match the Pathogen column in your CSV exactly** |
+| `ageGroup` | Pathogens | Age group code that matches `AGE_VAL` in the CSV |
+| `syndrome` | Pathogens | Syndrome code that matches `SYNDROME_VAL` in the CSV |
+| `category` | Risk Factors | Either `"Housing"` or `"Animal Intervention"` |
+| `period` | Optional | Time period the data covers |
+| `study` | Optional | Name or reference for the source study |
+| `hyperlink` | Optional | URL to the source publication or dataset |
+
+### Adding a New Raster Layer
+
+1. **Place the `.tif` file** in the appropriate folder inside the raster data directory on the server. For pathogens, place it under `01_Pathogens/<PATHOGEN_CODE>/`. For risk factors, place it under `02_Risk_factors/<FACTOR_NAME>/`.
+
+2. **Open `raster-layers.json`** in a text editor (any plain text editor will work).
+
+3. **Add a new entry** to the JSON array. See the examples below for the exact format.
+
+4. **Save the file.**
+
+5. **Refresh your browser.** No server restart is needed — the dashboard picks up changes to `raster-layers.json` automatically.
+
+### Removing a Raster Layer
+
+1. **Open `raster-layers.json`** in a text editor.
+
+2. **Delete the entry** for the layer you want to remove. Be careful to keep the JSON structure valid (watch for commas between entries).
+
+3. **Save the file.**
+
+4. **Optionally delete the `.tif` file** from the server if you no longer need it. This is not required — unused `.tif` files do not affect the dashboard.
+
+5. **Refresh your browser.**
+
+### Updating Raster Data
+
+1. **Replace the `.tif` file** on the server with the new version. Keep the same file name and location.
+
+2. **Refresh your browser.** The dashboard serves files directly, so the new data appears immediately without any restart.
+
+### Example: Adding a New Pathogen Layer
+
+```json
+{
+  "name": "SHIG 0-11m Asymptomatic Prevalence",
+  "path": "01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif",
+  "type": "pathogen",
+  "indicator": "Prevalence",
+  "definition": "Predicted prevalence of asymptomatic Shigella infection in children aged 0-11 months",
+  "pathogen": "SHIG",
+  "ageGroup": "0011",
+  "syndrome": "Asym",
+  "period": "2000-2020",
+  "study": "Smith et al. 2024",
+  "hyperlink": "https://doi.org/10.1234/example"
+}
+```
+
+### Example: Adding a New Risk Factor Layer
+
+```json
+{
+  "name": "Finished Floor Prevalence",
+  "path": "02_Risk_factors/Floor/Flr_Fin_Pr.tif",
+  "type": "risk_factor",
+  "indicator": "Prevalence",
+  "definition": "Predicted prevalence of households with finished flooring",
+  "category": "Housing"
+}
+```
+
+---
+
+## Troubleshooting
+
+### Raster layers don't show up
+
+- **Check that `raster-layers.json` is valid JSON.** Even a single missing comma or extra bracket will prevent all layers from loading. Paste the file contents into [jsonlint.com](https://jsonlint.com) to check for errors.
+- **Check that the `path` field matches the actual file name and location.** The path is case-sensitive and must match exactly, including the folder structure.
+
+### Layer loads but doesn't auto-show when I select filters
+
+- The `pathogen`, `ageGroup`, and `syndrome` fields in `raster-layers.json` must match the values in the CSV point data **exactly**. For example, if the CSV uses `SHIG` for the pathogen, the JSON must also say `"pathogen": "SHIG"` — not `"Shig"` or `"shig"`.
+
+### Layer shows as blank on the map
+
+- The `.tif` file may be corrupted or in the wrong format. Raster files must be **Cloud Optimized GeoTIFFs** (COGs). If you are unsure, ask the person who generated the file to confirm it was saved as a COG.
+
+### Point data doesn't appear after upload
+
+- Check that the CSV file name follows the pattern exactly: `YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv`
+- Go to the **Actions** tab on GitHub to see if the build succeeded or failed.
+- If the build failed, click on it for details — the most common cause is a file naming issue.
+
+---
+
+## Important Notes
+
+- **File names are case-sensitive.** `SHIG_0011_Asym_Pr.tif` and `shig_0011_asym_pr.tif` are treated as different files. Always match the exact casing.
+
+- **The `pathogen` field must match the CSV.** The dashboard uses this field to link raster layers to point data. If they don't match, the layer won't appear when you filter by that pathogen.
+
+- **Back up `raster-layers.json` before editing.** Keep a copy of the working version so you can restore it if something goes wrong.
+
+- **No restart is needed.** Changes to both raster files and `raster-layers.json` take effect immediately when you refresh the browser. You do not need to restart the server or Docker container.

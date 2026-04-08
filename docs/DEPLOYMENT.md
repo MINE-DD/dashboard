@@ -13,9 +13,10 @@ There are two roles:
 
 1. [How It Works](#how-it-works)
 2. [IT Setup (One Time)](#it-setup-one-time)
-3. [Researcher: Uploading New Data](#researcher-uploading-new-data)
-4. [Troubleshooting](#troubleshooting)
-5. [Environment Variables](#environment-variables)
+3. [Raster Files (GeoTIFF) Setup](#raster-files-geotiff-setup)
+4. [Researcher: Uploading New Data](#researcher-uploading-new-data)
+5. [Troubleshooting](#troubleshooting)
+6. [Environment Variables](#environment-variables)
 
 ---
 
@@ -71,10 +72,18 @@ services:
     image: ghcr.io/your-org-name/plan-eo-dashboard:latest
     ports:
       - "8080:80"
+    volumes:
+      - ./raster-data:/usr/share/nginx/html/data/cogs:ro
     restart: unless-stopped
 ```
 
-### Step 4: Start the Dashboard
+> **Note:** The `volumes` line mounts your local raster files into the container. See [Raster Files (GeoTIFF) Setup](#raster-files-geotiff-setup) for details.
+
+### Step 4: Set Up Raster Files
+
+Before starting the dashboard, place your GeoTIFF raster files on the server. See [Raster Files (GeoTIFF) Setup](#raster-files-geotiff-setup) below for the full directory structure.
+
+### Step 5: Start the Dashboard
 
 On your server:
 
@@ -92,7 +101,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 The dashboard is now running at `http://your-server:8080`.
 
-### Step 5 (Optional): Automatic Updates
+### Step 6 (Optional): Automatic Updates
 
 To have the server automatically pull new images when researchers upload data, uncomment the `watchtower` section in `docker-compose.prod.yml`:
 
@@ -121,6 +130,112 @@ Watchtower will check every 5 minutes for new images and automatically update th
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
+
+---
+
+## Raster Files (GeoTIFF) Setup
+
+The dashboard displays raster map layers (pathogen prevalence, risk factors) from GeoTIFF files. These files are **not** baked into the Docker image because they are large. Instead, they are stored on the host server and mounted into the container as a read-only volume.
+
+### How It Works
+
+```
+Host server directory             Container path (read-only)
+./raster-data/                →   /usr/share/nginx/html/data/cogs/
+```
+
+The `docker-compose.prod.yml` file maps a host directory to the container path where nginx serves them. By default it uses `./raster-data/` next to the compose file, but you can point it anywhere by setting the `RASTER_DATA_PATH` environment variable. The dashboard app requests raster files from `/data/cogs/...` and nginx serves them directly from this mount.
+
+### Required Directory Structure
+
+Create a `raster-data/` directory **next to your `docker-compose.prod.yml`** file with the following structure:
+
+```
+raster-data/
+├── 01_Pathogens/
+│   └── SHIG/
+│       ├── SHIG_0011_Asym_Pr.tif
+│       ├── SHIG_0011_Comm_Pr.tif
+│       ├── SHIG_0011_Medi_Pr.tif
+│       ├── SHIG_1223_Asym_Pr.tif
+│       ├── SHIG_1223_Comm_Pr.tif
+│       ├── SHIG_1223_Medi_Pr.tif
+│       ├── SHIG_2459_Asym_Pr.tif
+│       ├── SHIG_2459_Comm_Pr.tif
+│       └── SHIG_2459_Medi_Pr.tif
+└── 02_Risk_factors/
+    ├── Floor/
+    │   ├── Flr_Fin_Pr.tif
+    │   └── Flr_Fin_SE.tif
+    ├── Roofs/
+    │   ├── Rfs_Fin_Pr.tif
+    │   └── Rfs_Fin_SE.tif
+    ├── Walls/
+    │   ├── Wll_Fin_Pr.tif
+    │   └── Wll_Fin_SE.tif
+    ├── Poultry/
+    │   └── Pty_Yes_Pr.tif
+    ├── Ruminant/
+    │   └── Rum_Yes_Pr.tif
+    └── Swine/
+        └── Pig_Yes_Pr.tif
+```
+
+**File names and folder structure must match exactly.** The dashboard code references these specific paths.
+
+### Configuration File
+
+The `raster-layers.json` file inside your raster data directory tells the dashboard which layers to display and their metadata. A default version is provided in the repository at `raster-data/raster-layers.json` — copy it to your raster data directory alongside your `.tif` files.
+
+For details on editing this file, see the [Researcher Guide](RESEARCHER-GUIDE.md).
+
+### Step-by-Step
+
+1. **Get the raster files.** These `.tif` files should be provided by the research team. They are Cloud Optimized GeoTIFFs (COGs).
+
+2. **Create the directory on the server:**
+
+   ```bash
+   cd /path/to/your/dashboard    # same directory as docker-compose.prod.yml
+   mkdir -p raster-data/01_Pathogens/SHIG
+   mkdir -p raster-data/02_Risk_factors/{Floor,Roofs,Walls,Poultry,Ruminant,Swine}
+   ```
+
+3. **Copy the `.tif` files** into the appropriate subdirectories (see structure above).
+
+4. **(Optional) Point to a custom path.** If your raster files live somewhere else (e.g. `/mnt/storage/rasters`), set the `RASTER_DATA_PATH` variable instead of using the default `./raster-data`:
+
+   ```bash
+   export RASTER_DATA_PATH=/mnt/storage/rasters
+   ```
+
+   Or add it to a `.env` file next to `docker-compose.prod.yml`:
+
+   ```
+   RASTER_DATA_PATH=/mnt/storage/rasters
+   ```
+
+5. **Start the dashboard:**
+
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+6. **Verify** the files are served correctly by visiting:
+
+   ```
+   http://your-server:8080/data/cogs/01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif
+   ```
+
+   This should start downloading the `.tif` file. If you get a 404 error, check the directory structure and file names.
+
+### Updating Raster Files
+
+To update raster files, simply replace the `.tif` files in the `raster-data/` directory on the host. **No restart is needed** — nginx serves files directly from the mount, so changes take effect immediately.
+
+### Without Raster Files
+
+If you start the dashboard without the `raster-data/` directory, Docker will create an empty directory automatically. The dashboard will still work — point data (CSVs) will display normally — but the raster map layers will fail to load. You can add the raster files at any time and they will start working immediately without a restart.
 
 ---
 
@@ -233,7 +348,8 @@ These are set at **Docker build time** (not runtime). To change them, update the
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VITE_MAPTILER_KEY` | MapTiler API key for base map tiles. Get your own at [maptiler.com](https://www.maptiler.com/) | Shared development key |
-| `VITE_R2_POINTS_BASE_URL` | Path where data files are served from. Do not change. | `/data/01_Points` |
+| `VITE_R2_POINTS_BASE_URL` | Path where point data CSV files are served from. Do not change. | `/data/01_Points` |
+| `VITE_RASTER_BASE_URL` | Path where raster GeoTIFF files are served from. Do not change. | `/data/cogs/` |
 
 ### Setting Your Own MapTiler Key
 
