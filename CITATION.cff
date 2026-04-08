@@ -19,3 +19,6 @@ authors:
   - name: "Netherlands eScience Center"
     website: https://www.esciencecenter.nl/
   - name: "MINE-DD Team"
+  - name: "Jesse Gonzalez"
+    orcid: 0000-0002-2170-3253
+    affiliation: "Netherlands eScience Center"
