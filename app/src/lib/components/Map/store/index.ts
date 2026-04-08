@@ -44,7 +44,9 @@ export {
 // Re-export filter-to-raster mapping functionality
 export {
   autoVisibleRasterLayers,
-  initFilterRasterConnection
+  initFilterRasterConnection,
+  filterToRasterMappings,
+  loadFilterRasterMappings
 } from './filterRasterMapping';
 
 // Re-export the filter manager functions from the new filter store
