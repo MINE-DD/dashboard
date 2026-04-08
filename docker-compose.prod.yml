@@ -6,10 +6,16 @@ services:
     ports:
       - "8080:80"
     volumes:
+      # Mount local point data (CSVs) into the container.
+      # Set POINT_DATA_PATH to the directory containing your CSV files + manifest.json,
+      # or leave it unset to default to ./point-data next to this file.
+      # Expected: YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv + manifest.json
+      - ${POINT_DATA_PATH:-./point-data}:/usr/share/nginx/html/data/01_Points:ro
       # Mount local raster files (GeoTIFFs) into the container.
-      # Set RASTER_DATA_PATH to the directory containing your .tif files,
+      # Set RASTER_DATA_PATH to the directory containing your .tif files + raster-layers.json,
       # or leave it unset to default to ./raster-data next to this file.
       # Expected structure inside the directory:
+      #   raster-layers.json
       #   01_Pathogens/SHIG/*.tif
       #   02_Risk_factors/{Floor,Roofs,Walls,Poultry,Ruminant,Swine}/*.tif
       - ${RASTER_DATA_PATH:-./raster-data}:/usr/share/nginx/html/data/cogs:ro

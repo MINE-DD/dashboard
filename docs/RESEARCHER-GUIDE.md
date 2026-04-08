@@ -20,11 +20,11 @@ The dashboard displays two kinds of data:
 
 ## Point Data (CSV Files)
 
-Point data files are CSV spreadsheets stored directly in the GitHub repository. When you upload a new file, the dashboard rebuilds and updates automatically within about 5 minutes.
+Point data files are CSV spreadsheets stored on the server in the point data directory (typically `point-data/` next to `docker-compose.prod.yml`). Changes take effect immediately on the next page refresh — no restart needed.
 
 ### Adding New Point Data
 
-1. Prepare your CSV file. It **must** be named using this pattern:
+1. **Prepare your CSV file.** It must be named using this exact pattern:
 
    ```
    YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv
@@ -32,12 +32,14 @@ Point data files are CSV spreadsheets stored directly in the GitHub repository. 
 
    For example: `2026-04-01_Plan-EO_Dashboard_point_data.csv`
 
-2. Make sure your CSV contains all of the required columns:
+   The date should be the date of the data, not the upload date.
+
+2. **Make sure your CSV contains all of the required columns:**
 
    | Column | Description |
    |--------|-------------|
    | `EST_ID` | Unique study identifier |
-   | `Pathogen` | Pathogen name (e.g., SHIG) |
+   | `Pathogen` | Pathogen name (e.g., `__Shigella__`) |
    | `AGE_VAL` | Age group value code |
    | `AGE_LAB` | Age group label |
    | `SYNDROME_VAL` | Syndrome value code |
@@ -49,25 +51,38 @@ Point data files are CSV spreadsheets stored directly in the GitHub repository. 
    | `CASES` | Number of cases |
    | `SAMPLES` | Number of samples |
 
-3. Go to your repository on GitHub.com.
+3. **Copy the CSV file** to the point data directory on the server.
 
-4. Navigate to **app** > **static** > **data** > **01_Points**.
+4. **Update `manifest.json`** in the same directory. Add the new file at the **top** of the `files` array:
 
-5. Click **Add file** > **Upload files**.
+   ```json
+   {
+     "files": [
+       {
+         "fileName": "2026-04-01_Plan-EO_Dashboard_point_data.csv",
+         "date": "2026-04-01",
+         "displayDate": "April 1, 2026"
+       },
+       {
+         "fileName": "2025-09-01_Plan-EO_Dashboard_point_data.csv",
+         "date": "2025-09-01",
+         "displayDate": "September 1, 2025"
+       }
+     ],
+     "lastUpdated": "2026-04-01T00:00:00.000Z",
+     "generatedBy": "manual"
+   }
+   ```
 
-6. Drag your CSV file into the upload area, or click "choose your files" to browse.
+   The dashboard loads the **first file** in the list, so newest should be first.
 
-7. At the bottom of the page, leave the commit message as-is (or write something like "Add April 2026 data"), make sure **"Commit directly to the main branch"** is selected, and click **Commit changes**.
-
-8. The dashboard will update automatically in about 5 minutes.
+5. **Refresh the dashboard** in your browser. The new data should appear immediately.
 
 ### Removing Point Data
 
-1. Go to your repository on GitHub.com.
-2. Navigate to **app** > **static** > **data** > **01_Points**.
-3. Click the file you want to remove.
-4. Click the trash can icon in the top-right corner of the file view.
-5. Click **Commit changes**.
+1. Delete the CSV file from the point data directory on the server.
+2. Remove the corresponding entry from `manifest.json`.
+3. Refresh the dashboard.
 6. The dashboard will rebuild without that file.
 
 ---
