@@ -5,6 +5,14 @@ services:
     image: ghcr.io/YOUR_ORG/plan-eo-dashboard:latest
     ports:
       - "8080:80"
+    volumes:
+      # Mount local raster files (GeoTIFFs) into the container.
+      # Set RASTER_DATA_PATH to the directory containing your .tif files,
+      # or leave it unset to default to ./raster-data next to this file.
+      # Expected structure inside the directory:
+      #   01_Pathogens/SHIG/*.tif
+      #   02_Risk_factors/{Floor,Roofs,Walls,Poultry,Ruminant,Swine}/*.tif
+      - ${RASTER_DATA_PATH:-./raster-data}:/usr/share/nginx/html/data/cogs:ro
     restart: unless-stopped
 
   # Optional: auto-pull new images when researchers upload new data

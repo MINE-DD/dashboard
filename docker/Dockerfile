@@ -16,6 +16,7 @@ ARG VITE_MAPTILER_KEY=vJWNfIkxpqqguYqYGv4V
 # Generate manifest from local CSV files and build static site
 # Uses /data/01_Points as the data path (served by nginx from the same build)
 ENV VITE_R2_POINTS_BASE_URL=/data/01_Points
+ENV VITE_RASTER_BASE_URL=/data/cogs/
 ENV VITE_MAPTILER_KEY=${VITE_MAPTILER_KEY}
 ENV BASE_PATH=""
 
