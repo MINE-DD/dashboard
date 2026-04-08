@@ -7,6 +7,13 @@ The dashboard displays two kinds of data:
 - **Point data** (CSV files) — individual study locations shown as dots on the map
 - **Raster layers** (GeoTIFF files) — heatmap-style layers that cover larger areas
 
+**Working examples** of all configuration files are included in the repository:
+- `point-data/manifest.json` — example point data manifest
+- `point-data/2025-09-01_Plan-EO_Dashboard_point_data.csv` — example CSV data file
+- `raster-data/raster-layers.json` — example raster layer configuration with all current layers
+
+Use these as templates when adding your own data.
+
 ---
 
 ## Table of Contents
@@ -82,8 +89,7 @@ Point data files are CSV spreadsheets stored on the server in the point data dir
 
 1. Delete the CSV file from the point data directory on the server.
 2. Remove the corresponding entry from `manifest.json`.
-3. Refresh the dashboard.
-6. The dashboard will rebuild without that file.
+3. Refresh the dashboard in your browser.
 
 ---
 
@@ -106,12 +112,12 @@ This is the file that controls which raster layers appear in the dashboard. Each
 |-------|-------------|-------------|
 | `name` | All layers | Display name shown in the dashboard |
 | `path` | All layers | File path relative to the raster data directory (e.g., `01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif`) |
-| `type` | All layers | Either `"pathogen"` or `"risk_factor"` |
-| `indicator` | All layers | Short code or label for the indicator |
+| `type` | All layers | Either `"Pathogen"` or `"Risk Factor"` (exact capitalization required) |
+| `indicator` | All layers | What the values represent, e.g. `"Prevalence (%)"` or `"Standard error"` |
 | `definition` | All layers | Human-readable description of what this layer shows |
-| `pathogen` | Pathogens | Pathogen code — **must match the Pathogen column in your CSV exactly** |
-| `ageGroup` | Pathogens | Age group code that matches `AGE_VAL` in the CSV |
-| `syndrome` | Pathogens | Syndrome code that matches `SYNDROME_VAL` in the CSV |
+| `pathogen` | Pathogens | Pathogen identifier — **must match the `Pathogen` column in your CSV exactly** (e.g. `"__Shigella__"`) |
+| `ageGroup` | Pathogens | Age group label — **must match `AGE_LAB` in the CSV exactly** (e.g. `"0-11 months"`) |
+| `syndrome` | Pathogens | Syndrome label — **must match `SYNDROME_LAB` in the CSV exactly** (e.g. `"Asymptomatic"`) |
 | `category` | Risk Factors | Either `"Housing"` or `"Animal Intervention"` |
 | `period` | Optional | Time period the data covers |
 | `study` | Optional | Name or reference for the source study |
@@ -149,34 +155,45 @@ This is the file that controls which raster layers appear in the dashboard. Each
 
 ### Example: Adding a New Pathogen Layer
 
+Say you have a new ETEC raster for children 0-11 months. You would add this entry to the `layers` array in `raster-layers.json`:
+
 ```json
 {
-  "name": "SHIG 0-11m Asymptomatic Prevalence",
-  "path": "01_Pathogens/SHIG/SHIG_0011_Asym_Pr.tif",
-  "type": "pathogen",
-  "indicator": "Prevalence",
-  "definition": "Predicted prevalence of asymptomatic Shigella infection in children aged 0-11 months",
-  "pathogen": "SHIG",
-  "ageGroup": "0011",
-  "syndrome": "Asym",
-  "period": "2000-2020",
-  "study": "Smith et al. 2024",
+  "name": "ETEC – 0-11 months – Asymptomatic",
+  "path": "01_Pathogens/ETEC/ETEC_0011_Asym_Pr.tif",
+  "type": "Pathogen",
+  "pathogen": "__ETEC__",
+  "ageGroup": "0-11 months",
+  "syndrome": "Asymptomatic",
+  "indicator": "Prevalence (%)",
+  "definition": "Predicted prevalence of ETEC",
+  "period": "2020",
+  "study": "Author et al. 2024, Journal Name",
   "hyperlink": "https://doi.org/10.1234/example"
 }
 ```
+
+**Important:** The `pathogen`, `ageGroup`, and `syndrome` values must match your CSV point data exactly. Open your CSV and check the `Pathogen`, `AGE_LAB`, and `SYNDROME_LAB` columns to find the correct values.
 
 ### Example: Adding a New Risk Factor Layer
 
 ```json
 {
-  "name": "Finished Floor Prevalence",
-  "path": "02_Risk_factors/Floor/Flr_Fin_Pr.tif",
-  "type": "risk_factor",
-  "indicator": "Prevalence",
-  "definition": "Predicted prevalence of households with finished flooring",
-  "category": "Housing"
+  "name": "Water Access – Coverage",
+  "path": "02_Risk_factors/Water/Wtr_Acc_Pr.tif",
+  "type": "Risk Factor",
+  "category": "Housing",
+  "indicator": "Coverage (%)",
+  "definition": "Predicted coverage of improved water access",
+  "period": "2023",
+  "study": "Author et al. 2024, Journal Name",
+  "hyperlink": "https://doi.org/10.1234/example"
 }
 ```
+
+### Reference: Existing Config File
+
+A complete working example with all current layers is included in the repository at `raster-data/raster-layers.json`. Use it as a reference when adding new entries — copy an existing entry and modify the fields.
 
 ---
 
@@ -195,11 +212,12 @@ This is the file that controls which raster layers appear in the dashboard. Each
 
 - The `.tif` file may be corrupted or in the wrong format. Raster files must be **Cloud Optimized GeoTIFFs** (COGs). If you are unsure, ask the person who generated the file to confirm it was saved as a COG.
 
-### Point data doesn't appear after upload
+### Point data doesn't appear after adding a new CSV
 
 - Check that the CSV file name follows the pattern exactly: `YYYY-MM-DD_Plan-EO_Dashboard_point_data.csv`
-- Go to the **Actions** tab on GitHub to see if the build succeeded or failed.
-- If the build failed, click on it for details — the most common cause is a file naming issue.
+- Check that you updated `manifest.json` and the new file is listed **first** in the `files` array
+- Verify `manifest.json` is valid JSON — paste it into [jsonlint.com](https://jsonlint.com) to check
+- Visit `http://your-server:8080/data/01_Points/manifest.json` in your browser — if you get a 404, ask your IT admin to check the volume mount
 
 ---
 
