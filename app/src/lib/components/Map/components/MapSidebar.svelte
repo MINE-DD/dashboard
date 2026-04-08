@@ -42,7 +42,11 @@
 		// Import data update date
 		dataUpdateDate
 	} from '../store';
-	import { writable, derived } from 'svelte/store';
+	import { writable, derived, get } from 'svelte/store';
+	import { loadRasterLayersFromConfig, rasterConfigLoaded } from '$lib/stores/raster.store';
+	import { loadFilterRasterMappings } from '$lib/components/Map/store/filterRasterMapping';
+	import { initRasterMetadata } from '$lib/services/rasterMetadata';
+	import { loadRasterConfig } from '$lib/services/rasterConfig';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
@@ -96,21 +100,10 @@
 	let pathogensWithRasterLayers = new Set<string>();
 	let showRiskFactors = false; // Toggle state for risk factors section
 
-	// Risk factor and intervention layer names (matching the names in raster.store.ts)
-	// Only tracking Prevalence (Pr) layers, not Standard Error (SE)
-	const housingLayerNames = [
-		'Floor Finished Pr',
-		'Roofs Finished Pr',
-		'Walls Finished Pr'
-	];
-
-	const animalInterventionLayerNames = [
-		'Poultry Pr',
-		'Ruminant Pr',
-		'Swine Pr'
-	];
-
-	const riskFactorLayerNames = [...housingLayerNames, ...animalInterventionLayerNames];
+	// Risk factor and intervention layer names — populated from config in onMount
+	let housingLayerNames: string[] = [];
+	let animalInterventionLayerNames: string[] = [];
+	let riskFactorLayerNames: string[] = [];
 
 	// Derived store that checks if ANY raster layers are visible (auto-shown OR risk factors)
 	const hasVisibleRasterLayers = derived(
@@ -193,7 +186,8 @@
 	// Initialize a set of pathogens that have raster layers
 	function initPathogensWithRasterLayers() {
 		pathogensWithRasterLayers.clear();
-		filterToRasterMappings.forEach((mapping) => {
+		const mappings = get(filterToRasterMappings);
+		mappings.forEach((mapping) => {
 			if (mapping.pathogen) {
 				pathogensWithRasterLayers.add(mapping.pathogen);
 			}
@@ -207,8 +201,9 @@
 
 		// Strip ^^ prefix if present for comparison with raster mappings
 		const cleanValue = value.startsWith('^^') ? value.substring(2) : value;
+		const mappings = get(filterToRasterMappings);
 
-		return filterToRasterMappings.some((mapping: FilterToRasterMapping) => {
+		return mappings.some((mapping: FilterToRasterMapping) => {
 			if (type === 'ageGroup') return mapping.ageGroup === cleanValue;
 			if (type === 'syndrome') return mapping.syndrome === cleanValue;
 			return false;
@@ -403,7 +398,22 @@
 	}
 
 	// Initialize on mount
-	onMount(() => {
+	onMount(async () => {
+		// Load raster config from JSON — must complete before initializing layers/filters
+		await initRasterMetadata();
+		await loadRasterLayersFromConfig();
+		await loadFilterRasterMappings();
+
+		// Build risk factor layer name lists from config
+		const config = await loadRasterConfig();
+		housingLayerNames = config.layers
+			.filter(l => l.type === 'Risk Factor' && l.category === 'Housing' && l.indicator !== 'Standard error')
+			.map(l => l.name);
+		animalInterventionLayerNames = config.layers
+			.filter(l => l.type === 'Risk Factor' && l.category === 'Animal Intervention')
+			.map(l => l.name);
+		riskFactorLayerNames = [...housingLayerNames, ...animalInterventionLayerNames];
+
 		// Initialize the filter-to-raster connection
 		filterRasterUnsubscribe = initFilterRasterConnection();
 
