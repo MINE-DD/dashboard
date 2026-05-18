@@ -35,10 +35,17 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
 
           volumeMounts:
-            - name: dashboard-storage
-              mountPath: /usr/share/nginx/html/data
+            - name: dashboard-points-storage
+              mountPath: /usr/share/nginx/html/data/01_Points
+
+            - name: dashboard-cogs-storage
+              mountPath: /usr/share/nginx/html/data/cogs
 
       volumes:
-        - name: dashboard-storage
+        - name: dashboard-points-storage
           persistentVolumeClaim:
             claimName: plan-eo-dashboard-pvc
+
+        - name: dashboard-cogs-storage
+          persistentVolumeClaim:
+            claimName: plan-eo-cogs-pvc
