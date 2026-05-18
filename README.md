@@ -24,21 +24,22 @@ The Plan-EO Dashboard is a web application that enables researchers, policymaker
 ```bash
 ## GitHub Release & Tagging Steps
 
-* Go to your GitHub repository in the browser
-* Click on the **Releases** section (top menu)
-* Click **Draft a new release**
-* Select an existing tag or create a new tag (example: `v1.0.0` or `prod-1.0.8`)
-* Add a release title (example: `Production Release v1.0.8`)
-* Add a description of changes (what was updated or fixed)
-* Click **Publish release**
-* Verify the release is visible under the Releases page
-* Confirm correct tag and commit are linked
+1. Go to your GitHub repository in the browser  
+2. Click on the **Releases** section (top menu)  
+3. Click **Draft a new release**  
+4. Select an existing tag or create a new tag (example: `prod-1.0.8`)  
+5. Add a release title (example: `Production Release v1.0.8`)  
+6. Add release notes (what was updated or fixed)  
+7. Click **Publish release**  
+8. Verify the release is visible under the Releases page  
+9. Confirm the correct tag and commit are linked  
 
-### Best Practices
+## Best Practices
 
-* Always create release after successful deployment
-* Use consistent versioning (`prod-x.x.x` or `v1.0.0`)
-* Add clear release notes for every tag
+- Always create a release after successful deployment  
+- Use consistent versioning (`prod-x.x.x` or `v1.0.0`)  
+- Keep release notes clear and simple  
+- Never modify or reuse existing tags  
 
 ### Development
 
