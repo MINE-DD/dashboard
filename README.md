@@ -17,24 +17,28 @@ The Plan-EO Dashboard is a web application that enables researchers, policymaker
 
 ## Quick Start
 
-### Production Deployment (Docker)
+### Production Deployment (UVA-RC Devops env)
 
-Prerequisites: Docker and Docker Compose installed on a Linux server.
+
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR-ORG/dashboard.git
-cd dashboard
+## GitHub Release & Tagging Steps
 
-# Place raster GeoTIFF files in ./raster-data/ (see Deployment Guide)
+* Go to your GitHub repository in the browser
+* Click on the **Releases** section (top menu)
+* Click **Draft a new release**
+* Select an existing tag or create a new tag (example: `v1.0.0` or `prod-1.0.8`)
+* Add a release title (example: `Production Release v1.0.8`)
+* Add a description of changes (what was updated or fixed)
+* Click **Publish release**
+* Verify the release is visible under the Releases page
+* Confirm correct tag and commit are linked
 
-# Start the dashboard
-docker compose -f docker-compose.prod.yml up -d
-```
+### Best Practices
 
-The dashboard runs at `http://your-server:8080`.
-
-Full setup instructions (GitHub Container Registry, Watchtower auto-updates, raster volume mounts): [Deployment Guide](docs/DEPLOYMENT.md)
+* Always create release after successful deployment
+* Use consistent versioning (`prod-x.x.x` or `v1.0.0`)
+* Add clear release notes for every tag
 
 ### Development
 
