@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "plan-eo-dashboard.fullname" . }}
+  labels:
+    {{- include "plan-eo-dashboard.labels" . | nindent 4 }}
+
+spec:
+  replicas: {{ .Values.replicaCount }}
+
+  selector:
+    matchLabels:
+      {{- include "plan-eo-dashboard.selectorLabels" . | nindent 6 }}
+
+  template:
+    metadata:
+      labels:
+        {{- include "plan-eo-dashboard.labels" . | nindent 8 }}
+
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+
+      containers:
+        - name: plan-eo-dashboard
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          volumeMounts:
+            - name: dashboard-points-storage
+              mountPath: /usr/share/nginx/html/data/01_Points
+
+            - name: dashboard-cogs-storage
+              mountPath: /usr/share/nginx/html/data/cogs
+
+      volumes:
+        - name: dashboard-points-storage
+          persistentVolumeClaim:
+            claimName: plan-eo-dashboard-pvc
+
+        - name: dashboard-cogs-storage
+          persistentVolumeClaim:
+            claimName: plan-eo-cogs-pvc

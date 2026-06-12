@@ -46,7 +46,9 @@ export {
 export {
   autoVisibleRasterLayers,
   initFilterRasterConnection,
-  rasterVisualizationEnabled
+  rasterVisualizationEnabled,
+  filterToRasterMappings,
+  loadFilterRasterMappings
 } from './filterRasterMapping';
 
 // Re-export the filter manager functions from the new filter store

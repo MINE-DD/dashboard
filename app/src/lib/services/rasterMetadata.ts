@@ -1,54 +1,45 @@
 /**
- * Service for managing raster layer metadata from CSV file
+ * Service for managing raster layer metadata.
+ * Metadata is loaded from raster-layers.json via rasterConfig.
  */
 
 export interface RasterMetadata {
-	type: 'Pathogen' | 'Risk Factor';
-	variableName: string;
-	fileName: string;
-	ageGroup?: string;
-	syndrome?: string;
-	indicator: string;
-	definition: string;
-	period: string;
-	study: string;
-	source: string;
-	hyperlink: string;
+  type: 'Pathogen' | 'Risk Factor';
+  variableName: string;
+  fileName: string;
+  ageGroup?: string;
+  syndrome?: string;
+  indicator: string;
+  definition: string;
+  period: string;
+  study: string;
+  source: string;
+  hyperlink: string;
 }
 
+import { loadRasterConfig, configToMetadata } from '$lib/services/rasterConfig';
+
 // Map of file names (without extension) to metadata
-const metadataMap = new Map<string, RasterMetadata>();
+let metadataMap = new Map<string, RasterMetadata>();
+let initialized = false;
 
-// Initialize metadata - this would normally load from CSV but hardcoded for reliability
-function initializeMetadata() {
-	// Pathogen: Shigella
-	const shigellaMeta = {
-		type: 'Pathogen' as const,
-		definition: 'Predicted prevalence of Shigella spp.',
-		period: '2018',
-		study: 'Spatiotemporal model of Shigella',
-		source: 'Badr, Colston et al. 2023, Lancet Glob Health',
-		hyperlink: 'https://doi.org/10.1016/S2214-109X(22)00549-6'
-	};
+/**
+ * Load metadata from raster-layers.json config.
+ * Called once at app startup.
+ */
+export async function initRasterMetadata(): Promise<void> {
+  if (initialized) return;
 
-	// SHIG 0-11 months
-	metadataMap.set('SHIG_0011_Asym_Pr', {
-		...shigellaMeta,
-		variableName: 'SHIG',
-		fileName: 'SHIG_0011_Asym_Pr',
-		ageGroup: '0-11 months',
-		syndrome: 'Asymptomatic',
-		indicator: 'Prevalence (%)'
-	});
+  const config = await loadRasterConfig();
+  metadataMap = new Map();
 
-	metadataMap.set('SHIG_0011_Comm_Pr', {
-		...shigellaMeta,
-		variableName: 'SHIG',
-		fileName: 'SHIG_0011_Comm_Pr',
-		ageGroup: '0-11 months',
-		syndrome: 'Community detected diarrhea',
-		indicator: 'Prevalence (%)'
-	});
+  for (const layer of config.layers) {
+    const meta = configToMetadata(layer) as RasterMetadata;
+    const fileName = layer.path.split('/').pop()?.replace(/\.tif$/i, '') || '';
+    if (fileName) {
+      metadataMap.set(fileName, meta);
+    }
+  }
 
 	metadataMap.set('SHIG_0011_Medi_Pr', {
 		...shigellaMeta,
@@ -293,54 +284,33 @@ function initializeMetadata() {
 		definition: 'Predicted coverage of swine ownership',
 		hyperlink: 'https://doi.org/10.1371/journal.pgph.0003338'
 	});
-}
 
-// Initialize on module load
-initializeMetadata();
+  initialized = true;
+}
 
 /**
  * Get metadata for a raster layer by file name
- * @param fileName File name without extension (e.g., "SHIG_0011_Asym_Pr")
- * @returns Metadata object or undefined if not found
  */
 export function getRasterMetadata(fileName: string): RasterMetadata | undefined {
-	// Try exact match first
-	if (metadataMap.has(fileName)) {
-		return metadataMap.get(fileName);
-	}
+  if (metadataMap.has(fileName)) {
+    return metadataMap.get(fileName);
+  }
 
-	// Try extracting just the filename from a URL or path
-	const fileNameMatch = fileName.match(/([^/]+)\.(tif|tiff)$/i);
-	if (fileNameMatch) {
-		const baseName = fileNameMatch[1];
-		return metadataMap.get(baseName);
-	}
+  const fileNameMatch = fileName.match(/([^/]+)\.(tif|tiff)$/i);
+  if (fileNameMatch) {
+    const baseName = fileNameMatch[1];
+    return metadataMap.get(baseName);
+  }
 
-	// Try extracting from the layer name format (e.g., "SHIG 0-11 Asym Pr")
-	const layerNameParts = fileName.split(' ');
-	if (layerNameParts.length >= 4) {
-		// Convert layer name format to file name format
-		const pathogen = layerNameParts[0];
-		const age = layerNameParts[1].replace('-', '');
-		const syndrome = layerNameParts[2];
-		const type = layerNameParts[3];
-		const reconstructed = `${pathogen}_${age}_${syndrome}_${type}`;
-		return metadataMap.get(reconstructed);
-	}
-
-	return undefined;
+  return undefined;
 }
 
 /**
  * Get metadata by matching the source URL
- * @param sourceUrl The full URL of the raster file
- * @returns Metadata object or undefined if not found
  */
 export function getRasterMetadataByUrl(sourceUrl: string): RasterMetadata | undefined {
-	// Extract filename from URL
-	const urlParts = sourceUrl.split('/');
-	const fileNameWithExt = urlParts[urlParts.length - 1];
-	const fileName = fileNameWithExt.replace(/\.(tif|tiff)$/i, '');
-	
-	return getRasterMetadata(fileName);
+  const urlParts = sourceUrl.split('/');
+  const fileNameWithExt = urlParts[urlParts.length - 1];
+  const fileName = fileNameWithExt.replace(/\.(tif|tiff)$/i, '');
+  return getRasterMetadata(fileName);
 }
