@@ -1,4 +1,4 @@
-import { derived, get } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
 import type { FilterToRasterMapping } from '$lib/types';
 import {
   selectedPathogens,
@@ -9,7 +9,8 @@ import {
 } from '$lib/stores/filter.store';
 import {
   rasterLayers,
-  updateRasterLayerVisibility
+  updateRasterLayerVisibility,
+  updateRasterLayerIsActive
 } from '$lib/stores/raster.store';
 
 // Base URL for R2 storage
@@ -40,8 +41,8 @@ export const filterToRasterMappings: FilterToRasterMapping[] = [
 
 // Create a derived store that calculates which raster layers should be visible based on filter selections
 export const autoVisibleRasterLayers = derived(
-  [selectedPathogens, selectedAgeGroups, selectedSyndromes, rasterLayers, ageGroupValToLab, syndromeValToLab],
-  ([$selectedPathogens, $selectedAgeGroups, $selectedSyndromes, $rasterLayers, $ageGroupValToLab, $syndromeValToLab]) => {
+  [selectedPathogens, selectedAgeGroups, selectedSyndromes, ageGroupValToLab, syndromeValToLab],
+  ([$selectedPathogens, $selectedAgeGroups, $selectedSyndromes, $ageGroupValToLab, $syndromeValToLab]) => {
     // If no filters are selected, no layers should be auto-shown
     if ($selectedPathogens.size === 0 && $selectedAgeGroups.size === 0 && $selectedSyndromes.size === 0) {
       return new Set<string>();
@@ -89,56 +90,48 @@ export const autoVisibleRasterLayers = derived(
   }
 );
 
+// Controls whether auto-matched raster layers are shown on the map
+export const rasterVisualizationEnabled = writable(true);
+
 // Subscribe to changes in the autoVisibleRasterLayers store and update layer visibility
 let previousAutoShownLayers = new Set<string>();
 
 // This function will be called whenever the autoVisibleRasterLayers store changes
 export function initFilterRasterConnection() {
   return autoVisibleRasterLayers.subscribe(($autoVisibleRasterLayers) => {
-    // Get the current state of all raster layers
+    const enabled = get(rasterVisualizationEnabled);
     const currentLayers = get(rasterLayers);
 
-    // First, handle layers that should no longer be auto-shown
+    // Deactivate layers that are no longer matched by the current filter selection
     previousAutoShownLayers.forEach(layerId => {
       if (!$autoVisibleRasterLayers.has(layerId)) {
         const layer = currentLayers.get(layerId);
         if (layer && layer.autoShown) {
-          // Only hide the layer if it was auto-shown (not manually toggled)
           updateRasterLayerVisibility(layerId, false);
-
-          // Update the layer in the store to remove the autoShown flag
+          updateRasterLayerIsActive(layerId, false);
           rasterLayers.update(layers => {
-            const layer = layers.get(layerId);
-            if (layer) {
-              layer.autoShown = false;
-            }
+            const l = layers.get(layerId);
+            if (l) l.autoShown = false;
             return new Map(layers);
           });
         }
       }
     });
 
-    // Then, handle layers that should be newly auto-shown
+    // Activate newly matched layers; only show on map if the toggle is on
     $autoVisibleRasterLayers.forEach(layerId => {
       const layer = currentLayers.get(layerId);
-      if (layer) {
-        // Only update if the layer exists and isn't already visible
-        if (!layer.isVisible) {
-          updateRasterLayerVisibility(layerId, true);
-
-          // Mark this layer as auto-shown
-          rasterLayers.update(layers => {
-            const layer = layers.get(layerId);
-            if (layer) {
-              layer.autoShown = true;
-            }
-            return new Map(layers);
-          });
-        }
+      if (layer && !layer.autoShown) {
+        if (enabled) updateRasterLayerVisibility(layerId, true);
+        updateRasterLayerIsActive(layerId, true);
+        rasterLayers.update(layers => {
+          const l = layers.get(layerId);
+          if (l) l.autoShown = true;
+          return new Map(layers);
+        });
       }
     });
 
-    // Update our tracking of auto-shown layers
     previousAutoShownLayers = new Set($autoVisibleRasterLayers);
   });
 }

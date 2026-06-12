@@ -262,8 +262,13 @@ function initializeMetadata() {
 	});
 
 	// Animal Interventions
-	metadataMap.set('Pty_Yes_Pr', {
+	const animalMeta = {
 		...riskFactorMeta,
+		study: 'Spatial variation in animal ownership'
+	};
+
+	metadataMap.set('Pty_Yes_Pr', {
+		...animalMeta,
 		variableName: 'Poultry',
 		fileName: 'Pty_Yes_Pr',
 		indicator: 'Coverage (%)',
@@ -272,7 +277,7 @@ function initializeMetadata() {
 	});
 
 	metadataMap.set('Rum_Yes_Pr', {
-		...riskFactorMeta,
+		...animalMeta,
 		variableName: 'Ruminant',
 		fileName: 'Rum_Yes_Pr',
 		indicator: 'Coverage (%)',
@@ -281,7 +286,7 @@ function initializeMetadata() {
 	});
 
 	metadataMap.set('Pig_Yes_Pr', {
-		...riskFactorMeta,
+		...animalMeta,
 		variableName: 'Swine',
 		fileName: 'Pig_Yes_Pr',
 		indicator: 'Coverage (%)',
